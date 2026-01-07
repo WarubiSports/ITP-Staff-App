@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ITP Staff Hub
 
-## Getting Started
+Staff operations management app for the 1.FC Köln International Talent Pathway program.
 
-First, run the development server:
+## Overview
+
+This app serves as a **connector** between:
+- **Player App** (https://itp-player-app.vercel.app) - Daily operations for players
+- **Management App** (https://itp-pink.vercel.app) - Full player profiles and leads for top management
+
+The Staff Hub provides staff members with quick access to operational tasks, player information, and administrative functions.
+
+## Features
+
+- **Dashboard** - Overview of active players, pending tasks, and alerts
+- **Players** - Quick view of all players with links to full profiles
+- **Operations** - Training schedules, visa tracking, housing, and insurance management
+- **Tasks** - Staff task management with priorities and categories
+- **Settings** - Account management and app connections
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment variables
+
+Update `.env.local` with your Supabase credentials:
+
+```bash
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# App URLs (optional - defaults are set)
+NEXT_PUBLIC_PLAYER_APP_URL=https://itp-player-app.vercel.app
+NEXT_PUBLIC_MANAGEMENT_APP_URL=https://itp-pink.vercel.app
+```
+
+**Important:** Use the same Supabase project as the Player App and Management App to share authentication and data.
+
+### 3. Run the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Tables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app expects the following Supabase tables (shared with other ITP apps):
 
-## Learn More
+- `players` - Player profiles and information
+- `tasks` - Staff tasks and to-dos
+- `calendar_events` - Training sessions, matches, and events
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Deploy to Vercel:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+vercel
+```
 
-## Deploy on Vercel
+Make sure to configure the environment variables in your Vercel project settings.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Tech Stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Framework:** Next.js 16 with App Router
+- **Styling:** Tailwind CSS
+- **Database:** Supabase (PostgreSQL)
+- **Authentication:** Supabase Auth
+- **Icons:** Lucide React
+
+## License
+
+Private - 1.FC Köln International Talent Pathway

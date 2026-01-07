@@ -1,0 +1,74 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { AppLayout } from '@/components/layout/app-layout'
+import { OperationsContent } from './operations-content'
+
+export const dynamic = 'force-dynamic'
+
+export default async function OperationsPage() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  // Fetch players for visa and housing info
+  const { data: players } = await supabase
+    .from('players')
+    .select('*')
+    .eq('status', 'active')
+    .order('last_name')
+
+  // Fetch calendar events (if table exists)
+  const { data: events } = await supabase
+    .from('calendar_events')
+    .select('*')
+    .gte('date', new Date().toISOString().split('T')[0])
+    .order('date')
+    .limit(20)
+
+  // Fetch WellPass memberships
+  const { data: wellpassMemberships } = await supabase
+    .from('wellpass_memberships')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  // Fetch medical appointments
+  const { data: medicalAppointments } = await supabase
+    .from('medical_appointments')
+    .select('*')
+    .order('appointment_date', { ascending: false })
+
+  // Fetch insurance claims
+  const { data: insuranceClaims } = await supabase
+    .from('insurance_claims')
+    .select('*')
+    .order('invoice_date', { ascending: false })
+
+  // Fetch player trials
+  const { data: trials } = await supabase
+    .from('player_trials')
+    .select('*')
+    .order('trial_start_date', { ascending: false })
+
+  return (
+    <AppLayout
+      title="Operations"
+      subtitle="Training, matches, visa & accommodation"
+      user={user}
+    >
+      <OperationsContent
+        players={players || []}
+        events={events || []}
+        wellpassMemberships={wellpassMemberships || []}
+        medicalAppointments={medicalAppointments || []}
+        insuranceClaims={insuranceClaims || []}
+        trials={trials || []}
+      />
+    </AppLayout>
+  )
+}
