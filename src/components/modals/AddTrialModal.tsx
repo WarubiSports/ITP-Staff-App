@@ -8,34 +8,37 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 
+interface Player {
+  id: string
+  player_id: string
+  first_name: string
+  last_name: string
+}
+
 interface AddTrialModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  players: Player[]
 }
 
-export function AddTrialModal({ isOpen, onClose, onSuccess }: AddTrialModalProps) {
+export function AddTrialModal({ isOpen, onClose, onSuccess, players }: AddTrialModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    date_of_birth: '',
-    nationality: '',
-    positions: '',
-    current_club: '',
+    player_id: '',
+    trial_club: '',
     trial_start_date: '',
     trial_end_date: '',
     status: 'scheduled',
-    evaluation_status: '',
-    coach_feedback: '',
-    technical_rating: '',
-    tactical_rating: '',
-    physical_rating: '',
-    mental_rating: '',
-    overall_recommendation: '',
-    agent_name: '',
-    agent_contact: '',
+    club_contact_name: '',
+    club_contact_email: '',
+    club_contact_phone: '',
+    trial_outcome: '',
+    offer_details: '',
+    itp_notes: '',
+    travel_arranged: false,
+    accommodation_arranged: false,
     notes: '',
   })
 
@@ -46,55 +49,42 @@ export function AddTrialModal({ isOpen, onClose, onSuccess }: AddTrialModalProps
 
     try {
       const supabase = createClient()
-      const positions = formData.positions
-        ? formData.positions.split(',').map((p) => p.trim()).filter(Boolean)
-        : null
 
       const { error: insertError } = await supabase
         .from('player_trials')
         .insert({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          date_of_birth: formData.date_of_birth || null,
-          nationality: formData.nationality || null,
-          positions: positions,
-          current_club: formData.current_club || null,
+          player_id: formData.player_id,
+          trial_club: formData.trial_club,
           trial_start_date: formData.trial_start_date,
           trial_end_date: formData.trial_end_date,
           status: formData.status,
-          evaluation_status: formData.evaluation_status || null,
-          coach_feedback: formData.coach_feedback || null,
-          technical_rating: formData.technical_rating ? parseInt(formData.technical_rating) : null,
-          tactical_rating: formData.tactical_rating ? parseInt(formData.tactical_rating) : null,
-          physical_rating: formData.physical_rating ? parseInt(formData.physical_rating) : null,
-          mental_rating: formData.mental_rating ? parseInt(formData.mental_rating) : null,
-          overall_recommendation: formData.overall_recommendation || null,
-          agent_name: formData.agent_name || null,
-          agent_contact: formData.agent_contact || null,
+          club_contact_name: formData.club_contact_name || null,
+          club_contact_email: formData.club_contact_email || null,
+          club_contact_phone: formData.club_contact_phone || null,
+          trial_outcome: formData.trial_outcome || null,
+          offer_details: formData.offer_details || null,
+          itp_notes: formData.itp_notes || null,
+          travel_arranged: formData.travel_arranged,
+          accommodation_arranged: formData.accommodation_arranged,
           notes: formData.notes || null,
         })
 
       if (insertError) throw insertError
 
       setFormData({
-        first_name: '',
-        last_name: '',
-        date_of_birth: '',
-        nationality: '',
-        positions: '',
-        current_club: '',
+        player_id: '',
+        trial_club: '',
         trial_start_date: '',
         trial_end_date: '',
         status: 'scheduled',
-        evaluation_status: '',
-        coach_feedback: '',
-        technical_rating: '',
-        tactical_rating: '',
-        physical_rating: '',
-        mental_rating: '',
-        overall_recommendation: '',
-        agent_name: '',
-        agent_contact: '',
+        club_contact_name: '',
+        club_contact_email: '',
+        club_contact_phone: '',
+        trial_outcome: '',
+        offer_details: '',
+        itp_notes: '',
+        travel_arranged: false,
+        accommodation_arranged: false,
         notes: '',
       })
       onSuccess()
@@ -106,6 +96,14 @@ export function AddTrialModal({ isOpen, onClose, onSuccess }: AddTrialModalProps
     }
   }
 
+  const playerOptions = [
+    { value: '', label: 'Select a player...' },
+    ...players.map((p) => ({
+      value: p.id,
+      label: `${p.first_name} ${p.last_name} (${p.player_id})`,
+    })),
+  ]
+
   const statusOptions = [
     { value: 'scheduled', label: 'Scheduled' },
     { value: 'ongoing', label: 'Ongoing' },
@@ -113,32 +111,16 @@ export function AddTrialModal({ isOpen, onClose, onSuccess }: AddTrialModalProps
     { value: 'cancelled', label: 'Cancelled' },
   ]
 
-  const evaluationOptions = [
-    { value: '', label: 'Not evaluated yet' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'positive', label: 'Positive' },
-    { value: 'negative', label: 'Negative' },
-    { value: 'undecided', label: 'Undecided' },
-  ]
-
-  const recommendationOptions = [
-    { value: '', label: 'No recommendation yet' },
-    { value: 'sign', label: 'Sign' },
-    { value: 'extend_trial', label: 'Extend Trial' },
-    { value: 'reject', label: 'Reject' },
-    { value: 'undecided', label: 'Undecided' },
-  ]
-
-  const ratingOptions = [
-    { value: '', label: '-' },
-    ...Array.from({ length: 10 }, (_, i) => ({
-      value: String(i + 1),
-      label: String(i + 1),
-    })),
+  const outcomeOptions = [
+    { value: '', label: 'Pending / Not yet known' },
+    { value: 'pending', label: 'Awaiting decision' },
+    { value: 'offer_received', label: 'Offer received' },
+    { value: 'no_offer', label: 'No offer' },
+    { value: 'player_declined', label: 'Player declined' },
   ]
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Schedule Player Trial" size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Schedule External Trial" size="xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -146,51 +128,25 @@ export function AddTrialModal({ isOpen, onClose, onSuccess }: AddTrialModalProps
           </div>
         )}
 
+        <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
+          Track when an ITP player goes to trial at another club.
+        </div>
+
         <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-          <h3 className="font-medium text-gray-900">Player Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="First Name *"
-              value={formData.first_name}
-              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-              placeholder="First name"
-              required
-            />
-            <Input
-              label="Last Name *"
-              value={formData.last_name}
-              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-              placeholder="Last name"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <Input
-              label="Date of Birth"
-              type="date"
-              value={formData.date_of_birth}
-              onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-            />
-            <Input
-              label="Nationality"
-              value={formData.nationality}
-              onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-              placeholder="e.g., Germany"
-            />
-            <Input
-              label="Positions"
-              value={formData.positions}
-              onChange={(e) => setFormData({ ...formData, positions: e.target.value })}
-              placeholder="e.g., ST, LW"
-            />
-          </div>
-
+          <h3 className="font-medium text-gray-900">Player & Club</h3>
+          <Select
+            label="ITP Player *"
+            value={formData.player_id}
+            onChange={(e) => setFormData({ ...formData, player_id: e.target.value })}
+            options={playerOptions}
+            required
+          />
           <Input
-            label="Current Club"
-            value={formData.current_club}
-            onChange={(e) => setFormData({ ...formData, current_club: e.target.value })}
-            placeholder="Current club name"
+            label="Trial Club *"
+            value={formData.trial_club}
+            onChange={(e) => setFormData({ ...formData, trial_club: e.target.value })}
+            placeholder="e.g., Bayern Munich U19, Borussia Dortmund"
+            required
           />
         </div>
 
@@ -219,81 +175,83 @@ export function AddTrialModal({ isOpen, onClose, onSuccess }: AddTrialModalProps
               required
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.travel_arranged}
+                onChange={(e) => setFormData({ ...formData, travel_arranged: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">Travel arranged</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.accommodation_arranged}
+                onChange={(e) => setFormData({ ...formData, accommodation_arranged: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">Accommodation arranged</span>
+            </label>
+          </div>
         </div>
 
         <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-          <h3 className="font-medium text-gray-900">Evaluation</h3>
-          <div className="grid grid-cols-4 gap-4">
-            <Select
-              label="Technical"
-              value={formData.technical_rating}
-              onChange={(e) => setFormData({ ...formData, technical_rating: e.target.value })}
-              options={ratingOptions}
+          <h3 className="font-medium text-gray-900">Club Contact</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="Contact Name"
+              value={formData.club_contact_name}
+              onChange={(e) => setFormData({ ...formData, club_contact_name: e.target.value })}
+              placeholder="e.g., John Smith"
             />
-            <Select
-              label="Tactical"
-              value={formData.tactical_rating}
-              onChange={(e) => setFormData({ ...formData, tactical_rating: e.target.value })}
-              options={ratingOptions}
+            <Input
+              label="Contact Email"
+              type="email"
+              value={formData.club_contact_email}
+              onChange={(e) => setFormData({ ...formData, club_contact_email: e.target.value })}
+              placeholder="e.g., j.smith@club.com"
             />
-            <Select
-              label="Physical"
-              value={formData.physical_rating}
-              onChange={(e) => setFormData({ ...formData, physical_rating: e.target.value })}
-              options={ratingOptions}
-            />
-            <Select
-              label="Mental"
-              value={formData.mental_rating}
-              onChange={(e) => setFormData({ ...formData, mental_rating: e.target.value })}
-              options={ratingOptions}
+            <Input
+              label="Contact Phone"
+              value={formData.club_contact_phone}
+              onChange={(e) => setFormData({ ...formData, club_contact_phone: e.target.value })}
+              placeholder="e.g., +49 123 456789"
             />
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Evaluation Status"
-              value={formData.evaluation_status}
-              onChange={(e) => setFormData({ ...formData, evaluation_status: e.target.value })}
-              options={evaluationOptions}
-            />
-            <Select
-              label="Recommendation"
-              value={formData.overall_recommendation}
-              onChange={(e) => setFormData({ ...formData, overall_recommendation: e.target.value })}
-              options={recommendationOptions}
-            />
-          </div>
-
-          <Textarea
-            label="Coach Feedback"
-            value={formData.coach_feedback}
-            onChange={(e) => setFormData({ ...formData, coach_feedback: e.target.value })}
-            rows={2}
-            placeholder="Coach observations and feedback..."
+        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+          <h3 className="font-medium text-gray-900">Outcome</h3>
+          <Select
+            label="Trial Outcome"
+            value={formData.trial_outcome}
+            onChange={(e) => setFormData({ ...formData, trial_outcome: e.target.value })}
+            options={outcomeOptions}
           />
-        </div>
-
-        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-          <h3 className="font-medium text-gray-900">Agent Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Agent Name"
-              value={formData.agent_name}
-              onChange={(e) => setFormData({ ...formData, agent_name: e.target.value })}
-              placeholder="Agent name"
+          {formData.trial_outcome === 'offer_received' && (
+            <Textarea
+              label="Offer Details"
+              value={formData.offer_details}
+              onChange={(e) => setFormData({ ...formData, offer_details: e.target.value })}
+              rows={2}
+              placeholder="Contract details, terms, etc."
             />
-            <Input
-              label="Agent Contact"
-              value={formData.agent_contact}
-              onChange={(e) => setFormData({ ...formData, agent_contact: e.target.value })}
-              placeholder="Email or phone"
-            />
-          </div>
+          )}
         </div>
 
         <Textarea
-          label="Notes"
+          label="ITP Internal Notes"
+          value={formData.itp_notes}
+          onChange={(e) => setFormData({ ...formData, itp_notes: e.target.value })}
+          rows={2}
+          placeholder="Internal notes about this trial..."
+        />
+
+        <Textarea
+          label="General Notes"
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           rows={2}

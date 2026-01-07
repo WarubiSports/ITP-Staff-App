@@ -195,28 +195,25 @@ export interface InsuranceClaim {
   updated_at: string
 }
 
-// Player trials
+// Player trials - tracking ITP players trialing at external clubs
 export interface PlayerTrial {
   id: string
-  player_id?: string // Optional - might be for new prospects
-  first_name: string
-  last_name: string
-  date_of_birth?: string
-  nationality?: string
-  positions?: string[]
-  current_club?: string
+  player_id: string // Required - must be an existing ITP player
+  trial_club: string // The external club they're trialing at
   trial_start_date: string
   trial_end_date: string
   status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
-  evaluation_status?: 'pending' | 'positive' | 'negative' | 'undecided'
-  coach_feedback?: string
-  technical_rating?: number // 1-10
-  tactical_rating?: number // 1-10
-  physical_rating?: number // 1-10
-  mental_rating?: number // 1-10
-  overall_recommendation?: 'sign' | 'extend_trial' | 'reject' | 'undecided'
-  agent_name?: string
-  agent_contact?: string
+  // Club contact at the trial club
+  club_contact_name?: string
+  club_contact_email?: string
+  club_contact_phone?: string
+  // Outcome from the external club's perspective
+  trial_outcome?: 'pending' | 'offer_received' | 'no_offer' | 'player_declined'
+  offer_details?: string // Details if offer received
+  // ITP's internal notes
+  itp_notes?: string
+  travel_arranged?: boolean
+  accommodation_arranged?: boolean
   notes?: string
   created_at: string
   updated_at: string

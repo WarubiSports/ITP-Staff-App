@@ -20,7 +20,6 @@ import {
   CheckCircle,
   XCircle,
   Euro,
-  Star,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -900,17 +899,17 @@ export function OperationsContent({
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2 mb-3">
                   <UserPlus className="w-5 h-5 text-green-600" />
-                  <h3 className="font-semibold text-green-900">Active Trials ({activeTrials.length})</h3>
+                  <h3 className="font-semibold text-green-900">Active External Trials ({activeTrials.length})</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {activeTrials.map((trial) => (
                     <div key={trial.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
                       <div className="flex items-center gap-3">
-                        <Avatar name={`${trial.first_name} ${trial.last_name}`} size="sm" />
+                        <Avatar name={getPlayerName(trial.player_id)} size="sm" />
                         <div>
-                          <p className="font-medium">{trial.first_name} {trial.last_name}</p>
+                          <p className="font-medium">{getPlayerName(trial.player_id)}</p>
                           <p className="text-sm text-gray-500">
-                            {trial.current_club || 'No club'} • {trial.positions?.join(', ') || 'N/A'}
+                            Trialing at: {trial.trial_club}
                           </p>
                         </div>
                       </div>
@@ -929,15 +928,15 @@ export function OperationsContent({
               <CardContent className="py-12">
                 <div className="text-center text-gray-500">
                   <UserPlus className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-lg font-medium">No player trials</p>
-                  <p className="text-sm">Schedule trials to evaluate potential players</p>
+                  <p className="text-lg font-medium">No external trials</p>
+                  <p className="text-sm">Schedule trials when ITP players train with other clubs</p>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>All Trials</CardTitle>
+                <CardTitle>All External Trials</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -953,14 +952,13 @@ export function OperationsContent({
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <Avatar name={`${trial.first_name} ${trial.last_name}`} size="lg" />
+                          <Avatar name={getPlayerName(trial.player_id)} size="lg" />
                           <div>
                             <h3 className="font-semibold text-gray-900">
-                              {trial.first_name} {trial.last_name}
+                              {getPlayerName(trial.player_id)}
                             </h3>
                             <p className="text-sm text-gray-500">
-                              {trial.nationality && `${trial.nationality} • `}
-                              {trial.date_of_birth && formatDate(trial.date_of_birth)}
+                              Trialing at: <span className="font-medium text-gray-700">{trial.trial_club}</span>
                             </p>
                           </div>
                         </div>
@@ -972,12 +970,13 @@ export function OperationsContent({
                           }>
                             {trial.status}
                           </Badge>
-                          {trial.evaluation_status && (
+                          {trial.trial_outcome && (
                             <Badge variant={
-                              trial.evaluation_status === 'positive' ? 'success' :
-                              trial.evaluation_status === 'negative' ? 'danger' : 'warning'
+                              trial.trial_outcome === 'offer_received' ? 'success' :
+                              trial.trial_outcome === 'no_offer' ? 'danger' :
+                              trial.trial_outcome === 'player_declined' ? 'warning' : 'info'
                             }>
-                              {trial.evaluation_status}
+                              {trial.trial_outcome.replace('_', ' ')}
                             </Badge>
                           )}
                         </div>
@@ -985,67 +984,38 @@ export function OperationsContent({
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
                         <div>
-                          <p className="text-xs text-gray-500 uppercase">Position(s)</p>
-                          <p className="font-medium">{trial.positions?.join(', ') || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase">Current Club</p>
-                          <p className="font-medium">{trial.current_club || 'N/A'}</p>
-                        </div>
-                        <div>
                           <p className="text-xs text-gray-500 uppercase">Trial Period</p>
                           <p className="font-medium">
                             {formatDate(trial.trial_start_date)} - {formatDate(trial.trial_end_date)}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 uppercase">Agent</p>
-                          <p className="font-medium">{trial.agent_name || 'N/A'}</p>
+                          <p className="text-xs text-gray-500 uppercase">Club Contact</p>
+                          <p className="font-medium">{trial.club_contact_name || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase">Travel</p>
+                          <p className="font-medium">{trial.travel_arranged ? 'Arranged' : 'Not arranged'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase">Accommodation</p>
+                          <p className="font-medium">{trial.accommodation_arranged ? 'Arranged' : 'Not arranged'}</p>
                         </div>
                       </div>
 
-                      {/* Ratings */}
-                      {(trial.technical_rating || trial.tactical_rating || trial.physical_rating || trial.mental_rating) && (
-                        <div className="flex items-center gap-4 pt-3 border-t">
-                          {trial.technical_rating && (
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-500" />
-                              <span className="text-sm">Tech: {trial.technical_rating}/10</span>
-                            </div>
-                          )}
-                          {trial.tactical_rating && (
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-500" />
-                              <span className="text-sm">Tact: {trial.tactical_rating}/10</span>
-                            </div>
-                          )}
-                          {trial.physical_rating && (
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-500" />
-                              <span className="text-sm">Phys: {trial.physical_rating}/10</span>
-                            </div>
-                          )}
-                          {trial.mental_rating && (
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-500" />
-                              <span className="text-sm">Ment: {trial.mental_rating}/10</span>
-                            </div>
-                          )}
+                      {/* Offer Details */}
+                      {trial.trial_outcome === 'offer_received' && trial.offer_details && (
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-xs text-gray-500 uppercase mb-1">Offer Details</p>
+                          <p className="text-sm text-gray-700">{trial.offer_details}</p>
                         </div>
                       )}
 
-                      {/* Recommendation */}
-                      {trial.overall_recommendation && (
+                      {/* Notes */}
+                      {trial.itp_notes && (
                         <div className="mt-3 pt-3 border-t">
-                          <Badge
-                            variant={
-                              trial.overall_recommendation === 'sign' ? 'success' :
-                              trial.overall_recommendation === 'extend_trial' ? 'info' :
-                              trial.overall_recommendation === 'reject' ? 'danger' : 'warning'
-                            }
-                          >
-                            Recommendation: {trial.overall_recommendation.replace('_', ' ')}
-                          </Badge>
+                          <p className="text-xs text-gray-500 uppercase mb-1">ITP Notes</p>
+                          <p className="text-sm text-gray-700">{trial.itp_notes}</p>
                         </div>
                       )}
                     </div>
@@ -1083,6 +1053,7 @@ export function OperationsContent({
         isOpen={showTrialModal}
         onClose={() => setShowTrialModal(false)}
         onSuccess={handleRefresh}
+        players={players}
       />
     </div>
   )
