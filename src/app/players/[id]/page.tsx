@@ -32,11 +32,15 @@ export default async function PlayerDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  // Fetch houses for housing assignment
-  const { data: houses } = await supabase
-    .from('houses')
-    .select('id, name, address')
-    .order('name')
+  // Fetch houses and documents in parallel
+  const [{ data: houses }, { data: documents }] = await Promise.all([
+    supabase.from('houses').select('id, name, address').order('name'),
+    supabase
+      .from('player_documents')
+      .select('*')
+      .eq('player_id', player.id)
+      .order('created_at', { ascending: false }),
+  ])
 
   return (
     <AppLayout
@@ -44,7 +48,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       subtitle={player.player_id}
       user={user}
     >
-      <PlayerDetail player={player} houses={houses || []} />
+      <PlayerDetail player={player} houses={houses || []} documents={documents || []} />
     </AppLayout>
   )
 }

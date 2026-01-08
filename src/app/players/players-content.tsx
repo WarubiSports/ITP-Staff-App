@@ -2,7 +2,20 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search, Users, UserCheck, Clock, XCircle, Eye, UserPlus } from 'lucide-react'
+import {
+  Search,
+  Users,
+  UserCheck,
+  Clock,
+  XCircle,
+  Eye,
+  UserPlus,
+  Home,
+  Plane,
+  HeartPulse,
+  GraduationCap,
+  Car,
+} from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +36,22 @@ interface Player {
   program_end_date?: string
   cohort?: string
   house_id?: string
+  whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
+  whereabouts_details?: {
+    club?: string
+    return_date?: string
+    injury_type?: string
+    destination?: string
+  }
+}
+
+const whereaboutsConfig: Record<string, { icon: typeof Home; color: string; bg: string; label: string }> = {
+  at_academy: { icon: Home, color: 'text-green-600', bg: 'bg-green-100', label: 'At Academy' },
+  on_trial: { icon: UserCheck, color: 'text-blue-600', bg: 'bg-blue-100', label: 'On Trial' },
+  home_leave: { icon: Plane, color: 'text-purple-600', bg: 'bg-purple-100', label: 'Home Leave' },
+  injured: { icon: HeartPulse, color: 'text-red-600', bg: 'bg-red-100', label: 'Injured' },
+  school: { icon: GraduationCap, color: 'text-yellow-600', bg: 'bg-yellow-100', label: 'School' },
+  traveling: { icon: Car, color: 'text-orange-600', bg: 'bg-orange-100', label: 'Traveling' },
 }
 
 interface PlayersContentProps {
@@ -144,7 +173,11 @@ export function PlayersContent({ players }: PlayersContentProps) {
                   {player.positions && player.positions.length > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-gray-500">Position:</span>
-                      <span className="font-medium">{player.positions.join(', ')}</span>
+                      <span className="font-medium">
+                        {player.positions.map(p =>
+                          p.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+                        ).join(', ')}
+                      </span>
                     </div>
                   )}
                   {player.nationality && (
@@ -191,10 +224,26 @@ export function PlayersContent({ players }: PlayersContentProps) {
                       </Badge>
                     </div>
                   )}
+                  {/* Whereabouts */}
+                  {player.whereabouts_status && player.whereabouts_status !== 'at_academy' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">Location:</span>
+                      {(() => {
+                        const config = whereaboutsConfig[player.whereabouts_status]
+                        const Icon = config.icon
+                        return (
+                          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${config.bg}`}>
+                            <Icon className={`w-3 h-3 ${config.color}`} />
+                            <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <Link href={`/players/${player.player_id || player.id}`}>
+                  <Link href={`/players/${player.id}`}>
                     <Button variant="primary" size="sm" className="w-full">
                       <Eye className="w-4 h-4 mr-2" />
                       View / Edit

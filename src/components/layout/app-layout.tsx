@@ -20,7 +20,7 @@ export function AppLayout({ children, title, subtitle, user }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen w-full overflow-hidden bg-gray-50">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -45,7 +45,7 @@ export function AppLayout({ children, title, subtitle, user }: AppLayoutProps) {
           subtitle={subtitle}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-6 w-full">{children}</main>
       </div>
     </div>
   )

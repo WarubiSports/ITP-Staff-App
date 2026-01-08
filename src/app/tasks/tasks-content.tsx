@@ -28,6 +28,7 @@ interface Task {
   status: 'pending' | 'in_progress' | 'completed'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   category: string
+  assigned_to?: string
   player_id?: string
   due_date?: string
   created_at: string
@@ -40,13 +41,21 @@ interface Player {
   last_name: string
 }
 
+interface StaffMember {
+  id: string
+  email: string
+  full_name: string
+  role: string
+}
+
 interface TasksContentProps {
   tasks: Task[]
   players: Player[]
+  staff: StaffMember[]
   currentUserId: string
 }
 
-export function TasksContent({ tasks: initialTasks, players, currentUserId }: TasksContentProps) {
+export function TasksContent({ tasks: initialTasks, players, staff, currentUserId }: TasksContentProps) {
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -56,12 +65,14 @@ export function TasksContent({ tasks: initialTasks, players, currentUserId }: Ta
     priority: 'low' | 'medium' | 'high' | 'urgent'
     category: string
     due_date: string
+    assigned_to: string
   }>({
     title: '',
     description: '',
     priority: 'medium',
     category: 'other',
     due_date: '',
+    assigned_to: '',
   })
 
   const supabase = createClient()
@@ -107,6 +118,7 @@ export function TasksContent({ tasks: initialTasks, players, currentUserId }: Ta
         priority: newTask.priority,
         category: newTask.category,
         due_date: newTask.due_date || null,
+        assigned_to: newTask.assigned_to || null,
         status: 'pending',
         created_by: currentUserId,
       })
@@ -121,6 +133,7 @@ export function TasksContent({ tasks: initialTasks, players, currentUserId }: Ta
         priority: 'medium',
         category: 'other',
         due_date: '',
+        assigned_to: '',
       })
       setShowAddModal(false)
     }
@@ -229,6 +242,23 @@ export function TasksContent({ tasks: initialTasks, players, currentUserId }: Ta
                   </select>
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Assign To
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  value={newTask.assigned_to}
+                  onChange={(e) => setNewTask({ ...newTask, assigned_to: e.target.value })}
+                >
+                  <option value="">Unassigned</option>
+                  {staff.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.full_name || member.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <Input
                 label="Due Date (optional)"
                 type="date"
@@ -331,6 +361,14 @@ export function TasksContent({ tasks: initialTasks, players, currentUserId }: Ta
                           <CategoryIcon className="w-3 h-3" />
                           {task.category}
                         </span>
+                        {task.assigned_to && (
+                          <span className="flex items-center gap-1 text-sm text-blue-600">
+                            <User className="w-3 h-3" />
+                            {staff.find((s) => s.id === task.assigned_to)?.full_name ||
+                              staff.find((s) => s.id === task.assigned_to)?.email ||
+                              'Assigned'}
+                          </span>
+                        )}
                         {task.due_date && (
                           <span
                             className={cn(

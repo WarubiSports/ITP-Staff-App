@@ -20,18 +20,22 @@ import {
   CheckCircle,
   XCircle,
   Euro,
+  DoorOpen,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { formatDate, getDaysUntil } from '@/lib/utils'
-import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial } from '@/types'
+import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room } from '@/types'
 import {
   AddWellPassModal,
   AddMedicalAppointmentModal,
   AddInsuranceClaimModal,
   AddTrialModal,
+  AddEventModal,
 } from '@/components/modals'
 
 interface Player {
@@ -42,6 +46,7 @@ interface Player {
   visa_expiry?: string
   insurance_expiry?: string
   house_id?: string
+  room_id?: string
   program_end_date?: string
 }
 
@@ -62,6 +67,7 @@ interface OperationsContentProps {
   medicalAppointments: MedicalAppointment[]
   insuranceClaims: InsuranceClaim[]
   trials: PlayerTrial[]
+  rooms: Room[]
 }
 
 type TabType = 'schedule' | 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials'
@@ -73,6 +79,7 @@ export function OperationsContent({
   medicalAppointments,
   insuranceClaims,
   trials,
+  rooms,
 }: OperationsContentProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabType>('schedule')
@@ -82,6 +89,7 @@ export function OperationsContent({
   const [showMedicalModal, setShowMedicalModal] = useState(false)
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [showTrialModal, setShowTrialModal] = useState(false)
+  const [showEventModal, setShowEventModal] = useState(false)
 
   // Refresh handler
   const handleRefresh = () => {
@@ -193,7 +201,7 @@ export function OperationsContent({
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
-            <Button>
+            <Button onClick={() => setShowEventModal(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Event
             </Button>
@@ -220,51 +228,59 @@ export function OperationsContent({
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-3">
-                      {dayEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`p-2 rounded-lg ${
-                                event.type === 'training'
-                                  ? 'bg-green-100'
-                                  : event.type === 'match'
-                                  ? 'bg-blue-100'
-                                  : 'bg-gray-100'
-                              }`}
-                            >
-                              {event.type === 'training' ? (
-                                <Users className="w-4 h-4 text-green-600" />
-                              ) : event.type === 'match' ? (
-                                <Calendar className="w-4 h-4 text-blue-600" />
-                              ) : (
-                                <Clock className="w-4 h-4 text-gray-600" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{event.title}</p>
-                              <div className="flex items-center gap-3 text-sm text-gray-500">
-                                {event.start_time && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {event.start_time}
-                                    {event.end_time && ` - ${event.end_time}`}
-                                  </span>
-                                )}
-                                {event.location && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" />
-                                    {event.location}
-                                  </span>
-                                )}
+                      {dayEvents.map((event) => {
+                        // Event type configuration
+                        const typeConfig: Record<string, { bg: string; color: string; icon: typeof Users }> = {
+                          team_training: { bg: 'bg-green-100', color: 'text-green-600', icon: Users },
+                          individual_training: { bg: 'bg-green-100', color: 'text-green-600', icon: Users },
+                          training: { bg: 'bg-green-100', color: 'text-green-600', icon: Users },
+                          gym: { bg: 'bg-purple-100', color: 'text-purple-600', icon: Activity },
+                          recovery: { bg: 'bg-teal-100', color: 'text-teal-600', icon: Activity },
+                          match: { bg: 'bg-blue-100', color: 'text-blue-600', icon: Calendar },
+                          tournament: { bg: 'bg-blue-100', color: 'text-blue-600', icon: Calendar },
+                          school: { bg: 'bg-yellow-100', color: 'text-yellow-600', icon: Clock },
+                          language_class: { bg: 'bg-yellow-100', color: 'text-yellow-600', icon: Clock },
+                          airport_pickup: { bg: 'bg-orange-100', color: 'text-orange-600', icon: Plane },
+                          team_activity: { bg: 'bg-pink-100', color: 'text-pink-600', icon: Users },
+                          meeting: { bg: 'bg-gray-100', color: 'text-gray-600', icon: Clock },
+                          medical: { bg: 'bg-red-100', color: 'text-red-600', icon: Stethoscope },
+                          other: { bg: 'bg-gray-100', color: 'text-gray-600', icon: Clock },
+                        }
+                        const config = typeConfig[event.type] || typeConfig.other
+                        const EventIcon = config.icon
+
+                        return (
+                          <div
+                            key={event.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${config.bg}`}>
+                                <EventIcon className={`w-4 h-4 ${config.color}`} />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{event.title}</p>
+                                <div className="flex items-center gap-3 text-sm text-gray-500">
+                                  {event.start_time && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {event.start_time.slice(11, 16)}
+                                      {event.end_time && ` - ${event.end_time.slice(11, 16)}`}
+                                    </span>
+                                  )}
+                                  {event.location && (
+                                    <span className="flex items-center gap-1">
+                                      <MapPin className="w-3 h-3" />
+                                      {event.location}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
+                            <Badge>{event.type.replace(/_/g, ' ')}</Badge>
                           </div>
-                          <Badge>{event.type}</Badge>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -373,46 +389,222 @@ export function OperationsContent({
             <h2 className="text-lg font-semibold text-gray-900">Housing Overview</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {['Widdersdorf 1', 'Widdersdorf 2', 'Widdersdorf 3'].map((house, idx) => {
-              const residents = players.filter((p) => p.house_id === house)
+          {/* Summary Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Home className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">3</p>
+                    <p className="text-sm text-gray-500">Houses</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <DoorOpen className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{rooms.length}</p>
+                    <p className="text-sm text-gray-500">Total Rooms</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Users className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{players.filter(p => p.house_id).length}</p>
+                    <p className="text-sm text-gray-500">Housed Players</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Users className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{players.filter(p => !p.house_id).length}</p>
+                    <p className="text-sm text-gray-500">Unassigned</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Houses with Rooms */}
+          <div className="space-y-4">
+            {['Widdersdorf 1', 'Widdersdorf 2', 'Widdersdorf 3'].map((houseName) => {
+              const houseRooms = rooms.filter((r) => r.house_id === houseName)
+              const houseResidents = players.filter((p) => p.house_id === houseName)
+              const totalCapacity = houseRooms.reduce((sum, r) => sum + r.capacity, 0)
+
               return (
-                <Card key={house}>
-                  <CardHeader>
+                <Card key={houseName}>
+                  <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
                         <Home className="w-5 h-5 text-gray-400" />
-                        {house}
+                        {houseName}
                       </CardTitle>
-                      <Badge>{residents.length} residents</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={houseResidents.length >= totalCapacity ? 'warning' : 'success'}>
+                          {houseResidents.length}/{totalCapacity} capacity
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {residents.length === 0 ? (
-                      <p className="text-sm text-gray-500">No residents assigned</p>
+                    {houseRooms.length === 0 ? (
+                      <p className="text-sm text-gray-500">No rooms configured for this house</p>
                     ) : (
-                      <div className="space-y-2">
-                        {residents.map((player) => (
-                          <div
-                            key={player.id}
-                            className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
-                          >
-                            <Avatar
-                              name={`${player.first_name} ${player.last_name}`}
-                              size="sm"
-                            />
-                            <span className="text-sm font-medium">
-                              {player.first_name} {player.last_name}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {houseRooms.map((room) => {
+                          const roomResidents = players.filter((p) => p.room_id === room.id)
+                          const isFull = roomResidents.length >= room.capacity
+
+                          return (
+                            <div
+                              key={room.id}
+                              className={`p-3 rounded-lg border-2 ${
+                                isFull
+                                  ? 'border-orange-200 bg-orange-50'
+                                  : roomResidents.length === 0
+                                  ? 'border-gray-200 bg-gray-50'
+                                  : 'border-green-200 bg-green-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <DoorOpen className={`w-4 h-4 ${
+                                    isFull ? 'text-orange-600' : 'text-gray-500'
+                                  }`} />
+                                  <span className="font-medium text-sm">{room.name}</span>
+                                </div>
+                                <Badge variant={isFull ? 'warning' : 'default'} className="text-xs">
+                                  {roomResidents.length}/{room.capacity}
+                                </Badge>
+                              </div>
+                              {room.floor && (
+                                <p className="text-xs text-gray-500 mb-2">Floor {room.floor}</p>
+                              )}
+                              {roomResidents.length === 0 ? (
+                                <p className="text-xs text-gray-400 italic">Empty</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {roomResidents.map((player) => (
+                                    <div
+                                      key={player.id}
+                                      className="flex items-center gap-2 p-1.5 bg-white rounded"
+                                    >
+                                      <Avatar
+                                        name={`${player.first_name} ${player.last_name}`}
+                                        size="sm"
+                                      />
+                                      <span className="text-xs font-medium truncate">
+                                        {player.first_name} {player.last_name}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
+
+                    {/* Unassigned to rooms but assigned to house */}
+                    {(() => {
+                      const unassignedToRoom = houseResidents.filter(
+                        (p) => !p.room_id || !houseRooms.find((r) => r.id === p.room_id)
+                      )
+                      if (unassignedToRoom.length === 0) return null
+                      return (
+                        <div className="mt-4 pt-4 border-t">
+                          <p className="text-sm text-gray-500 mb-2">
+                            Assigned to house but not to a room ({unassignedToRoom.length}):
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {unassignedToRoom.map((player) => (
+                              <div
+                                key={player.id}
+                                className="flex items-center gap-2 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded-full"
+                              >
+                                <Avatar
+                                  name={`${player.first_name} ${player.last_name}`}
+                                  size="sm"
+                                />
+                                <span className="text-xs font-medium">
+                                  {player.first_name} {player.last_name}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </CardContent>
                 </Card>
               )
             })}
           </div>
+
+          {/* Players with house_id but not matching any known house */}
+          {(() => {
+            const knownHouses = ['Widdersdorf 1', 'Widdersdorf 2', 'Widdersdorf 3']
+            const unmatchedPlayers = players.filter(
+              (p) => p.house_id && !knownHouses.includes(p.house_id)
+            )
+            if (unmatchedPlayers.length === 0) return null
+            return (
+              <Card className="border-yellow-200 bg-yellow-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-yellow-800">
+                    <AlertTriangle className="w-5 h-5" />
+                    Players with Unknown Housing Assignment ({unmatchedPlayers.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-yellow-700 mb-3">
+                    These players have a house assigned but it doesn't match any known house. Their house_id may need to be updated.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {unmatchedPlayers.map((player) => (
+                      <div
+                        key={player.id}
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-yellow-300 rounded-lg"
+                      >
+                        <Avatar
+                          name={`${player.first_name} ${player.last_name}`}
+                          size="sm"
+                        />
+                        <div>
+                          <span className="text-sm font-medium">
+                            {player.first_name} {player.last_name}
+                          </span>
+                          <p className="text-xs text-gray-500">house_id: {player.house_id}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })()}
         </div>
       )}
 
@@ -1054,6 +1246,12 @@ export function OperationsContent({
         onClose={() => setShowTrialModal(false)}
         onSuccess={handleRefresh}
         players={players}
+      />
+
+      <AddEventModal
+        isOpen={showEventModal}
+        onClose={() => setShowEventModal(false)}
+        onSuccess={handleRefresh}
       />
     </div>
   )

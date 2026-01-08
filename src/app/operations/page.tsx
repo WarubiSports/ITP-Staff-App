@@ -25,7 +25,7 @@ export default async function OperationsPage() {
 
   // Fetch calendar events (if table exists)
   const { data: events } = await supabase
-    .from('calendar_events')
+    .from('events')
     .select('*')
     .gte('date', new Date().toISOString().split('T')[0])
     .order('date')
@@ -55,6 +55,13 @@ export default async function OperationsPage() {
     .select('*')
     .order('trial_start_date', { ascending: false })
 
+  // Fetch rooms
+  const { data: rooms } = await supabase
+    .from('rooms')
+    .select('*')
+    .order('house_id')
+    .order('name')
+
   return (
     <AppLayout
       title="Operations"
@@ -68,6 +75,7 @@ export default async function OperationsPage() {
         medicalAppointments={medicalAppointments || []}
         insuranceClaims={insuranceClaims || []}
         trials={trials || []}
+        rooms={rooms || []}
       />
     </AppLayout>
   )

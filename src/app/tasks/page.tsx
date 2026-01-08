@@ -29,6 +29,12 @@ export default async function TasksPage() {
     .eq('status', 'active')
     .order('last_name')
 
+  // Fetch staff for task assignment
+  const { data: staff } = await supabase
+    .from('staff_profiles')
+    .select('id, email, full_name, role')
+    .order('full_name')
+
   return (
     <AppLayout
       title="Tasks"
@@ -38,6 +44,7 @@ export default async function TasksPage() {
       <TasksContent
         tasks={tasks || []}
         players={players || []}
+        staff={staff || []}
         currentUserId={user.id}
       />
     </AppLayout>

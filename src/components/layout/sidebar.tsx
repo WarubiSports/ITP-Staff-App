@@ -13,6 +13,9 @@ import {
   Plane,
   Home,
   ExternalLink,
+  UserSearch,
+  ClipboardCheck,
+  UserCog,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -20,8 +23,11 @@ import { useRouter } from 'next/navigation'
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Players', href: '/players', icon: Users },
+  { name: 'Prospects', href: '/prospects', icon: UserSearch },
+  { name: 'Attendance', href: '/attendance', icon: ClipboardCheck },
   { name: 'Operations', href: '/operations', icon: Calendar },
   { name: 'Tasks', href: '/tasks', icon: ClipboardList },
+  { name: 'Staff', href: '/staff', icon: UserCog },
 ]
 
 const externalLinks = [
