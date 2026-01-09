@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ITP Staff Hub - 1.FC Köln",
-  description: "Staff operations management for the International Talent Pathway",
+  title: "ITP Hub - 1.FC Köln",
+  description: "International Talent Pathway Management System",
   icons: {
     icon: "/favicon.ico",
   },

@@ -81,8 +81,8 @@ export function Sidebar({ user }: SidebarProps) {
           <span className="text-white font-bold text-lg">FC</span>
         </div>
         <div>
-          <h1 className="font-bold text-gray-900">ITP Staff</h1>
-          <p className="text-xs text-gray-500">Operations Hub</p>
+          <h1 className="font-bold text-gray-900">ITP Hub</h1>
+          <p className="text-xs text-gray-500">Staff Portal</p>
         </div>
       </div>
 

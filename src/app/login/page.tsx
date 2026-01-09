@@ -16,11 +16,11 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // Check for error parameter (e.g., not_staff)
+  // Check for error parameter
   useEffect(() => {
     const errorParam = searchParams.get('error')
-    if (errorParam === 'not_staff') {
-      setError('Access denied. This app is for staff members only. If you are a player, please use the Player App.')
+    if (errorParam === 'no_profile') {
+      setError('No profile found for this account. Contact admin for access.')
     } else if (errorParam === 'auth_error') {
       setError('Authentication failed. Please try again.')
     }
@@ -43,25 +43,35 @@ export default function LoginPage() {
         return
       }
 
-      // Check if user is a staff member
       if (data.user) {
+        // Check if staff
         const { data: staffProfile } = await supabase
           .from('staff_profiles')
           .select('id')
           .eq('id', data.user.id)
           .single()
 
-        if (!staffProfile) {
-          // Not a staff member - sign out and show error
+        // Check if player
+        const { data: playerProfile } = await supabase
+          .from('players')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .single()
+
+        if (staffProfile) {
+          router.push('/dashboard')
+        } else if (playerProfile) {
+          router.push('/player/dashboard')
+        } else {
+          // No profile - sign out
           await supabase.auth.signOut()
-          setError('Access denied. This app is for staff members only. If you are a player, please use the Player App.')
+          setError('No profile found for this account. Contact admin for access.')
           setLoading(false)
           return
         }
-      }
 
-      router.push('/dashboard')
-      router.refresh()
+        router.refresh()
+      }
     } catch {
       setError('An unexpected error occurred')
     } finally {
@@ -70,22 +80,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 rounded-2xl mb-4">
             <span className="text-white font-bold text-2xl">FC</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">ITP Staff Hub</h1>
-          <p className="text-gray-500 mt-1">Operations Management System</p>
+          <h1 className="text-2xl font-bold text-white">ITP Hub</h1>
+          <p className="text-slate-400 mt-1">International Talent Pathway</p>
         </div>
 
-        <Card>
+        <Card className="bg-slate-800 border-slate-700">
           <CardContent className="pt-6">
             <form onSubmit={handleLogin} className="space-y-4">
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
                   {error}
                 </div>
               )}
@@ -97,6 +107,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500"
               />
 
               <Input
@@ -106,26 +117,21 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500"
               />
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full bg-red-600 hover:bg-red-700"
                 disabled={loading}
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
-
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <p className="text-center text-sm text-gray-500">
-                Staff access only. Contact admin for credentials.
-              </p>
-            </div>
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-slate-500 mt-6">
           1.FC Köln International Talent Pathway
         </p>
       </div>
