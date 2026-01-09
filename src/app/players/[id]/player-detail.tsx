@@ -22,6 +22,8 @@ import {
   Car,
   Upload,
   FolderOpen,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,6 +33,8 @@ import { Avatar } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import { UpdateWhereaboutsModal } from '@/components/modals'
+import { Modal } from '@/components/ui/modal'
+import { useToast } from '@/components/ui/toast'
 import { DocumentUpload } from '@/components/documents/DocumentUpload'
 import { DocumentList } from '@/components/documents/DocumentList'
 import type { WhereaboutsDetails, PlayerDocument } from '@/types'
@@ -71,22 +75,73 @@ interface House {
   address?: string
 }
 
+interface Room {
+  id: string
+  name: string
+  house_id: string
+  capacity: number
+  floor?: number
+}
+
 interface PlayerDetailProps {
   player: Player
   houses: House[]
+  rooms: Room[]
+  assignedRoom: Room | null | undefined
   documents: PlayerDocument[]
 }
 
-export function PlayerDetail({ player: initialPlayer, houses, documents }: PlayerDetailProps) {
+export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents }: PlayerDetailProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { showToast } = useToast()
 
   const [player, setPlayer] = useState(initialPlayer)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showWhereaboutsModal, setShowWhereaboutsModal] = useState(false)
   const [showUploadForm, setShowUploadForm] = useState(false)
+
+  const isDemo = player.first_name === 'Demo' && player.last_name === 'Player'
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+
+    try {
+      if (isDemo) {
+        // Hard delete for demo player
+        const { error: deleteError } = await supabase
+          .from('players')
+          .delete()
+          .eq('id', player.id)
+
+        if (deleteError) throw deleteError
+        showToast('Demo player permanently deleted')
+      } else {
+        // Soft delete - change status to cancelled
+        const { error: updateError } = await supabase
+          .from('players')
+          .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+          .eq('id', player.id)
+
+        if (updateError) throw updateError
+        showToast('Player archived successfully')
+      }
+
+      router.push('/players')
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete player')
+      showToast('Failed to delete player', 'error')
+    } finally {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -98,25 +153,25 @@ export function PlayerDetail({ player: initialPlayer, houses, documents }: Playe
         .update({
           first_name: player.first_name,
           last_name: player.last_name,
-          email: player.email,
-          phone: player.phone,
+          email: player.email || null,
+          phone: player.phone || null,
           status: player.status,
           positions: player.positions,
-          nationality: player.nationality,
-          date_of_birth: player.date_of_birth,
-          insurance_expiry: player.insurance_expiry,
-          insurance_provider: player.insurance_provider,
-          insurance_number: player.insurance_number,
-          visa_status: player.visa_status,
-          visa_expiry: player.visa_expiry,
-          program_start_date: player.program_start_date,
-          program_end_date: player.program_end_date,
-          cohort: player.cohort,
-          house_id: player.house_id,
-          room_number: player.room_number,
-          emergency_contact_name: player.emergency_contact_name,
-          emergency_contact_phone: player.emergency_contact_phone,
-          notes: player.notes,
+          nationality: player.nationality || null,
+          date_of_birth: player.date_of_birth || null,
+          insurance_expiry: player.insurance_expiry || null,
+          insurance_provider: player.insurance_provider || null,
+          insurance_number: player.insurance_number || null,
+          visa_status: player.visa_status || null,
+          visa_expiry: player.visa_expiry || null,
+          program_start_date: player.program_start_date || null,
+          program_end_date: player.program_end_date || null,
+          cohort: player.cohort || null,
+          house_id: player.house_id || null,
+          room_number: player.room_number || null,
+          emergency_contact_name: player.emergency_contact_name || null,
+          emergency_contact_phone: player.emergency_contact_phone || null,
+          notes: player.notes || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', player.id)
@@ -145,8 +200,6 @@ export function PlayerDetail({ player: initialPlayer, houses, documents }: Playe
   const statusOptions = ['active', 'pending', 'alumni', 'cancelled']
   const visaOptions = ['valid', 'pending', 'expired', 'not_required']
 
-  const currentHouse = houses.find((h) => h.id === player.house_id)
-
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -172,10 +225,20 @@ export function PlayerDetail({ player: initialPlayer, houses, documents }: Playe
               </Button>
             </>
           ) : (
-            <Button onClick={() => setEditing(true)}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Player
-            </Button>
+            <>
+              <Button onClick={() => setEditing(true)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Player
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {isDemo ? 'Delete' : 'Archive'}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -535,41 +598,27 @@ export function PlayerDetail({ player: initialPlayer, houses, documents }: Playe
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {editing ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Assigned House
-                    </label>
-                    <select
-                      value={player.house_id || ''}
-                      onChange={(e) => updateField('house_id', e.target.value || null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    >
-                      <option value="">No house assigned</option>
-                      {houses.map((house) => (
-                        <option key={house.id} value={house.id}>
-                          {house.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {assignedRoom ? (
+                  <>
+                    <div>
+                      <p className="text-sm text-gray-500">Assigned House</p>
+                      <p className="font-medium">{assignedRoom.house_id}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Room</p>
+                      <p className="font-medium">{assignedRoom.name}</p>
+                      {assignedRoom.floor && (
+                        <p className="text-xs text-gray-400">Floor {assignedRoom.floor}</p>
+                      )}
+                    </div>
+                  </>
                 ) : (
-                  <div>
-                    <p className="text-sm text-gray-500">Assigned House</p>
-                    <p className="font-medium">
-                      {currentHouse?.name || 'No house assigned'}
-                    </p>
-                    {currentHouse?.address && (
-                      <p className="text-sm text-gray-500">{currentHouse.address}</p>
-                    )}
+                  <div className="py-4 text-center text-gray-400 bg-gray-50 rounded-lg">
+                    <Home className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No room assigned</p>
+                    <p className="text-xs mt-1">Use Operations → Housing to assign rooms</p>
                   </div>
                 )}
-                <Input
-                  label="Room Number"
-                  value={player.room_number || ''}
-                  onChange={(e) => updateField('room_number', e.target.value)}
-                  disabled={!editing}
-                />
               </div>
             </CardContent>
           </Card>
@@ -652,6 +701,59 @@ export function PlayerDetail({ player: initialPlayer, houses, documents }: Playe
         }}
         player={player}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={isDemo ? 'Delete Player' : 'Archive Player'}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-red-50 rounded-lg">
+            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-red-900">
+                {isDemo
+                  ? 'This will permanently delete the demo player.'
+                  : `This will archive ${player.first_name} ${player.last_name}.`}
+              </p>
+              <p className="text-sm text-red-700 mt-1">
+                {isDemo
+                  ? 'This action cannot be undone. All associated data will be removed.'
+                  : 'The player will be moved to the "Cancelled" status and hidden from active lists. You can restore them later by changing their status back to "Active".'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {isDemo ? 'Deleting...' : 'Archiving...'}
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {isDemo ? 'Delete Permanently' : 'Archive Player'}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

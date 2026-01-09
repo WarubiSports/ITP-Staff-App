@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Users,
   Calendar,
@@ -19,12 +21,19 @@ import {
   CheckSquare,
   ArrowRight,
   CalendarClock,
+  Plus,
+  PlayCircle,
+  CheckCircle2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
-import { formatDate, getDaysUntil } from '@/lib/utils'
+import { formatDate, getDaysUntil, cn } from '@/lib/utils'
+import { QuickAddTaskModal } from '@/components/modals/QuickAddTaskModal'
+import { WhereaboutsListModal } from '@/components/modals/WhereaboutsListModal'
+import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
 
 // Helper to format timestamp to time string in German CET timezone (e.g., "09:00")
 function formatTime(timestamp: string | undefined): string | undefined {
@@ -117,6 +126,7 @@ interface DashboardContentProps {
   todayMedical: MedicalAppointment[]
   activeTrials: Trial[]
   today: string
+  currentUserId: string
 }
 
 const whereaboutsConfig: Record<string, { icon: typeof Home; color: string; bg: string; label: string }> = {
@@ -136,7 +146,40 @@ export function DashboardContent({
   todayMedical,
   activeTrials,
   today,
+  currentUserId,
 }: DashboardContentProps) {
+  const router = useRouter()
+  const { showToast } = useToast()
+  const supabase = createClient()
+
+  // Modal state
+  const [showQuickTaskModal, setShowQuickTaskModal] = useState(false)
+  const [showWhereaboutsModal, setShowWhereaboutsModal] = useState(false)
+  const [selectedWhereabouts, setSelectedWhereabouts] = useState<string | null>(null)
+  const [tasks, setTasks] = useState(todayTasks)
+
+  // Quick task status update
+  const updateTaskStatus = async (taskId: string, newStatus: 'pending' | 'in_progress' | 'completed') => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status: newStatus })
+      .eq('id', taskId)
+
+    if (!error) {
+      if (newStatus === 'completed') {
+        setTasks(tasks.filter((t) => t.id !== taskId))
+      }
+      const statusLabels = {
+        pending: 'Pending',
+        in_progress: 'In Progress',
+        completed: 'Completed',
+      }
+      showToast(`Task moved to ${statusLabels[newStatus]}`)
+    } else {
+      showToast('Failed to update task', 'error')
+    }
+  }
+
   // Calculate urgent deadlines
   const expiringInsurance = players.filter((p) => {
     if (!p.insurance_expiry) return false
@@ -391,49 +434,78 @@ export function DashboardContent({
                 <CheckSquare className="w-5 h-5 text-gray-500" />
                 Tasks Due
               </CardTitle>
-              <Link href="/tasks">
-                <Button variant="ghost" size="sm">
-                  All Tasks <ArrowRight className="w-4 h-4 ml-1" />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowQuickTaskModal(true)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
                 </Button>
-              </Link>
+                <Link href="/tasks">
+                  <Button variant="ghost" size="sm">
+                    All <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
-              {todayTasks.length === 0 ? (
+              {tasks.length === 0 ? (
                 <div className="text-center py-6 text-gray-500">
                   <CheckSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm">No tasks due today</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {todayTasks.slice(0, 5).map((task) => {
+                  {tasks.slice(0, 5).map((task) => {
                     const isOverdue = task.due_date && task.due_date < today
                     return (
                       <div
                         key={task.id}
-                        className={`p-2 rounded-lg ${isOverdue ? 'bg-red-50' : 'bg-gray-50'}`}
+                        className={`p-3 rounded-lg ${isOverdue ? 'bg-red-50' : 'bg-gray-50'} hover:bg-gray-100 transition-colors`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <p className={`text-sm font-medium ${isOverdue ? 'text-red-900' : 'text-gray-900'}`}>
-                            {task.title}
-                          </p>
-                          <Badge
-                            variant={
-                              task.priority === 'urgent'
-                                ? 'danger'
-                                : task.priority === 'high'
-                                ? 'warning'
-                                : 'default'
-                            }
-                            className="text-xs flex-shrink-0"
-                          >
-                            {task.priority}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">{task.category}</span>
-                          {isOverdue && (
-                            <span className="text-xs text-red-600 font-medium">Overdue</span>
-                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${isOverdue ? 'text-red-900' : 'text-gray-900'}`}>
+                              {task.title}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-500">{task.category}</span>
+                              {isOverdue && (
+                                <span className="text-xs text-red-600 font-medium">Overdue</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Start task"
+                            >
+                              <PlayCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => updateTaskStatus(task.id, 'completed')}
+                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                              title="Complete task"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                            <Badge
+                              variant={
+                                task.priority === 'urgent'
+                                  ? 'danger'
+                                  : task.priority === 'high'
+                                  ? 'warning'
+                                  : 'default'
+                              }
+                              className="text-xs ml-1"
+                            >
+                              {task.priority}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                     )
@@ -490,11 +562,25 @@ export function DashboardContent({
             {Object.entries(whereaboutsConfig).map(([status, config]) => {
               const statusPlayers = playersByWhereabouts[status] || []
               const Icon = config.icon
+              const hasPlayers = statusPlayers.length > 0
 
               return (
-                <div
+                <button
                   key={status}
-                  className={`p-4 rounded-lg ${config.bg} ${statusPlayers.length === 0 ? 'opacity-50' : ''}`}
+                  onClick={() => {
+                    if (hasPlayers) {
+                      setSelectedWhereabouts(status)
+                      setShowWhereaboutsModal(true)
+                    }
+                  }}
+                  disabled={!hasPlayers}
+                  className={cn(
+                    'p-4 rounded-lg text-left transition-all',
+                    config.bg,
+                    hasPlayers
+                      ? 'hover:ring-2 hover:ring-gray-300 cursor-pointer active:scale-[0.98]'
+                      : 'opacity-50 cursor-not-allowed'
+                  )}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <Icon className={`w-5 h-5 ${config.color}`} />
@@ -517,12 +603,45 @@ export function DashboardContent({
                       +{statusPlayers.length - 3} more
                     </p>
                   )}
-                </div>
+                </button>
               )
             })}
           </div>
         </CardContent>
       </Card>
+
+      {/* Floating Action Button - Mobile only */}
+      <div className="fixed bottom-6 right-6 lg:hidden z-40">
+        <button
+          onClick={() => setShowQuickTaskModal(true)}
+          className="w-14 h-14 bg-red-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-700 active:scale-95 transition-all"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Quick Add Task Modal */}
+      <QuickAddTaskModal
+        isOpen={showQuickTaskModal}
+        onClose={() => setShowQuickTaskModal(false)}
+        onSuccess={() => router.refresh()}
+        currentUserId={currentUserId}
+      />
+
+      {/* Whereabouts List Modal */}
+      {selectedWhereabouts && (
+        <WhereaboutsListModal
+          isOpen={showWhereaboutsModal}
+          onClose={() => {
+            setShowWhereaboutsModal(false)
+            setSelectedWhereabouts(null)
+          }}
+          onRefresh={() => router.refresh()}
+          players={playersByWhereabouts[selectedWhereabouts] || []}
+          statusLabel={whereaboutsConfig[selectedWhereabouts]?.label || ''}
+          statusColor={whereaboutsConfig[selectedWhereabouts]?.color || ''}
+        />
+      )}
     </div>
   )
 }

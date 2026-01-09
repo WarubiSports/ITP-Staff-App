@@ -13,6 +13,7 @@ import {
   User,
   Tag,
   Calendar,
+  PlayCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { formatDate, cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
+import { EditTaskModal } from '@/components/modals/EditTaskModal'
 
 interface Task {
   id: string
@@ -57,7 +60,9 @@ interface TasksContentProps {
 
 export function TasksContent({ tasks: initialTasks, players, staff, currentUserId }: TasksContentProps) {
   const [tasks, setTasks] = useState(initialTasks)
-  const [filter, setFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all')
+  const [filter, setFilter] = useState<'all' | 'my_tasks' | 'pending' | 'in_progress' | 'completed'>('all')
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const { showToast } = useToast()
   const [showAddModal, setShowAddModal] = useState(false)
   const [newTask, setNewTask] = useState<{
     title: string
@@ -79,12 +84,13 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
 
   const filteredTasks = tasks.filter((task) => {
     if (filter === 'all') return true
+    if (filter === 'my_tasks') return task.assigned_to === currentUserId
     return task.status === filter
   })
 
-  const toggleTaskStatus = async (taskId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed'
+  const myTasksCount = tasks.filter((t) => t.assigned_to === currentUserId).length
 
+  const updateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
     const { error } = await supabase
       .from('tasks')
       .update({ status: newStatus })
@@ -93,9 +99,17 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
     if (!error) {
       setTasks(
         tasks.map((t) =>
-          t.id === taskId ? { ...t, status: newStatus as Task['status'] } : t
+          t.id === taskId ? { ...t, status: newStatus } : t
         )
       )
+      const statusLabels = {
+        pending: 'Pending',
+        in_progress: 'In Progress',
+        completed: 'Completed',
+      }
+      showToast(`Task moved to ${statusLabels[newStatus]}`)
+    } else {
+      showToast('Failed to update task', 'error')
     }
   }
 
@@ -160,7 +174,7 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex gap-2 flex-wrap">
-          {(['all', 'pending', 'in_progress', 'completed'] as const).map((status) => (
+          {(['all', 'my_tasks', 'pending', 'in_progress', 'completed'] as const).map((status) => (
             <Button
               key={status}
               variant={filter === status ? 'primary' : 'outline'}
@@ -169,12 +183,16 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
             >
               {status === 'all'
                 ? 'All'
+                : status === 'my_tasks'
+                ? 'My Tasks'
                 : status === 'in_progress'
                 ? 'In Progress'
                 : status.charAt(0).toUpperCase() + status.slice(1)}
               <Badge variant="default" className="ml-2">
                 {status === 'all'
                   ? tasks.length
+                  : status === 'my_tasks'
+                  ? myTasksCount
                   : tasks.filter((t) => t.status === status).length}
               </Badge>
             </Button>
@@ -311,21 +329,45 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
               >
                 <CardContent className="py-4">
                   <div className="flex items-start gap-4">
-                    <button
-                      onClick={() => toggleTaskStatus(task.id, task.status)}
-                      className={cn(
-                        'mt-1 flex-shrink-0 transition-colors',
-                        task.status === 'completed'
-                          ? 'text-green-500'
-                          : 'text-gray-300 hover:text-gray-400'
-                      )}
-                    >
-                      {task.status === 'completed' ? (
-                        <CheckCircle2 className="w-6 h-6" />
-                      ) : (
-                        <Circle className="w-6 h-6" />
-                      )}
-                    </button>
+                    {/* Desktop: Status buttons in left column */}
+                    <div className="hidden md:flex flex-col gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => updateTaskStatus(task.id, 'pending')}
+                        className={cn(
+                          'p-1.5 rounded-lg transition-all',
+                          task.status === 'pending'
+                            ? 'text-gray-600 bg-gray-100'
+                            : 'text-gray-300 hover:text-gray-400 hover:bg-gray-50'
+                        )}
+                        title="Pending"
+                      >
+                        <Circle className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                        className={cn(
+                          'p-1.5 rounded-lg transition-all',
+                          task.status === 'in_progress'
+                            ? 'text-blue-600 bg-blue-100'
+                            : 'text-gray-300 hover:text-blue-400 hover:bg-blue-50'
+                        )}
+                        title="In Progress"
+                      >
+                        <PlayCircle className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => updateTaskStatus(task.id, 'completed')}
+                        className={cn(
+                          'p-1.5 rounded-lg transition-all',
+                          task.status === 'completed'
+                            ? 'text-green-600 bg-green-100'
+                            : 'text-gray-300 hover:text-green-400 hover:bg-green-50'
+                        )}
+                        title="Completed"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                      </button>
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
@@ -343,10 +385,18 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => setEditingTask(task)}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded"
+                            title="Edit task"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => deleteTask(task.id)}
                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                            title="Delete task"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -382,6 +432,46 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
                           </span>
                         )}
                       </div>
+
+                      {/* Mobile: Full-width status buttons */}
+                      <div className="flex md:hidden gap-2 mt-4">
+                        <button
+                          onClick={() => updateTaskStatus(task.id, 'pending')}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all active:scale-95',
+                            task.status === 'pending'
+                              ? 'bg-gray-100 text-gray-700 ring-2 ring-gray-400'
+                              : 'bg-gray-50 text-gray-400'
+                          )}
+                        >
+                          <Circle className="w-5 h-5" />
+                          <span className="text-sm">Pending</span>
+                        </button>
+                        <button
+                          onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all active:scale-95',
+                            task.status === 'in_progress'
+                              ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-500'
+                              : 'bg-gray-50 text-gray-400'
+                          )}
+                        >
+                          <PlayCircle className="w-5 h-5" />
+                          <span className="text-sm">Working</span>
+                        </button>
+                        <button
+                          onClick={() => updateTaskStatus(task.id, 'completed')}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all active:scale-95',
+                            task.status === 'completed'
+                              ? 'bg-green-100 text-green-700 ring-2 ring-green-500'
+                              : 'bg-gray-50 text-gray-400'
+                          )}
+                        >
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="text-sm">Done</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -390,6 +480,18 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
           })
         )}
       </div>
+
+      {/* Edit Task Modal */}
+      <EditTaskModal
+        isOpen={editingTask !== null}
+        onClose={() => setEditingTask(null)}
+        onSuccess={(updatedTask) => {
+          setTasks(tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)))
+          setEditingTask(null)
+        }}
+        task={editingTask}
+        staff={staff}
+      />
     </div>
   )
 }

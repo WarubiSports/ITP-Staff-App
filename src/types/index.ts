@@ -146,6 +146,77 @@ export interface VisaRecord {
   notes?: string
 }
 
+// Comprehensive visa document tracking (matching spreadsheet)
+export type VisaDocumentStatus = 'pending' | 'submitted' | 'received' | 'not_required' | 'expired'
+export type VisaApplicationStatus = 'not_started' | 'documents_pending' | 'applied' | 'processing' | 'approved' | 'denied' | 'not_required'
+
+export interface PlayerVisaInfo {
+  id: string
+  player_id: string
+  // Basic info
+  requires_visa: boolean
+  arrival_date?: string
+  deadline_90_days?: string // Auto-calculated from arrival
+  application_date?: string
+  visa_status: VisaApplicationStatus
+  visa_expiry?: string
+  passport_number?: string
+  is_minor: boolean
+  notes?: string
+  // Document checklist
+  documents: VisaDocumentChecklist
+  created_at: string
+  updated_at: string
+}
+
+export interface VisaDocumentChecklist {
+  // Identity documents
+  passport: VisaDocumentStatus
+  birth_certificate: VisaDocumentStatus
+  // For minors
+  parents_passports: VisaDocumentStatus
+  parental_power_of_attorney: VisaDocumentStatus
+  // Housing
+  housing_certificate: VisaDocumentStatus // Wohnungsgeberbescheinigung
+  lease_agreement: VisaDocumentStatus // Mietvertrag
+  registration_confirmation: VisaDocumentStatus // Meldebestätigung
+  // Other requirements
+  language_school_invitation: VisaDocumentStatus
+  insurance_documents: VisaDocumentStatus
+  declaration_of_commitment: VisaDocumentStatus // Verpflichtungserklärung
+  visa_application_form: VisaDocumentStatus
+}
+
+// Default empty document checklist
+export const defaultVisaDocuments: VisaDocumentChecklist = {
+  passport: 'pending',
+  birth_certificate: 'pending',
+  parents_passports: 'not_required',
+  parental_power_of_attorney: 'not_required',
+  housing_certificate: 'pending',
+  lease_agreement: 'pending',
+  registration_confirmation: 'pending',
+  language_school_invitation: 'pending',
+  insurance_documents: 'pending',
+  declaration_of_commitment: 'pending',
+  visa_application_form: 'pending',
+}
+
+// Visa document labels (German/English)
+export const visaDocumentLabels: Record<keyof VisaDocumentChecklist, { en: string; de: string }> = {
+  passport: { en: 'Passport', de: 'Reisepass' },
+  birth_certificate: { en: 'Birth Certificate', de: 'Geburtsurkunde' },
+  parents_passports: { en: "Parents' Passports", de: 'Pässe der Eltern' },
+  parental_power_of_attorney: { en: 'Parental Power of Attorney', de: 'Vollmacht der Eltern' },
+  housing_certificate: { en: 'Housing Certificate', de: 'Wohnungsgeberbescheinigung' },
+  lease_agreement: { en: 'Lease Agreement', de: 'Mietvertrag' },
+  registration_confirmation: { en: 'Registration Confirmation', de: 'Meldebestätigung' },
+  language_school_invitation: { en: 'Language School Invitation', de: 'Einladung Sprachschule' },
+  insurance_documents: { en: 'Insurance Documents', de: 'Versicherungsdokumente' },
+  declaration_of_commitment: { en: 'Declaration of Commitment', de: 'Verpflichtungserklärung' },
+  visa_application_form: { en: 'Visa Application Form', de: 'Antragsformular' },
+}
+
 // Calendar event
 export interface CalendarEvent {
   id: string

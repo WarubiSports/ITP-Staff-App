@@ -85,6 +85,7 @@ export default async function DashboardPage() {
         todayMedical={todayMedical || []}
         activeTrials={activeTrials || []}
         today={today}
+        currentUserId={user.id}
       />
     </AppLayout>
   )

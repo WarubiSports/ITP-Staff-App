@@ -186,6 +186,7 @@ export function StaffContent({ staff, currentUserId }: StaffContentProps) {
           isOpen={!!editingStaff}
           onClose={() => setEditingStaff(null)}
           staff={editingStaff}
+          currentUserId={currentUserId}
           onSuccess={() => window.location.reload()}
         />
       )}

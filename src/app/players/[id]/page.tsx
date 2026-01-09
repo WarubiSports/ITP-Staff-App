@@ -32,9 +32,10 @@ export default async function PlayerDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  // Fetch houses and documents in parallel
-  const [{ data: houses }, { data: documents }] = await Promise.all([
+  // Fetch houses, rooms, and documents in parallel
+  const [{ data: houses }, { data: rooms }, { data: documents }] = await Promise.all([
     supabase.from('houses').select('id, name, address').order('name'),
+    supabase.from('rooms').select('id, name, house_id, capacity, floor').order('name'),
     supabase
       .from('player_documents')
       .select('*')
@@ -42,13 +43,24 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .order('created_at', { ascending: false }),
   ])
 
+  // Find assigned room if player has room_id
+  const assignedRoom = player.room_id
+    ? rooms?.find(r => r.id === player.room_id)
+    : null
+
   return (
     <AppLayout
       title={`${player.first_name} ${player.last_name}`}
       subtitle={player.player_id}
       user={user}
     >
-      <PlayerDetail player={player} houses={houses || []} documents={documents || []} />
+      <PlayerDetail
+        player={player}
+        houses={houses || []}
+        rooms={rooms || []}
+        assignedRoom={assignedRoom}
+        documents={documents || []}
+      />
     </AppLayout>
   )
 }

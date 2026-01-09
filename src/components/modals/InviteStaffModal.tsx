@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Mail, User, Shield, Send } from 'lucide-react'
+import { Mail, User, Shield, UserPlus, Copy, Check, Link, Clock } from 'lucide-react'
 import { inviteStaffMember } from '@/app/staff/actions'
 
 interface InviteStaffModalProps {
@@ -20,10 +20,17 @@ const roleOptions = [
   { value: 'admin', label: 'Admin' },
 ]
 
+interface InviteResult {
+  setupUrl: string
+  fullName: string
+  expiresAt: string
+}
+
 export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [inviteResult, setInviteResult] = useState<InviteResult | null>(null)
+  const [copied, setCopied] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
@@ -47,27 +54,140 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
         return
       }
 
-      setSuccess(true)
-      setTimeout(() => {
-        setFormData({ email: '', full_name: '', role: 'staff' })
-        setSuccess(false)
-        onSuccess()
-        onClose()
-      }, 2000)
+      if (result.setupUrl) {
+        setInviteResult({
+          setupUrl: result.setupUrl,
+          fullName: result.fullName || formData.full_name,
+          expiresAt: result.expiresAt || ''
+        })
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send invite')
+      setError(err instanceof Error ? err.message : 'Failed to create invitation')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleClose = () => {
+  const handleCopyLink = async () => {
+    if (inviteResult?.setupUrl) {
+      await navigator.clipboard.writeText(inviteResult.setupUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleDone = () => {
     setFormData({ email: '', full_name: '', role: 'staff' })
     setError('')
-    setSuccess(false)
+    setInviteResult(null)
+    setCopied(false)
+    onSuccess()
     onClose()
   }
 
+  const handleClose = () => {
+    if (inviteResult) {
+      // If we have an invite, call onSuccess before closing
+      onSuccess()
+    }
+    setFormData({ email: '', full_name: '', role: 'staff' })
+    setError('')
+    setInviteResult(null)
+    setCopied(false)
+    onClose()
+  }
+
+  const formatExpiryDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
+  // Show success screen with setup link
+  if (inviteResult) {
+    return (
+      <Modal isOpen={isOpen} onClose={handleClose} title="Invitation Created!">
+        <div className="space-y-6">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <Check className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {inviteResult.fullName} has been invited!
+            </h3>
+            <p className="text-gray-500 mt-1">
+              Share the setup link below so they can activate their account.
+            </p>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Link className="w-4 h-4" />
+              <span className="font-medium">Setup Link</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCopyLink}
+              className={`w-full justify-center py-3 ${copied ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''}`}
+            >
+              {copied ? (
+                <>
+                  <Check className="w-5 h-5 mr-2" />
+                  Link Copied to Clipboard!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-5 h-5 mr-2" />
+                  Copy Setup Link
+                </>
+              )}
+            </Button>
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center gap-2">
+                <Clock className="w-3 h-3" />
+                <span>Expires {formatExpiryDate(inviteResult.expiresAt)}</span>
+              </div>
+              <a
+                href={inviteResult.setupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                Test link →
+              </a>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
+            <p className="font-medium mb-1">Share this link via:</p>
+            <ul className="list-disc list-inside text-blue-700 space-y-1">
+              <li>WhatsApp, Slack, or Teams message</li>
+              <li>Email (copy and paste)</li>
+              <li>In person</li>
+            </ul>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => {
+              setInviteResult(null)
+              setFormData({ email: '', full_name: '', role: 'staff' })
+            }}>
+              Invite Another
+            </Button>
+            <Button type="button" onClick={handleDone}>
+              Done
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    )
+  }
+
+  // Show invite form
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Invite Staff Member">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -77,14 +197,8 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
           </div>
         )}
 
-        {success && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-            Invitation sent successfully! They will receive an email to set up their account.
-          </div>
-        )}
-
         <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-          Send an invitation email to a new staff member. They will receive a link to create their account.
+          Create an account for a new staff member. You'll get a setup link to share with them.
         </div>
 
         <div className="space-y-4">
@@ -98,7 +212,7 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
               className="pl-10"
               placeholder="colleague@example.com"
               required
-              disabled={loading || success}
+              disabled={loading}
             />
           </div>
 
@@ -111,7 +225,7 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
               className="pl-10"
               placeholder="John Doe"
               required
-              disabled={loading || success}
+              disabled={loading}
             />
           </div>
 
@@ -121,7 +235,7 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
             onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'staff' | 'coach' })}
             options={roleOptions}
             required
-            disabled={loading || success}
+            disabled={loading}
           />
         </div>
 
@@ -129,15 +243,13 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
           <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button type="submit" disabled={loading || success}>
+          <Button type="submit" disabled={loading}>
             {loading ? (
-              'Sending...'
-            ) : success ? (
-              'Sent!'
+              'Creating...'
             ) : (
               <>
-                <Send className="w-4 h-4 mr-2" />
-                Send Invite
+                <UserPlus className="w-4 h-4 mr-2" />
+                Create Invitation
               </>
             )}
           </Button>
