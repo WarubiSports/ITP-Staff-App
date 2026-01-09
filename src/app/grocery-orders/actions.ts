@@ -3,9 +3,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+export type OrderStatusType = 'pending' | 'approved' | 'delivered' | 'cancelled'
+
 export async function updateOrderStatus(
   orderId: string,
-  status: 'pending' | 'approved' | 'delivered' | 'cancelled'
+  status: OrderStatusType
 ) {
   const supabase = await createClient()
 
@@ -46,7 +48,7 @@ export async function updateOrderStatus(
 
 export async function bulkUpdateOrderStatus(
   orderIds: string[],
-  status: 'pending' | 'approved' | 'delivered' | 'cancelled'
+  status: OrderStatusType
 ) {
   const supabase = await createClient()
 

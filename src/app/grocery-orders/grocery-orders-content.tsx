@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
 import type { GroceryOrder } from '@/types'
-import { updateOrderStatus, bulkUpdateOrderStatus } from './actions'
+import { updateOrderStatus, bulkUpdateOrderStatus, type OrderStatusType } from './actions'
 
 // Simplified types for data passed from server component
 interface SimpleHouse {
@@ -168,11 +168,10 @@ export function GroceryOrdersContent({
   }, [consolidatedItems])
 
   // Handle status update
-  type OrderStatus = 'pending' | 'approved' | 'delivered' | 'cancelled'
-  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatusType) => {
     setLoading(orderId)
     try {
-      await updateOrderStatus(orderId, newStatus as OrderStatus)
+      await updateOrderStatus(orderId, newStatus)
       router.refresh()
     } catch (error) {
       console.error('Failed to update status:', error)
@@ -638,7 +637,7 @@ function OrderActions({
 }: {
   order: GroceryOrder
   loading: boolean
-  onStatusUpdate: (id: string, status: 'pending' | 'approved' | 'delivered' | 'cancelled') => void
+  onStatusUpdate: (id: string, status: OrderStatusType) => void
 }) {
   if (order.status === 'delivered' || order.status === 'cancelled') {
     return null
