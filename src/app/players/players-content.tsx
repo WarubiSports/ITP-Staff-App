@@ -147,20 +147,17 @@ export function PlayersContent({ players }: PlayersContentProps) {
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar
-                        name={`${player.first_name} ${player.last_name}`}
-                        size="lg"
-                      />
-                      {player.jersey_number && (
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white">
-                          {player.jersey_number}
-                        </div>
-                      )}
-                    </div>
+                    <Avatar
+                      name={`${player.first_name} ${player.last_name}`}
+                      src={player.photo_url}
+                      size="lg"
+                    />
                     <div>
                       <h3 className="font-semibold text-gray-900">
                         {player.first_name} {player.last_name}
+                        {player.jersey_number && (
+                          <span className="ml-2 text-gray-400 font-normal">#{player.jersey_number}</span>
+                        )}
                       </h3>
                       <p className="text-sm text-gray-500">{player.player_id}</p>
                     </div>
