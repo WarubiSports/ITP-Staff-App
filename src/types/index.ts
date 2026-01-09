@@ -10,6 +10,8 @@ export interface Player {
   nationality: string
   passports: string
   height_cm?: number
+  jersey_number?: number
+  photo_url?: string
   email?: string
   phone?: string
   parent1_name?: string
