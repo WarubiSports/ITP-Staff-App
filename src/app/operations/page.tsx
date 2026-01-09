@@ -62,6 +62,12 @@ export default async function OperationsPage() {
     .order('house_id')
     .order('name')
 
+  // Fetch houses for grocery orders grouping
+  const { data: houses } = await supabase
+    .from('houses')
+    .select('id, name')
+    .order('name')
+
   // Fetch grocery orders with player info
   const { data: groceryOrders } = await supabase
     .from('grocery_orders')
@@ -87,6 +93,7 @@ export default async function OperationsPage() {
         trials={trials || []}
         rooms={rooms || []}
         groceryOrders={groceryOrders || []}
+        houses={houses || []}
       />
     </AppLayout>
   )

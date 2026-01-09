@@ -76,6 +76,11 @@ interface CalendarEvent {
   location?: string
 }
 
+interface House {
+  id: string
+  name: string
+}
+
 interface OperationsContentProps {
   players: Player[]
   events: CalendarEvent[]
@@ -85,6 +90,7 @@ interface OperationsContentProps {
   trials: PlayerTrial[]
   rooms: Room[]
   groceryOrders: GroceryOrder[]
+  houses: House[]
 }
 
 type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery'
@@ -98,6 +104,7 @@ export function OperationsContent({
   trials,
   rooms,
   groceryOrders,
+  houses,
 }: OperationsContentProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabType>('visa')
@@ -924,54 +931,129 @@ export function OperationsContent({
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>All Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">Player</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">Delivery Date</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">Items</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">Total</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-500">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {groceryOrders.map((order) => (
-                        <tr key={order.id} className="border-b last:border-0 hover:bg-gray-50">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <Avatar name={order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'} size="sm" />
-                              <span className="font-medium">
-                                {order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">{formatDate(order.delivery_date)}</td>
-                          <td className="py-3 px-4">{order.items?.length || 0} items</td>
-                          <td className="py-3 px-4 font-medium">€{order.total_amount.toFixed(2)}</td>
-                          <td className="py-3 px-4">
-                            <Badge
-                              variant={
-                                order.status === 'delivered' ? 'success' :
-                                order.status === 'approved' ? 'info' :
-                                order.status === 'cancelled' ? 'danger' : 'warning'
-                              }
+            <div className="space-y-4">
+              <h3 className="text-md font-medium text-gray-700">Orders by House</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Unassigned orders first if any */}
+                {(() => {
+                  const unassignedOrders = groceryOrders.filter(o => !o.player?.house_id)
+                  if (unassignedOrders.length === 0) return null
+                  const unassignedTotal = unassignedOrders.reduce((sum, o) => sum + o.total_amount, 0)
+                  return (
+                    <Card className="border-amber-200">
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-amber-700">
+                            <Home className="w-5 h-5" />
+                            Unassigned
+                          </span>
+                          <Badge variant="warning">
+                            {unassignedOrders.length} orders
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {unassignedOrders.map(order => (
+                            <div
+                              key={order.id}
+                              className="flex items-center justify-between py-2 border-b last:border-0"
                             >
-                              {order.status}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+                              <div>
+                                <p className="font-medium">
+                                  {order.player?.first_name} {order.player?.last_name}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {formatDate(order.delivery_date)} - {order.items?.length || 0} items
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium">€{order.total_amount.toFixed(2)}</p>
+                                <Badge
+                                  variant={
+                                    order.status === 'delivered' ? 'success' :
+                                    order.status === 'approved' ? 'info' :
+                                    order.status === 'cancelled' ? 'danger' : 'warning'
+                                  }
+                                >
+                                  {order.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="pt-2 border-t flex justify-between font-medium">
+                            <span>Unassigned Total</span>
+                            <span>€{unassignedTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })()}
+
+                {/* Houses */}
+                {houses.map(house => {
+                  const houseOrders = groceryOrders.filter(o => o.player?.house_id === house.id)
+                  const housePlayers = players.filter(p => p.house_id === house.id)
+                  const totalSpent = houseOrders.reduce((sum, o) => sum + o.total_amount, 0)
+
+                  return (
+                    <Card key={house.id}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <Home className="w-5 h-5" />
+                            {house.name}
+                          </span>
+                          <Badge variant="default">
+                            {housePlayers.length} players
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {houseOrders.length === 0 ? (
+                          <p className="text-gray-500 text-sm">No orders</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {houseOrders.map(order => (
+                              <div
+                                key={order.id}
+                                className="flex items-center justify-between py-2 border-b last:border-0"
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {order.player?.first_name} {order.player?.last_name}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {formatDate(order.delivery_date)} - {order.items?.length || 0} items
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-medium">€{order.total_amount.toFixed(2)}</p>
+                                  <Badge
+                                    variant={
+                                      order.status === 'delivered' ? 'success' :
+                                      order.status === 'approved' ? 'info' :
+                                      order.status === 'cancelled' ? 'danger' : 'warning'
+                                    }
+                                  >
+                                    {order.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                            <div className="pt-2 border-t flex justify-between font-medium">
+                              <span>House Total</span>
+                              <span>€{totalSpent.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}
