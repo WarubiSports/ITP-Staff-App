@@ -7,13 +7,14 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
-import { CalendarEventType } from '@/types'
+import { CalendarEventType, Player } from '@/types'
 
 interface AddEventModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
   defaultDate?: string
+  players?: Pick<Player, 'id' | 'first_name' | 'last_name' | 'player_id'>[]
 }
 
 const eventTypeOptions: { value: CalendarEventType; label: string; category: string }[] = [
@@ -45,7 +46,7 @@ const recurrenceOptions = [
   { value: 'monthly', label: 'Monthly' },
 ]
 
-export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate }: AddEventModalProps) {
+export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players = [] }: AddEventModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -62,7 +63,17 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate }: AddEv
     is_recurring: false,
     recurrence_rule: '',
     recurrence_end_date: '',
+    selectedPlayers: [] as string[],
   })
+
+  const togglePlayer = (playerId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedPlayers: prev.selectedPlayers.includes(playerId)
+        ? prev.selectedPlayers.filter((id) => id !== playerId)
+        : [...prev.selectedPlayers, playerId],
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -95,11 +106,26 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate }: AddEv
         recurrence_end_date: formData.recurrence_end_date || null,
       }
 
-      const { error: insertError } = await supabase
+      const { data: insertedEvent, error: insertError } = await supabase
         .from('events')
         .insert(eventData)
+        .select('id')
+        .single()
 
       if (insertError) throw insertError
+
+      // Insert event attendees if players selected
+      if (formData.selectedPlayers.length > 0 && insertedEvent) {
+        const attendees = formData.selectedPlayers.map((playerId) => ({
+          event_id: insertedEvent.id,
+          player_id: playerId,
+          status: 'pending',
+        }))
+        const { error: attendeesError } = await supabase
+          .from('event_attendees')
+          .insert(attendees)
+        if (attendeesError) console.error('Failed to add attendees:', attendeesError)
+      }
 
       // If recurring, create future instances
       if (formData.recurrence_rule && formData.recurrence_end_date) {
@@ -143,6 +169,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate }: AddEv
         is_recurring: false,
         recurrence_rule: '',
         recurrence_end_date: '',
+        selectedPlayers: [],
       })
       onSuccess()
       onClose()
@@ -322,6 +349,39 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate }: AddEv
             </p>
           )}
         </div>
+
+        {/* Player Selection */}
+        {players.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assign Players (Optional)
+            </label>
+            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+              {players.map((player) => (
+                <label
+                  key={player.id}
+                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.selectedPlayers.includes(player.id)}
+                    onChange={() => togglePlayer(player.id)}
+                    className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    {player.first_name} {player.last_name}
+                  </span>
+                  <span className="text-xs text-gray-400">{player.player_id}</span>
+                </label>
+              ))}
+            </div>
+            {formData.selectedPlayers.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.selectedPlayers.length} player(s) selected
+              </p>
+            )}
+          </div>
+        )}
 
         <Textarea
           label="Description"

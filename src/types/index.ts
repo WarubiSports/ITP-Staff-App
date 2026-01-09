@@ -163,6 +163,20 @@ export interface CalendarEvent {
   parent_event_id?: string
   created_at?: string
   updated_at?: string
+  // Joined data
+  attendees?: EventAttendee[]
+}
+
+// Event attendee for player-event assignments
+export interface EventAttendee {
+  id: string
+  event_id: string
+  player_id: string
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+  updated_at: string
+  // Joined player data
+  player?: Pick<Player, 'id' | 'first_name' | 'last_name'>
 }
 
 // All calendar event types
