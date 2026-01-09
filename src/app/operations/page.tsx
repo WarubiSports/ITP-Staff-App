@@ -16,10 +16,10 @@ export default async function OperationsPage() {
     redirect('/login')
   }
 
-  // Fetch players for visa and housing info
+  // Fetch players for visa and housing info (including visa document tracking fields)
   const { data: players } = await supabase
     .from('players')
-    .select('*')
+    .select('id, player_id, first_name, last_name, nationality, date_of_birth, visa_expiry, insurance_expiry, house_id, room_id, program_end_date, visa_requires, visa_arrival_date, visa_status, visa_documents, visa_notes')
     .eq('status', 'active')
     .order('last_name')
 

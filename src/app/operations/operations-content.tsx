@@ -38,17 +38,27 @@ import {
   AddEventModal,
 } from '@/components/modals'
 import { RoomAllocation } from '@/components/housing'
+import { VisaDocumentTracking } from '@/components/visa'
+import type { VisaApplicationStatus, VisaDocumentChecklist } from '@/types'
 
 interface Player {
   id: string
   player_id: string
   first_name: string
   last_name: string
+  nationality: string
+  date_of_birth: string
   visa_expiry?: string
   insurance_expiry?: string
   house_id?: string
   room_id?: string
   program_end_date?: string
+  // Visa document tracking
+  visa_requires?: boolean
+  visa_arrival_date?: string
+  visa_status?: VisaApplicationStatus
+  visa_documents?: VisaDocumentChecklist
+  visa_notes?: string
 }
 
 interface CalendarEvent {
@@ -291,96 +301,12 @@ export function OperationsContent({
         </div>
       )}
 
-      {/* Visa Tab */}
+      {/* Visa Tab - Enhanced Document Tracking */}
       {activeTab === 'visa' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Visa Status</h2>
-          </div>
-
-          {visaAlerts.length === 0 ? (
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center text-gray-500">
-                  <Plane className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-lg font-medium">All visas up to date</p>
-                  <p className="text-sm">No visa renewals needed in the next 60 days</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {visaAlerts.map((player) => {
-                const days = getDaysUntil(player.visa_expiry!)
-                const isExpired = days < 0
-                const isUrgent = days <= 14
-
-                return (
-                  <Card
-                    key={player.id}
-                    className={
-                      isExpired
-                        ? 'border-red-200 bg-red-50/50'
-                        : isUrgent
-                        ? 'border-orange-200 bg-orange-50/50'
-                        : ''
-                    }
-                  >
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar
-                            name={`${player.first_name} ${player.last_name}`}
-                            size="lg"
-                          />
-                          <div>
-                            <h3 className="font-semibold text-gray-900">
-                              {player.first_name} {player.last_name}
-                            </h3>
-                            <p className="text-sm text-gray-500">{player.player_id}</p>
-                          </div>
-                        </div>
-                        <Badge variant={isExpired ? 'danger' : isUrgent ? 'warning' : 'info'}>
-                          {isExpired ? 'Expired' : isUrgent ? 'Urgent' : 'Expiring'}
-                        </Badge>
-                      </div>
-
-                      <div className="mt-4 p-3 bg-white rounded-lg border">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-500">Visa Expiry</span>
-                          <span className="font-medium">
-                            {formatDate(player.visa_expiry!)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-sm text-gray-500">Days Remaining</span>
-                          <span
-                            className={`font-bold ${
-                              isExpired
-                                ? 'text-red-600'
-                                : isUrgent
-                                ? 'text-orange-600'
-                                : 'text-gray-900'
-                            }`}
-                          >
-                            {isExpired ? `${Math.abs(days)} days overdue` : `${days} days`}
-                          </span>
-                        </div>
-                      </div>
-
-                      {(isExpired || isUrgent) && (
-                        <div className="mt-3 flex items-center gap-2 text-sm text-orange-700">
-                          <AlertTriangle className="w-4 h-4" />
-                          <span>Action required</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <VisaDocumentTracking
+          players={players}
+          onUpdate={handleRefresh}
+        />
       )}
 
       {/* Housing Tab */}

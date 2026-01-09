@@ -64,9 +64,6 @@ export function PlayersContent({ players }: PlayersContentProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('active')
 
-  // Debug: log first player to check data
-  console.log('First player data:', players[0])
-
   // Filter players
   const filteredPlayers = players.filter((player) => {
     const matchesSearch =

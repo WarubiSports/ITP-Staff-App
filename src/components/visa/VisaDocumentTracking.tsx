@@ -451,8 +451,7 @@ export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTracking
                       <div>
                         <h4 className="font-medium text-gray-900 mb-3">Document Checklist</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                          {Object.entries(docs).map(([key, status]) => {
-                            const docKey = key as keyof VisaDocumentChecklist
+                          {(Object.entries(docs) as [keyof VisaDocumentChecklist, VisaDocumentStatus][]).map(([docKey, status]) => {
                             const config = statusConfig[status]
                             const StatusIcon = config.icon
                             const labels = documentLabels[docKey]
@@ -465,7 +464,7 @@ export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTracking
 
                             return (
                               <button
-                                key={key}
+                                key={docKey}
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   toggleDocumentStatus(player.id, docKey, status)
