@@ -144,8 +144,13 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
         visa_status: player.visa_status || null,
         visa_expiry: player.visa_expiry || null,
         insurance_expiry: player.insurance_expiry || null,
+        insurance_provider: player.insurance_provider || null,
+        insurance_number: player.insurance_number || null,
+        program_start_date: player.program_start_date || null,
         program_end_date: player.program_end_date || null,
         house_id: player.house_id || null,
+        emergency_contact_name: player.emergency_contact_name || null,
+        emergency_contact_phone: player.emergency_contact_phone || null,
         notes: player.notes || null,
       })
 

@@ -460,3 +460,54 @@ export interface PlayerDocument {
   created_at: string
   updated_at: string
 }
+
+// Grocery item from master list
+export interface GroceryItem {
+  id: string
+  name: string
+  category: 'household' | 'produce' | 'meat' | 'dairy' | 'carbs' | 'drinks' | 'spices' | 'frozen'
+  price: number
+  in_stock: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Grocery order
+export interface GroceryOrder {
+  id: string
+  player_id: string
+  delivery_date: string
+  total_amount: number
+  status: 'pending' | 'approved' | 'delivered' | 'cancelled'
+  notes?: string
+  submitted_at: string
+  approved_at?: string
+  approved_by?: string
+  delivered_at?: string
+  created_at: string
+  updated_at: string
+  // Joined data
+  player?: Pick<Player, 'id' | 'first_name' | 'last_name' | 'house_id'>
+  items?: GroceryOrderItem[]
+}
+
+// Grocery order line item
+export interface GroceryOrderItem {
+  id: string
+  order_id: string
+  item_id: string
+  quantity: number
+  price_at_order: number
+  created_at: string
+  // Joined data
+  item?: GroceryItem
+}
+
+// Consolidated item for shopping list
+export interface ConsolidatedGroceryItem {
+  item_id: string
+  name: string
+  category: string
+  total_quantity: number
+  orders: { player_name: string; quantity: number }[]
+}

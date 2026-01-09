@@ -18,7 +18,6 @@ function getAdminClient() {
   })
 }
 
-// Fields that exist in the database
 interface PlayerUpdateData {
   first_name: string
   last_name: string
@@ -31,8 +30,13 @@ interface PlayerUpdateData {
   visa_status?: string | null
   visa_expiry?: string | null
   insurance_expiry?: string | null
+  insurance_provider?: string | null
+  insurance_number?: string | null
+  program_start_date?: string | null
   program_end_date?: string | null
   house_id?: string | null
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
   notes?: string | null
 }
 

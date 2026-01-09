@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   Plane,
   Home,
@@ -22,13 +23,16 @@ import {
   DoorOpen,
   ChevronDown,
   ChevronUp,
+  ShoppingCart,
+  Package,
+  Truck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { formatDate, getDaysUntil } from '@/lib/utils'
-import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room } from '@/types'
+import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder } from '@/types'
 import {
   AddWellPassModal,
   AddMedicalAppointmentModal,
@@ -79,9 +83,10 @@ interface OperationsContentProps {
   insuranceClaims: InsuranceClaim[]
   trials: PlayerTrial[]
   rooms: Room[]
+  groceryOrders: GroceryOrder[]
 }
 
-type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials'
+type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery'
 
 export function OperationsContent({
   players,
@@ -91,6 +96,7 @@ export function OperationsContent({
   insuranceClaims,
   trials,
   rooms,
+  groceryOrders,
 }: OperationsContentProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabType>('visa')
@@ -147,6 +153,11 @@ export function OperationsContent({
     t.status === 'scheduled' || t.status === 'ongoing'
   )
 
+  // Pending grocery orders
+  const pendingGroceryOrders = groceryOrders.filter((o) =>
+    o.status === 'pending'
+  )
+
   // Helper to get player name by ID
   const getPlayerName = (playerId: string) => {
     const player = players.find(p => p.id === playerId)
@@ -161,6 +172,7 @@ export function OperationsContent({
     { id: 'medical', label: 'Medical', icon: Stethoscope, count: upcomingAppointments.length },
     { id: 'billing', label: 'Billing', icon: FileText, count: pendingClaims.length },
     { id: 'trials', label: 'Trials', icon: UserPlus, count: activeTrials.length },
+    { id: 'grocery', label: 'Grocery', icon: ShoppingCart, count: pendingGroceryOrders.length },
   ]
 
   return (
@@ -830,6 +842,125 @@ export function OperationsContent({
                       )}
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Grocery Orders Tab */}
+      {activeTab === 'grocery' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Grocery Orders</h2>
+            <Link href="/grocery-orders">
+              <Button>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View All Orders
+              </Button>
+            </Link>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <ShoppingCart className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{groceryOrders.length}</p>
+                    <p className="text-sm text-gray-500">Total Orders</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Package className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{pendingGroceryOrders.length}</p>
+                    <p className="text-sm text-gray-500">Pending Approval</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{groceryOrders.filter(o => o.status === 'approved').length}</p>
+                    <p className="text-sm text-gray-500">Approved</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Truck className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{groceryOrders.filter(o => o.status === 'delivered').length}</p>
+                    <p className="text-sm text-gray-500">Delivered</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pending Orders */}
+          {pendingGroceryOrders.length > 0 ? (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Package className="w-5 h-5 text-amber-600" />
+                  <h3 className="font-semibold text-amber-900">Pending Orders ({pendingGroceryOrders.length})</h3>
+                </div>
+                <div className="space-y-2">
+                  {pendingGroceryOrders.slice(0, 5).map((order) => (
+                    <div key={order.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'} size="sm" />
+                        <div>
+                          <p className="font-medium">
+                            {order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {order.items?.length || 0} items · €{order.total_amount.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatDate(order.delivery_date)}</p>
+                        <Badge variant="warning">Pending</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {pendingGroceryOrders.length > 5 && (
+                  <Link href="/grocery-orders" className="block mt-3 text-center text-sm text-amber-700 hover:text-amber-800">
+                    View all {pendingGroceryOrders.length} pending orders →
+                  </Link>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-gray-500">
+                  <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-lg font-medium">No pending orders</p>
+                  <p className="text-sm">All grocery orders have been processed</p>
                 </div>
               </CardContent>
             </Card>

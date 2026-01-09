@@ -32,13 +32,7 @@ const navigation = [
   { name: 'Staff', href: '/staff', icon: UserCog },
 ]
 
-const externalLinks = [
-  {
-    name: 'Player App',
-    href: process.env.NEXT_PUBLIC_PLAYER_APP_URL || 'https://itp-player-app.vercel.app',
-    icon: Home,
-  },
-]
+const playerAppUrl = process.env.NEXT_PUBLIC_PLAYER_APP_URL || 'https://itp-player-app.vercel.app'
 
 interface SidebarProps {
   user?: {
@@ -57,6 +51,18 @@ export function Sidebar({ user }: SidebarProps) {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  const handleOpenPlayerApp = async () => {
+    // Get current session and pass token to player app for SSO
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      const ssoUrl = `${playerAppUrl}/auth/sso?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+      window.open(ssoUrl, '_blank')
+    } else {
+      // Fallback to regular link if no session
+      window.open(playerAppUrl, '_blank')
+    }
   }
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Staff'
@@ -102,19 +108,14 @@ export function Sidebar({ user }: SidebarProps) {
           <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
             Quick Links
           </p>
-          {externalLinks.map((item) => (
-            <a
-              key={item.name}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              <item.icon className="w-5 h-5" />
-              {item.name}
-              <ExternalLink className="w-3 h-3 ml-auto text-gray-400" />
-            </a>
-          ))}
+          <button
+            onClick={handleOpenPlayerApp}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+          >
+            <Home className="w-5 h-5" />
+            Player App
+            <ExternalLink className="w-3 h-3 ml-auto text-gray-400" />
+          </button>
         </div>
       </nav>
 
