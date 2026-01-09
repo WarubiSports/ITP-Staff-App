@@ -168,10 +168,11 @@ export function GroceryOrdersContent({
   }, [consolidatedItems])
 
   // Handle status update
-  const handleStatusUpdate = async (orderId: string, newStatus: 'pending' | 'approved' | 'delivered' | 'cancelled') => {
+  type OrderStatus = 'pending' | 'approved' | 'delivered' | 'cancelled'
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
     setLoading(orderId)
     try {
-      await updateOrderStatus(orderId, newStatus)
+      await updateOrderStatus(orderId, newStatus as OrderStatus)
       router.refresh()
     } catch (error) {
       console.error('Failed to update status:', error)
