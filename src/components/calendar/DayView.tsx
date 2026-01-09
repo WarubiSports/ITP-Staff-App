@@ -22,7 +22,8 @@ export function DayView({
 }: DayViewProps) {
   // Get events for the current date
   const getEventsForDate = () => {
-    const dateStr = currentDate.toISOString().split('T')[0]
+    // Use local date formatting to avoid timezone issues
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
     return events.filter((event) => event.date === dateStr)
   }
 

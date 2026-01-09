@@ -200,6 +200,9 @@ export type CalendarEventType =
   | 'medical'
   // Legacy
   | 'training'
+  // Trials
+  | 'trial'
+  | 'prospect_trial'
   // Other
   | 'other'
   | 'visa'

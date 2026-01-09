@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarEvent, Player } from '@/types'
+import { CalendarEvent, Player, PlayerTrial, TrialProspect } from '@/types'
 import { Button } from '@/components/ui/button'
 import { CalendarGrid } from '@/components/calendar/CalendarGrid'
 import { WeekView } from '@/components/calendar/WeekView'
@@ -21,14 +21,117 @@ import { cn } from '@/lib/utils'
 
 type ViewMode = 'month' | 'week' | 'day'
 
+interface PlayerTrialWithPlayer extends PlayerTrial {
+  player?: { id: string; first_name: string; last_name: string }
+}
+
 interface CalendarContentProps {
   events: CalendarEvent[]
   players: Pick<Player, 'id' | 'first_name' | 'last_name' | 'player_id'>[]
+  playerTrials?: PlayerTrialWithPlayer[]
+  trialProspects?: TrialProspect[]
 }
 
-export function CalendarContent({ events: initialEvents, players }: CalendarContentProps) {
+// Helper to parse date string (handles both "YYYY-MM-DD" and ISO formats)
+function parseDateString(dateStr: string): Date {
+  // Extract just the date part (before any 'T' for ISO strings)
+  const datePart = dateStr.split('T')[0]
+  const parts = datePart.split('-')
+  return new Date(
+    parseInt(parts[0]),
+    parseInt(parts[1]) - 1,
+    parseInt(parts[2])
+  )
+}
+
+// Convert player trials to calendar events
+function convertPlayerTrialsToEvents(trials: PlayerTrialWithPlayer[]): CalendarEvent[] {
+  const events: CalendarEvent[] = []
+
+  trials.forEach((trial) => {
+    const playerName = trial.player
+      ? `${trial.player.first_name} ${trial.player.last_name}`
+      : 'Unknown Player'
+
+    // Parse dates as local dates (not UTC) to avoid timezone issues
+    const startDate = parseDateString(trial.trial_start_date)
+    const endDate = parseDateString(trial.trial_end_date)
+
+    // Create event for each day of the trial
+    const current = new Date(startDate)
+    while (current <= endDate) {
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
+      events.push({
+        id: `trial-${trial.id}-${dateStr}`,
+        title: `${playerName} @ ${trial.trial_club}`,
+        description: trial.notes || undefined,
+        date: dateStr,
+        type: 'trial',
+        location: trial.trial_club,
+        all_day: true,
+        created_at: trial.created_at,
+        updated_at: trial.updated_at,
+      })
+      current.setDate(current.getDate() + 1)
+    }
+  })
+
+  return events
+}
+
+// Convert trial prospects to calendar events
+function convertProspectsToEvents(prospects: TrialProspect[]): CalendarEvent[] {
+  const events: CalendarEvent[] = []
+
+  prospects.forEach((prospect) => {
+    if (!prospect.trial_start_date) return
+
+    const prospectName = `${prospect.first_name} ${prospect.last_name}`
+
+    // Parse dates as local dates (not UTC) to avoid timezone issues
+    const startDate = parseDateString(prospect.trial_start_date)
+
+    let endDate = startDate
+    if (prospect.trial_end_date) {
+      endDate = parseDateString(prospect.trial_end_date)
+    }
+
+    // Create event for each day of the trial
+    const current = new Date(startDate)
+    while (current <= endDate) {
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
+      events.push({
+        id: `prospect-${prospect.id}-${dateStr}`,
+        title: `Trial: ${prospectName}`,
+        description: prospect.scouting_notes || undefined,
+        date: dateStr,
+        type: 'prospect_trial',
+        location: prospect.accommodation_details || undefined,
+        all_day: true,
+        created_at: prospect.created_at,
+        updated_at: prospect.updated_at,
+      })
+      current.setDate(current.getDate() + 1)
+    }
+  })
+
+  return events
+}
+
+export function CalendarContent({
+  events: initialEvents,
+  players,
+  playerTrials = [],
+  trialProspects = []
+}: CalendarContentProps) {
   const router = useRouter()
-  const [events, setEvents] = useState(initialEvents)
+
+  // Merge regular events with trial events
+  const events = useMemo(() => {
+    const trialEvents = convertPlayerTrialsToEvents(playerTrials)
+    const prospectEvents = convertProspectsToEvents(trialProspects)
+    return [...initialEvents, ...trialEvents, ...prospectEvents]
+  }, [initialEvents, playerTrials, trialProspects])
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)

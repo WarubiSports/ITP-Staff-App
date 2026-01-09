@@ -31,6 +31,23 @@ export default async function CalendarPage() {
     .order('date', { ascending: true })
     .order('start_time', { ascending: true })
 
+  // Fetch player trials (ITP players at external clubs)
+  const { data: playerTrials } = await supabase
+    .from('player_trials')
+    .select(`
+      *,
+      player:players(id, first_name, last_name)
+    `)
+    .in('status', ['scheduled', 'ongoing'])
+    .order('trial_start_date', { ascending: true })
+
+  // Fetch trial prospects (players trying out for ITP)
+  const { data: trialProspects } = await supabase
+    .from('trial_prospects')
+    .select('*')
+    .not('trial_start_date', 'is', null)
+    .order('trial_start_date', { ascending: true })
+
   // Fetch active players for assignment
   const { data: players } = await supabase
     .from('players')
@@ -47,6 +64,8 @@ export default async function CalendarPage() {
       <CalendarContent
         events={events || []}
         players={players || []}
+        playerTrials={playerTrials || []}
+        trialProspects={trialProspects || []}
       />
     </AppLayout>
   )
