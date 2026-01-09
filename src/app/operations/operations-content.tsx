@@ -3,13 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Calendar,
   Plane,
   Home,
   Shield,
   Clock,
   Users,
-  MapPin,
   AlertTriangle,
   Plus,
   ChevronRight,
@@ -35,10 +33,10 @@ import {
   AddMedicalAppointmentModal,
   AddInsuranceClaimModal,
   AddTrialModal,
-  AddEventModal,
 } from '@/components/modals'
 import { RoomAllocation } from '@/components/housing'
 import { VisaDocumentTracking } from '@/components/visa'
+import { CapacityChart } from '@/components/charts/CapacityChart'
 import type { VisaApplicationStatus, VisaDocumentChecklist } from '@/types'
 
 interface Player {
@@ -53,6 +51,7 @@ interface Player {
   house_id?: string
   room_id?: string
   program_end_date?: string
+  status?: string
   // Visa document tracking
   visa_requires?: boolean
   visa_arrival_date?: string
@@ -81,7 +80,7 @@ interface OperationsContentProps {
   rooms: Room[]
 }
 
-type TabType = 'schedule' | 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials'
+type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials'
 
 export function OperationsContent({
   players,
@@ -93,14 +92,13 @@ export function OperationsContent({
   rooms,
 }: OperationsContentProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<TabType>('schedule')
+  const [activeTab, setActiveTab] = useState<TabType>('visa')
 
   // Modal states
   const [showWellPassModal, setShowWellPassModal] = useState(false)
   const [showMedicalModal, setShowMedicalModal] = useState(false)
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [showTrialModal, setShowTrialModal] = useState(false)
-  const [showEventModal, setShowEventModal] = useState(false)
 
   // Refresh handler
   const handleRefresh = () => {
@@ -120,14 +118,6 @@ export function OperationsContent({
     const days = getDaysUntil(p.insurance_expiry)
     return days <= 30 && days >= -30
   }).sort((a, b) => getDaysUntil(a.insurance_expiry!) - getDaysUntil(b.insurance_expiry!))
-
-  // Group events by date
-  const eventsByDate = events.reduce((acc, event) => {
-    const date = event.date
-    if (!acc[date]) acc[date] = []
-    acc[date].push(event)
-    return acc
-  }, {} as Record<string, CalendarEvent[]>)
 
   // WellPass alerts (inactive or expiring soon)
   const wellpassAlerts = wellpassMemberships.filter((m) => {
@@ -163,7 +153,6 @@ export function OperationsContent({
   }
 
   const tabs = [
-    { id: 'schedule', label: 'Schedule', icon: Calendar, count: events.length },
     { id: 'visa', label: 'Visa', icon: Plane, count: visaAlerts.length },
     { id: 'housing', label: 'Housing', icon: Home, count: 0 },
     { id: 'insurance', label: 'Insurance', icon: Shield, count: insuranceAlerts.length },
@@ -175,6 +164,9 @@ export function OperationsContent({
 
   return (
     <div className="space-y-6">
+      {/* Capacity Overview */}
+      <CapacityChart players={players} />
+
       {/* Tabs */}
       <Card>
         <CardContent className="pt-6">
@@ -206,100 +198,6 @@ export function OperationsContent({
           </div>
         </CardContent>
       </Card>
-
-      {/* Schedule Tab */}
-      {activeTab === 'schedule' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
-            <Button onClick={() => setShowEventModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Event
-            </Button>
-          </div>
-
-          {Object.keys(eventsByDate).length === 0 ? (
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center text-gray-500">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-lg font-medium">No upcoming events</p>
-                  <p className="text-sm">Add training sessions, matches, or meetings</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {Object.entries(eventsByDate).map(([date, dayEvents]) => (
-                <Card key={date}>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-medium text-gray-500">
-                      {formatDate(date)}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {dayEvents.map((event) => {
-                        // Event type configuration
-                        const typeConfig: Record<string, { bg: string; color: string; icon: typeof Users }> = {
-                          team_training: { bg: 'bg-green-100', color: 'text-green-600', icon: Users },
-                          individual_training: { bg: 'bg-green-100', color: 'text-green-600', icon: Users },
-                          training: { bg: 'bg-green-100', color: 'text-green-600', icon: Users },
-                          gym: { bg: 'bg-purple-100', color: 'text-purple-600', icon: Activity },
-                          recovery: { bg: 'bg-teal-100', color: 'text-teal-600', icon: Activity },
-                          match: { bg: 'bg-blue-100', color: 'text-blue-600', icon: Calendar },
-                          tournament: { bg: 'bg-blue-100', color: 'text-blue-600', icon: Calendar },
-                          school: { bg: 'bg-yellow-100', color: 'text-yellow-600', icon: Clock },
-                          language_class: { bg: 'bg-yellow-100', color: 'text-yellow-600', icon: Clock },
-                          airport_pickup: { bg: 'bg-orange-100', color: 'text-orange-600', icon: Plane },
-                          team_activity: { bg: 'bg-pink-100', color: 'text-pink-600', icon: Users },
-                          meeting: { bg: 'bg-gray-100', color: 'text-gray-600', icon: Clock },
-                          medical: { bg: 'bg-red-100', color: 'text-red-600', icon: Stethoscope },
-                          other: { bg: 'bg-gray-100', color: 'text-gray-600', icon: Clock },
-                        }
-                        const config = typeConfig[event.type] || typeConfig.other
-                        const EventIcon = config.icon
-
-                        return (
-                          <div
-                            key={event.id}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${config.bg}`}>
-                                <EventIcon className={`w-4 h-4 ${config.color}`} />
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{event.title}</p>
-                                <div className="flex items-center gap-3 text-sm text-gray-500">
-                                  {event.start_time && (
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {event.start_time.slice(11, 16)}
-                                      {event.end_time && ` - ${event.end_time.slice(11, 16)}`}
-                                    </span>
-                                  )}
-                                  {event.location && (
-                                    <span className="flex items-center gap-1">
-                                      <MapPin className="w-3 h-3" />
-                                      {event.location}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <Badge>{event.type.replace(/_/g, ' ')}</Badge>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Visa Tab - Enhanced Document Tracking */}
       {activeTab === 'visa' && (
@@ -958,11 +856,6 @@ export function OperationsContent({
         players={players}
       />
 
-      <AddEventModal
-        isOpen={showEventModal}
-        onClose={() => setShowEventModal(false)}
-        onSuccess={handleRefresh}
-      />
     </div>
   )
 }

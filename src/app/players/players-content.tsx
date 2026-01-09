@@ -198,38 +198,6 @@ export function PlayersContent({ players }: PlayersContentProps) {
                       <span className="font-medium">{player.cohort}</span>
                     </div>
                   )}
-                  {daysRemaining !== null && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Program:</span>
-                      <span
-                        className={`font-medium ${
-                          daysRemaining < 30 ? 'text-orange-600' : ''
-                        }`}
-                      >
-                        {daysRemaining > 0 ? `${daysRemaining} days left` : 'Ended'}
-                      </span>
-                    </div>
-                  )}
-                  {insuranceDays !== null && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Insurance:</span>
-                      <Badge
-                        variant={
-                          insuranceDays < 0
-                            ? 'danger'
-                            : insuranceDays < 30
-                            ? 'warning'
-                            : 'success'
-                        }
-                      >
-                        {insuranceDays < 0
-                          ? 'Expired'
-                          : insuranceDays < 30
-                          ? `${insuranceDays}d left`
-                          : 'Valid'}
-                      </Badge>
-                    </div>
-                  )}
                   {/* Whereabouts */}
                   {player.whereabouts_status && player.whereabouts_status !== 'at_academy' && (
                     <div className="flex items-center gap-2">

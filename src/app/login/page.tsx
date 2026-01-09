@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +13,18 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // Check for error parameter (e.g., not_staff)
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam === 'not_staff') {
+      setError('Access denied. This app is for staff members only. If you are a player, please use the Player App.')
+    } else if (errorParam === 'auth_error') {
+      setError('Authentication failed. Please try again.')
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,17 +32,36 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push('/dashboard')
-        router.refresh()
+      if (authError) {
+        setError(authError.message)
+        setLoading(false)
+        return
       }
+
+      // Check if user is a staff member
+      if (data.user) {
+        const { data: staffProfile } = await supabase
+          .from('staff_profiles')
+          .select('id')
+          .eq('id', data.user.id)
+          .single()
+
+        if (!staffProfile) {
+          // Not a staff member - sign out and show error
+          await supabase.auth.signOut()
+          setError('Access denied. This app is for staff members only. If you are a player, please use the Player App.')
+          setLoading(false)
+          return
+        }
+      }
+
+      router.push('/dashboard')
+      router.refresh()
     } catch {
       setError('An unexpected error occurred')
     } finally {

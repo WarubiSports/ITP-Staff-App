@@ -32,7 +32,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Protected routes - redirect to login if not authenticated
-  const protectedPaths = ['/dashboard', '/players', '/operations', '/tasks']
+  const protectedPaths = ['/dashboard', '/players', '/operations', '/tasks', '/calendar', '/attendance', '/prospects', '/staff', '/settings']
   const isProtectedPath = protectedPaths.some(path =>
     request.nextUrl.pathname.startsWith(path)
   )
@@ -43,11 +43,38 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Check if authenticated user is a staff member
+  if (isProtectedPath && user) {
+    const { data: staffProfile } = await supabase
+      .from('staff_profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (!staffProfile) {
+      // User is not a staff member - sign them out and redirect
+      await supabase.auth.signOut()
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('error', 'not_staff')
+      return NextResponse.redirect(url)
+    }
+  }
+
   // Redirect authenticated users away from login
   if (request.nextUrl.pathname === '/login' && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    // Check if they're staff before redirecting to dashboard
+    const { data: staffProfile } = await supabase
+      .from('staff_profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (staffProfile) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

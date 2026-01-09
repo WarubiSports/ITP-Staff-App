@@ -44,7 +44,7 @@ export function AddWellPassModal({ isOpen, onClose, players, onSuccess }: AddWel
         .from('wellpass_memberships')
         .insert({
           player_id: formData.player_id,
-          membership_number: formData.membership_number,
+          membership_number: formData.membership_number || null,
           status: formData.status,
           start_date: formData.start_date,
           end_date: formData.end_date || null,
@@ -100,11 +100,10 @@ export function AddWellPassModal({ isOpen, onClose, players, onSuccess }: AddWel
         />
 
         <Input
-          label="Membership Number *"
+          label="Membership Number"
           value={formData.membership_number}
           onChange={(e) => setFormData({ ...formData, membership_number: e.target.value })}
           placeholder="e.g., WP-12345"
-          required
         />
 
         <div className="grid grid-cols-2 gap-4">

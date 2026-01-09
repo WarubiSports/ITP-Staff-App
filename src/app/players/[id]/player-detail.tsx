@@ -30,8 +30,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
-import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
+import { updatePlayer, deletePlayer } from '../actions'
 import { UpdateWhereaboutsModal } from '@/components/modals'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -57,9 +57,7 @@ interface Player {
   visa_expiry?: string
   program_start_date?: string
   program_end_date?: string
-  cohort?: string
   house_id?: string
-  room_number?: string
   emergency_contact_name?: string
   emergency_contact_phone?: string
   notes?: string
@@ -93,7 +91,6 @@ interface PlayerDetailProps {
 
 export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents }: PlayerDetailProps) {
   const router = useRouter()
-  const supabase = createClient()
   const { showToast } = useToast()
 
   const [player, setPlayer] = useState(initialPlayer)
@@ -112,26 +109,13 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
     setError(null)
 
     try {
-      if (isDemo) {
-        // Hard delete for demo player
-        const { error: deleteError } = await supabase
-          .from('players')
-          .delete()
-          .eq('id', player.id)
+      const result = await deletePlayer(player.id, isDemo)
 
-        if (deleteError) throw deleteError
-        showToast('Demo player permanently deleted')
-      } else {
-        // Soft delete - change status to cancelled
-        const { error: updateError } = await supabase
-          .from('players')
-          .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-          .eq('id', player.id)
-
-        if (updateError) throw updateError
-        showToast('Player archived successfully')
+      if (result.error) {
+        throw new Error(result.error)
       }
 
+      showToast(isDemo ? 'Demo player permanently deleted' : 'Player archived successfully')
       router.push('/players')
       router.refresh()
     } catch (err) {
@@ -148,40 +132,30 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
     setError(null)
 
     try {
-      const { error: updateError } = await supabase
-        .from('players')
-        .update({
-          first_name: player.first_name,
-          last_name: player.last_name,
-          email: player.email || null,
-          phone: player.phone || null,
-          status: player.status,
-          positions: player.positions,
-          nationality: player.nationality || null,
-          date_of_birth: player.date_of_birth || null,
-          insurance_expiry: player.insurance_expiry || null,
-          insurance_provider: player.insurance_provider || null,
-          insurance_number: player.insurance_number || null,
-          visa_status: player.visa_status || null,
-          visa_expiry: player.visa_expiry || null,
-          program_start_date: player.program_start_date || null,
-          program_end_date: player.program_end_date || null,
-          cohort: player.cohort || null,
-          house_id: player.house_id || null,
-          room_number: player.room_number || null,
-          emergency_contact_name: player.emergency_contact_name || null,
-          emergency_contact_phone: player.emergency_contact_phone || null,
-          notes: player.notes || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', player.id)
+      const result = await updatePlayer(player.id, {
+        first_name: player.first_name,
+        last_name: player.last_name,
+        status: player.status,
+        positions: player.positions,
+        nationality: player.nationality || null,
+        date_of_birth: player.date_of_birth || null,
+        visa_status: player.visa_status || null,
+        visa_expiry: player.visa_expiry || null,
+        insurance_expiry: player.insurance_expiry || null,
+        program_end_date: player.program_end_date || null,
+        house_id: player.house_id || null,
+      })
 
-      if (updateError) throw updateError
+      if (result.error) {
+        throw new Error(result.error)
+      }
 
       setEditing(false)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save changes')
+      console.error('Save error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save changes'
+      setError(errorMessage)
     } finally {
       setSaving(false)
     }
@@ -373,12 +347,6 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Cohort"
-                  value={player.cohort || ''}
-                  onChange={(e) => updateField('cohort', e.target.value)}
-                  disabled={!editing}
-                />
                 <Input
                   label="Program Start Date"
                   type="date"

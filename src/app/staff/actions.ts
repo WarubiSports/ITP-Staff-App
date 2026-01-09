@@ -66,6 +66,19 @@ export async function inviteStaffMember(
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   try {
+    // Check if email belongs to a player (players should not be staff)
+    const { data: existingPlayer } = await supabaseAdmin
+      .from('players')
+      .select('id, first_name, last_name, email')
+      .ilike('email', email)
+      .single()
+
+    if (existingPlayer) {
+      return {
+        error: `This email belongs to player ${existingPlayer.first_name} ${existingPlayer.last_name}. Players cannot be added as staff members.`
+      }
+    }
+
     // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
     const existingUser = existingUsers?.users?.find(u => u.email === email)
