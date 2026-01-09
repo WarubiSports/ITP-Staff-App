@@ -36,6 +36,8 @@ interface Player {
   program_end_date?: string
   cohort?: string
   house_id?: string
+  jersey_number?: number
+  photo_url?: string
   whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
   whereabouts_details?: {
     club?: string
@@ -60,7 +62,7 @@ interface PlayersContentProps {
 
 export function PlayersContent({ players }: PlayersContentProps) {
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('active')
 
   // Filter players
   const filteredPlayers = players.filter((player) => {
@@ -145,10 +147,17 @@ export function PlayersContent({ players }: PlayersContentProps) {
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <Avatar
-                      name={`${player.first_name} ${player.last_name}`}
-                      size="lg"
-                    />
+                    <div className="relative">
+                      <Avatar
+                        name={`${player.first_name} ${player.last_name}`}
+                        size="lg"
+                      />
+                      {player.jersey_number && (
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center border-2 border-white">
+                          {player.jersey_number}
+                        </div>
+                      )}
+                    </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">
                         {player.first_name} {player.last_name}
