@@ -18,10 +18,12 @@ function getAdminClient() {
   })
 }
 
-// Core fields that exist in the database
+// Fields that exist in the database
 interface PlayerUpdateData {
   first_name: string
   last_name: string
+  email?: string | null
+  phone?: string | null
   status: string
   positions?: string[]
   nationality?: string | null
@@ -31,6 +33,7 @@ interface PlayerUpdateData {
   insurance_expiry?: string | null
   program_end_date?: string | null
   house_id?: string | null
+  notes?: string | null
 }
 
 export async function updatePlayer(playerId: string, data: PlayerUpdateData) {

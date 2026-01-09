@@ -12,6 +12,7 @@ import {
   Plus,
   ChevronRight,
   Activity,
+  ExternalLink,
   Stethoscope,
   FileText,
   UserPlus,
@@ -295,10 +296,19 @@ export function OperationsContent({
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">WellPass Memberships</h2>
-            <Button onClick={() => setShowWellPassModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Membership
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.open('https://app.egym-wellpass.com/login', '_blank')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                User Management
+              </Button>
+              <Button onClick={() => setShowWellPassModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Membership
+              </Button>
+            </div>
           </div>
 
           {/* Summary Cards */}

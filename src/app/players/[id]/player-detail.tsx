@@ -135,6 +135,8 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
       const result = await updatePlayer(player.id, {
         first_name: player.first_name,
         last_name: player.last_name,
+        email: player.email || null,
+        phone: player.phone || null,
         status: player.status,
         positions: player.positions,
         nationality: player.nationality || null,
@@ -144,6 +146,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
         insurance_expiry: player.insurance_expiry || null,
         program_end_date: player.program_end_date || null,
         house_id: player.house_id || null,
+        notes: player.notes || null,
       })
 
       if (result.error) {
