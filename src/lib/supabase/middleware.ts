@@ -1,10 +1,21 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Helper to check user role - single source of truth
+async function getUserRole(supabase: ReturnType<typeof createServerClient>, userId: string) {
+  const [{ data: staffProfile }, { data: playerProfile }] = await Promise.all([
+    supabase.from('staff_profiles').select('id').eq('id', userId).single(),
+    supabase.from('players').select('id').eq('user_id', userId).single(),
+  ])
+
+  return {
+    isStaff: !!staffProfile,
+    isPlayer: !!playerProfile,
+  }
+}
+
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,9 +27,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -27,62 +36,30 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Staff-only routes
+  // Route definitions
   const staffPaths = ['/dashboard', '/players', '/operations', '/tasks', '/calendar', '/attendance', '/prospects', '/staff', '/settings', '/grocery-orders']
-  const isStaffPath = staffPaths.some(path => request.nextUrl.pathname.startsWith(path))
-
-  // Player-only routes
   const playerPaths = ['/player']
+
+  const isStaffPath = staffPaths.some(path => request.nextUrl.pathname.startsWith(path))
   const isPlayerPath = playerPaths.some(path => request.nextUrl.pathname.startsWith(path))
-
-  // All protected paths
   const isProtectedPath = isStaffPath || isPlayerPath
+  const isLoginPage = request.nextUrl.pathname === '/login'
+  const isRootPage = request.nextUrl.pathname === '/'
 
-  // Redirect to login if not authenticated
+  // No user - redirect protected routes to login
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Check user role and route accordingly
-  if (isProtectedPath && user) {
-    // Check if staff
-    const { data: staffProfile } = await supabase
-      .from('staff_profiles')
-      .select('id, role')
-      .eq('id', user.id)
-      .single()
+  // User exists - check role and route accordingly
+  if (user && (isProtectedPath || isLoginPage || isRootPage)) {
+    const { isStaff, isPlayer } = await getUserRole(supabase, user.id)
 
-    // Check if player
-    const { data: playerProfile } = await supabase
-      .from('players')
-      .select('id, first_name, last_name')
-      .eq('user_id', user.id)
-      .single()
-
-    const isStaff = !!staffProfile
-    const isPlayer = !!playerProfile
-
-    // Staff trying to access player routes - redirect to staff dashboard
-    if (isPlayerPath && isStaff && !isPlayer) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
-
-    // Player trying to access staff routes - redirect to player dashboard
-    if (isStaffPath && isPlayer && !isStaff) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/player/dashboard'
-      return NextResponse.redirect(url)
-    }
-
-    // Neither staff nor player - sign out
+    // Neither role - sign out and redirect
     if (!isStaff && !isPlayer) {
       await supabase.auth.signOut()
       const url = request.nextUrl.clone()
@@ -90,44 +67,27 @@ export async function updateSession(request: NextRequest) {
       url.searchParams.set('error', 'no_profile')
       return NextResponse.redirect(url)
     }
-  }
 
-  // Redirect authenticated users away from login to appropriate dashboard
-  if (request.nextUrl.pathname === '/login' && user) {
-    const { data: staffProfile } = await supabase
-      .from('staff_profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    const { data: playerProfile } = await supabase
-      .from('players')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    const url = request.nextUrl.clone()
-
-    if (staffProfile) {
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    } else if (playerProfile) {
+    // Player trying to access staff routes
+    if (isStaffPath && isPlayer) {
+      const url = request.nextUrl.clone()
       url.pathname = '/player/dashboard'
       return NextResponse.redirect(url)
     }
-  }
 
-  // Redirect root to appropriate dashboard
-  if (request.nextUrl.pathname === '/' && user) {
-    const { data: staffProfile } = await supabase
-      .from('staff_profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
+    // Staff trying to access player routes
+    if (isPlayerPath && isStaff) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
 
-    const url = request.nextUrl.clone()
-    url.pathname = staffProfile ? '/dashboard' : '/player/dashboard'
-    return NextResponse.redirect(url)
+    // Redirect from login/root to appropriate dashboard
+    if (isLoginPage || isRootPage) {
+      const url = request.nextUrl.clone()
+      url.pathname = isStaff ? '/dashboard' : '/player/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse
