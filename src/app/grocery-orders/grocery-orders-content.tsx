@@ -443,62 +443,112 @@ export function GroceryOrdersContent({
         </div>
       )}
 
-      {activeTab === 'by-house' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {houses.map(house => {
-            const houseOrders = filteredOrders.filter(o => o.player?.house_id === house.id)
-            const housePlayers = players.filter(p => p.house_id === house.id)
-            const totalSpent = houseOrders.reduce((sum, o) => sum + o.total_amount, 0)
+      {activeTab === 'by-house' && (() => {
+        const unassignedOrders = filteredOrders.filter(o => !o.player?.house_id)
+        const unassignedTotal = unassignedOrders.reduce((sum, o) => sum + o.total_amount, 0)
 
-            return (
-              <Card key={house.id}>
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Unassigned orders first if any */}
+            {unassignedOrders.length > 0 && (
+              <Card className="border-amber-200">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-amber-700">
                       <Home className="w-5 h-5" />
-                      {house.name}
+                      Unassigned
                     </span>
-                    <Badge variant="default">
-                      {housePlayers.length} players
+                    <Badge variant="warning">
+                      {unassignedOrders.length} orders
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {houseOrders.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No orders</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {houseOrders.map(order => (
-                        <div
-                          key={order.id}
-                          className="flex items-center justify-between py-2 border-b last:border-0"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              {order.player?.first_name} {order.player?.last_name}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {formatShortDate(order.delivery_date)} - {order.items?.length} items
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{order.total_amount.toFixed(2)}</p>
-                            <StatusBadge status={order.status} />
-                          </div>
+                  <div className="space-y-3">
+                    {unassignedOrders.map(order => (
+                      <div
+                        key={order.id}
+                        className="flex items-center justify-between py-2 border-b last:border-0"
+                      >
+                        <div>
+                          <p className="font-medium">
+                            {order.player?.first_name} {order.player?.last_name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {formatShortDate(order.delivery_date)} - {order.items?.length} items
+                          </p>
                         </div>
-                      ))}
-                      <div className="pt-2 border-t flex justify-between font-medium">
-                        <span>House Total</span>
-                        <span>{totalSpent.toFixed(2)}</span>
+                        <div className="text-right">
+                          <p className="font-medium">€{order.total_amount.toFixed(2)}</p>
+                          <StatusBadge status={order.status} />
+                        </div>
                       </div>
+                    ))}
+                    <div className="pt-2 border-t flex justify-between font-medium">
+                      <span>Unassigned Total</span>
+                      <span>€{unassignedTotal.toFixed(2)}</span>
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
-            )
-          })}
-        </div>
-      )}
+            )}
+
+            {/* Houses */}
+            {houses.map(house => {
+              const houseOrders = filteredOrders.filter(o => o.player?.house_id === house.id)
+              const housePlayers = players.filter(p => p.house_id === house.id)
+              const totalSpent = houseOrders.reduce((sum, o) => sum + o.total_amount, 0)
+
+              return (
+                <Card key={house.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Home className="w-5 h-5" />
+                        {house.name}
+                      </span>
+                      <Badge variant="default">
+                        {housePlayers.length} players
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {houseOrders.length === 0 ? (
+                      <p className="text-gray-500 text-sm">No orders</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {houseOrders.map(order => (
+                          <div
+                            key={order.id}
+                            className="flex items-center justify-between py-2 border-b last:border-0"
+                          >
+                            <div>
+                              <p className="font-medium">
+                                {order.player?.first_name} {order.player?.last_name}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {formatShortDate(order.delivery_date)} - {order.items?.length} items
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium">€{order.total_amount.toFixed(2)}</p>
+                              <StatusBadge status={order.status} />
+                            </div>
+                          </div>
+                        ))}
+                        <div className="pt-2 border-t flex justify-between font-medium">
+                          <span>House Total</span>
+                          <span>€{totalSpent.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {activeTab === 'shopping-list' && (
         <Card className="print:shadow-none">
