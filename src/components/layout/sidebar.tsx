@@ -54,14 +54,20 @@ export function Sidebar({ user }: SidebarProps) {
   }
 
   const handleOpenPlayerApp = async () => {
+    // Open window synchronously to avoid popup blocker
+    const newWindow = window.open('about:blank', '_blank')
+
     // Get current session and pass token to player app for SSO
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.access_token) {
-      const ssoUrl = `${playerAppUrl}/auth/sso?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
-      window.open(ssoUrl, '_blank')
-    } else {
-      // Fallback to regular link if no session
-      window.open(playerAppUrl, '_blank')
+
+    if (newWindow) {
+      if (session?.access_token) {
+        const ssoUrl = `${playerAppUrl}/auth/sso?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+        newWindow.location.href = ssoUrl
+      } else {
+        // Fallback to regular link if no session
+        newWindow.location.href = playerAppUrl
+      }
     }
   }
 

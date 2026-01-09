@@ -854,12 +854,6 @@ export function OperationsContent({
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Grocery Orders</h2>
-            <Link href="/grocery-orders">
-              <Button>
-                <ExternalLink className="w-4 h-4 mr-2" />
-                View All Orders
-              </Button>
-            </Link>
           </div>
 
           {/* Summary Cards */}
@@ -918,49 +912,62 @@ export function OperationsContent({
             </Card>
           </div>
 
-          {/* Pending Orders */}
-          {pendingGroceryOrders.length > 0 ? (
-            <Card className="border-amber-200 bg-amber-50/50">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <Package className="w-5 h-5 text-amber-600" />
-                  <h3 className="font-semibold text-amber-900">Pending Orders ({pendingGroceryOrders.length})</h3>
-                </div>
-                <div className="space-y-2">
-                  {pendingGroceryOrders.slice(0, 5).map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'} size="sm" />
-                        <div>
-                          <p className="font-medium">
-                            {order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {order.items?.length || 0} items · €{order.total_amount.toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{formatDate(order.delivery_date)}</p>
-                        <Badge variant="warning">Pending</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {pendingGroceryOrders.length > 5 && (
-                  <Link href="/grocery-orders" className="block mt-3 text-center text-sm text-amber-700 hover:text-amber-800">
-                    View all {pendingGroceryOrders.length} pending orders →
-                  </Link>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
+          {groceryOrders.length === 0 ? (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center text-gray-500">
                   <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-lg font-medium">No pending orders</p>
-                  <p className="text-sm">All grocery orders have been processed</p>
+                  <p className="text-lg font-medium">No grocery orders</p>
+                  <p className="text-sm">Orders from the player app will appear here</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>All Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Player</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Delivery Date</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Items</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Total</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groceryOrders.map((order) => (
+                        <tr key={order.id} className="border-b last:border-0 hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <Avatar name={order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'} size="sm" />
+                              <span className="font-medium">
+                                {order.player ? `${order.player.first_name} ${order.player.last_name}` : 'Unknown'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">{formatDate(order.delivery_date)}</td>
+                          <td className="py-3 px-4">{order.items?.length || 0} items</td>
+                          <td className="py-3 px-4 font-medium">€{order.total_amount.toFixed(2)}</td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant={
+                                order.status === 'delivered' ? 'success' :
+                                order.status === 'approved' ? 'info' :
+                                order.status === 'cancelled' ? 'danger' : 'warning'
+                              }
+                            >
+                              {order.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>
