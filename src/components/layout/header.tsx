@@ -1,17 +1,18 @@
 'use client'
 
-import { Search, Bell, Menu } from 'lucide-react'
+import { Search, Bell, Menu, Bug } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 interface HeaderProps {
   title: string
   subtitle?: string
   onMenuClick?: () => void
+  onReportBug?: () => void
   /** Pre-formatted date string from server to avoid timezone mismatch */
   formattedDate?: string
 }
 
-export function Header({ title, subtitle, onMenuClick, formattedDate }: HeaderProps) {
+export function Header({ title, subtitle, onMenuClick, onReportBug, formattedDate }: HeaderProps) {
   // Use server-provided date if available, otherwise format client-side
   const displayDate = formattedDate ?? new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -44,6 +45,15 @@ export function Header({ title, subtitle, onMenuClick, formattedDate }: HeaderPr
               className="pl-10 w-64"
             />
           </div>
+          {onReportBug && (
+            <button
+              onClick={onReportBug}
+              className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+              title="Report a bug"
+            >
+              <Bug className="w-5 h-5" />
+            </button>
+          )}
           <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
             <Bell className="w-5 h-5" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />

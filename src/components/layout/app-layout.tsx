@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { ReportBugModal } from '@/components/modals'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -11,6 +13,7 @@ interface AppLayoutProps {
   /** Pre-formatted date from server to ensure consistent display */
   formattedDate?: string
   user?: {
+    id?: string
     email?: string
     user_metadata?: {
       full_name?: string
@@ -20,6 +23,8 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, title, subtitle, formattedDate, user }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [bugModalOpen, setBugModalOpen] = useState(false)
+  const pathname = usePathname()
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gray-50">
@@ -47,9 +52,19 @@ export function AppLayout({ children, title, subtitle, formattedDate, user }: Ap
           subtitle={subtitle}
           formattedDate={formattedDate}
           onMenuClick={() => setSidebarOpen(true)}
+          onReportBug={() => setBugModalOpen(true)}
         />
         <main className="flex-1 overflow-auto p-6 w-full">{children}</main>
       </div>
+
+      {/* Bug Report Modal */}
+      <ReportBugModal
+        isOpen={bugModalOpen}
+        onClose={() => setBugModalOpen(false)}
+        currentUrl={pathname}
+        userName={user?.user_metadata?.full_name || user?.email}
+        userId={user?.id}
+      />
     </div>
   )
 }

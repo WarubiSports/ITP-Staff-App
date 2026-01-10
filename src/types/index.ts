@@ -534,3 +534,18 @@ export interface ConsolidatedGroceryItem {
   total_quantity: number
   orders: { player_name: string; quantity: number }[]
 }
+
+// Bug reports for in-app feedback
+export interface BugReport {
+  id: string
+  title: string
+  description?: string
+  page_url?: string
+  reporter_id?: string
+  reporter_name?: string
+  status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  priority: 'low' | 'medium' | 'high'
+  admin_notes?: string
+  created_at: string
+  updated_at: string
+}

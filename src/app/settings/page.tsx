@@ -16,13 +16,19 @@ export default async function SettingsPage() {
     redirect('/login')
   }
 
+  // Fetch bug reports
+  const { data: bugReports } = await supabase
+    .from('bug_reports')
+    .select('*')
+    .order('created_at', { ascending: false })
+
   return (
     <AppLayout
       title="Settings"
       subtitle="Manage your account and preferences"
       user={user}
     >
-      <SettingsContent user={user} />
+      <SettingsContent user={user} bugReports={bugReports || []} />
     </AppLayout>
   )
 }

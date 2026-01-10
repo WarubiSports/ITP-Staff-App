@@ -1,13 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Mail, Key, ExternalLink, LogOut } from 'lucide-react'
+import { User, Mail, Key, ExternalLink, LogOut, Bug, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { formatDate } from '@/lib/utils'
+import type { BugReport } from '@/types'
 
 interface SettingsContentProps {
   user: {
@@ -17,12 +20,15 @@ interface SettingsContentProps {
       full_name?: string
     }
   }
+  bugReports: BugReport[]
 }
 
-export function SettingsContent({ user }: SettingsContentProps) {
+export function SettingsContent({ user, bugReports }: SettingsContentProps) {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [reports, setReports] = useState(bugReports)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Staff Member'
 
@@ -32,8 +38,31 @@ export function SettingsContent({ user }: SettingsContentProps) {
     router.push('/login')
   }
 
+  const updateReportStatus = async (id: string, status: BugReport['status']) => {
+    setUpdatingId(id)
+    const { error } = await supabase
+      .from('bug_reports')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (!error) {
+      setReports(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+    }
+    setUpdatingId(null)
+  }
+
+  const statusConfig: Record<BugReport['status'], { label: string; variant: 'default' | 'warning' | 'success' | 'info' }> = {
+    open: { label: 'Open', variant: 'warning' },
+    in_progress: { label: 'In Progress', variant: 'info' },
+    resolved: { label: 'Resolved', variant: 'success' },
+    closed: { label: 'Closed', variant: 'default' },
+  }
+
+  const openReports = reports.filter(r => r.status === 'open' || r.status === 'in_progress')
+  const closedReports = reports.filter(r => r.status === 'resolved' || r.status === 'closed')
+
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       {/* Profile Card */}
       <Card>
         <CardHeader>
@@ -94,6 +123,99 @@ export function SettingsContent({ user }: SettingsContentProps) {
               <ExternalLink className="w-4 h-4 text-gray-400" />
             </a>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Bug Reports */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bug className="w-5 h-5" />
+            Bug Reports
+            {openReports.length > 0 && (
+              <Badge variant="warning" className="ml-2">{openReports.length} open</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {reports.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4">
+              No bug reports yet. Click the bug icon in the header to report issues.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {/* Open Reports */}
+              {openReports.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Open Issues</h4>
+                  <div className="space-y-2">
+                    {openReports.map((report) => (
+                      <div key={report.id} className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-gray-900">{report.title}</p>
+                              <Badge variant={statusConfig[report.status].variant}>
+                                {statusConfig[report.status].label}
+                              </Badge>
+                            </div>
+                            {report.description && (
+                              <p className="text-sm text-gray-600 mb-2">{report.description}</p>
+                            )}
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span>{report.reporter_name || 'Unknown'}</span>
+                              <span>{formatDate(report.created_at)}</span>
+                              {report.page_url && <span className="truncate max-w-[200px]">{report.page_url}</span>}
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            {report.status === 'open' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateReportStatus(report.id, 'in_progress')}
+                                disabled={updatingId === report.id}
+                              >
+                                <Clock className="w-3 h-3" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateReportStatus(report.id, 'resolved')}
+                              disabled={updatingId === report.id}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Closed Reports */}
+              {closedReports.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Resolved ({closedReports.length})</h4>
+                  <div className="space-y-2">
+                    {closedReports.slice(0, 5).map((report) => (
+                      <div key={report.id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                            <p className="text-sm text-gray-700">{report.title}</p>
+                          </div>
+                          <span className="text-xs text-gray-500">{formatDate(report.created_at)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
