@@ -949,7 +949,120 @@ export function OperationsContent({
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Consolidated Shopping List by Delivery Date */}
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Consolidated Shopping List
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    // Group orders by delivery date
+                    const ordersByDate = groceryOrders.reduce((acc, order) => {
+                      const date = order.delivery_date
+                      if (!acc[date]) acc[date] = []
+                      acc[date].push(order)
+                      return acc
+                    }, {} as Record<string, typeof groceryOrders>)
+
+                    // Sort dates
+                    const sortedDates = Object.keys(ordersByDate).sort((a, b) =>
+                      new Date(a).getTime() - new Date(b).getTime()
+                    )
+
+                    return (
+                      <div className="space-y-6">
+                        {sortedDates.map(date => {
+                          const ordersForDate = ordersByDate[date]
+                          const approvedOrders = ordersForDate.filter(o => o.status === 'approved')
+
+                          // Aggregate items across all approved orders for this date
+                          const itemTotals: Record<string, { name: string; category: string; quantity: number; unit?: string }> = {}
+
+                          approvedOrders.forEach(order => {
+                            order.items?.forEach(item => {
+                              const key = item.item?.name || item.item_id
+                              if (!itemTotals[key]) {
+                                itemTotals[key] = {
+                                  name: item.item?.name || 'Unknown Item',
+                                  category: item.item?.category || 'other',
+                                  quantity: 0
+                                }
+                              }
+                              itemTotals[key].quantity += item.quantity
+                            })
+                          })
+
+                          // Group by category
+                          const itemsByCategory: Record<string, typeof itemTotals[string][]> = {}
+                          Object.values(itemTotals).forEach(item => {
+                            if (!itemsByCategory[item.category]) {
+                              itemsByCategory[item.category] = []
+                            }
+                            itemsByCategory[item.category].push(item)
+                          })
+
+                          const totalAmount = approvedOrders.reduce((sum, o) => sum + o.total_amount, 0)
+
+                          return (
+                            <div key={date} className="border rounded-lg p-4 bg-white">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                  <Truck className="w-5 h-5 text-primary" />
+                                  <h4 className="font-semibold text-lg">
+                                    Delivery: {formatDate(date)}
+                                  </h4>
+                                </div>
+                                <div className="text-right">
+                                  <Badge variant="info">{approvedOrders.length} orders</Badge>
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    Total: €{totalAmount.toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {Object.keys(itemTotals).length === 0 ? (
+                                <p className="text-gray-500 text-sm italic">No approved orders for this date</p>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {Object.entries(itemsByCategory).map(([category, items]) => (
+                                    <div key={category} className="border rounded p-3 bg-gray-50">
+                                      <h5 className="font-medium text-sm text-gray-600 uppercase mb-2 flex items-center gap-1">
+                                        {category === 'meat' && '🥩'}
+                                        {category === 'dairy' && '🥛'}
+                                        {category === 'produce' && '🥬'}
+                                        {category === 'carbs' && '🍞'}
+                                        {category === 'drinks' && '🥤'}
+                                        {category === 'frozen' && '🧊'}
+                                        {category === 'spices' && '🧂'}
+                                        {category === 'household' && '🏠'}
+                                        {category}
+                                      </h5>
+                                      <ul className="space-y-1">
+                                        {items.sort((a, b) => b.quantity - a.quantity).map(item => (
+                                          <li key={item.name} className="flex justify-between text-sm">
+                                            <span>{item.name}</span>
+                                            <span className="font-medium">×{item.quantity}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* Orders by House */}
               <h3 className="text-md font-medium text-gray-700">Orders by House</h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Unassigned orders first if any */}
