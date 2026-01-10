@@ -19,7 +19,7 @@ export default async function OperationsPage() {
   // Fetch players for visa and housing info (including visa document tracking fields)
   const { data: players } = await supabase
     .from('players')
-    .select('id, player_id, first_name, last_name, nationality, date_of_birth, visa_expiry, insurance_expiry, house_id, room_id, program_end_date, status, visa_requires, visa_arrival_date, visa_status, visa_documents, visa_notes')
+    .select('id, player_id, first_name, last_name, nationality, date_of_birth, visa_expiry, insurance_expiry, house_id, room_id, program_end_date, status, visa_requires, visa_arrival_date, visa_status, visa_documents, visa_notes, whereabouts_status, whereabouts_details')
     .eq('status', 'active')
     .order('last_name')
 
@@ -55,6 +55,13 @@ export default async function OperationsPage() {
     .select('*')
     .order('trial_start_date', { ascending: false })
 
+  // Fetch trial prospects (prospective players trialing FOR the ITP)
+  const { data: trialProspects } = await supabase
+    .from('trial_prospects')
+    .select('*')
+    .in('status', ['scheduled', 'in_progress'])
+    .order('trial_start_date', { ascending: true })
+
   // Fetch rooms
   const { data: rooms } = await supabase
     .from('rooms')
@@ -78,6 +85,25 @@ export default async function OperationsPage() {
     `)
     .order('delivery_date', { ascending: true })
 
+  // Fetch player documents (identity category for visa docs)
+  const { data: playerDocs } = await supabase
+    .from('player_documents')
+    .select('*')
+    .eq('category', 'identity')
+    .order('created_at', { ascending: false })
+
+  // Group documents by player_id
+  type PlayerDoc = NonNullable<typeof playerDocs>[number]
+  const playerDocuments: Record<string, PlayerDoc[]> = {}
+  if (playerDocs) {
+    for (const doc of playerDocs) {
+      if (!playerDocuments[doc.player_id]) {
+        playerDocuments[doc.player_id] = []
+      }
+      playerDocuments[doc.player_id]!.push(doc)
+    }
+  }
+
   return (
     <AppLayout
       title="Operations"
@@ -91,9 +117,11 @@ export default async function OperationsPage() {
         medicalAppointments={medicalAppointments || []}
         insuranceClaims={insuranceClaims || []}
         trials={trials || []}
+        trialProspects={trialProspects || []}
         rooms={rooms || []}
         groceryOrders={groceryOrders || []}
         houses={houses || []}
+        playerDocuments={playerDocuments}
       />
     </AppLayout>
   )

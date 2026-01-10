@@ -534,7 +534,7 @@ export function DashboardContent({
                       at {trial.trial_club}
                     </p>
                     <p className="text-xs text-blue-600">
-                      Until {formatDate(trial.trial_end_date)}
+                      {formatDate(trial.trial_start_date)} - {formatDate(trial.trial_end_date)}
                     </p>
                   </div>
                 ))}

@@ -44,7 +44,22 @@ const recurrenceOptions = [
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
+  { value: 'custom', label: 'Custom (select days)' },
 ]
+
+const daysOfWeek = [
+  { value: 'mon', label: 'Mon' },
+  { value: 'tue', label: 'Tue' },
+  { value: 'wed', label: 'Wed' },
+  { value: 'thu', label: 'Thu' },
+  { value: 'fri', label: 'Fri' },
+  { value: 'sat', label: 'Sat' },
+  { value: 'sun', label: 'Sun' },
+]
+
+const dayNameToNumber: Record<string, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6
+}
 
 export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players = [] }: AddEventModalProps) {
   const [loading, setLoading] = useState(false)
@@ -62,9 +77,19 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     all_day: false,
     is_recurring: false,
     recurrence_rule: '',
+    recurrence_days: [] as string[], // For custom day-of-week selection
     recurrence_end_date: '',
     selectedPlayers: [] as string[],
   })
+
+  const toggleRecurrenceDay = (day: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      recurrence_days: prev.recurrence_days.includes(day)
+        ? prev.recurrence_days.filter((d) => d !== day)
+        : [...prev.recurrence_days, day],
+    }))
+  }
 
   const togglePlayer = (playerId: string) => {
     setFormData((prev) => ({
@@ -132,7 +157,8 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
         const instances = generateRecurringInstances(
           formData.date,
           formData.recurrence_rule,
-          formData.recurrence_end_date
+          formData.recurrence_end_date,
+          formData.recurrence_days
         )
 
         if (instances.length > 0) {
@@ -168,6 +194,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
         all_day: false,
         is_recurring: false,
         recurrence_rule: '',
+        recurrence_days: [],
         recurrence_end_date: '',
         selectedPlayers: [],
       })
@@ -184,12 +211,29 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
   const generateRecurringInstances = (
     startDate: string,
     rule: string,
-    endDate: string
+    endDate: string,
+    selectedDays: string[] = []
   ): string[] => {
     const dates: string[] = []
     const start = new Date(startDate)
     const end = new Date(endDate)
     let current = new Date(start)
+
+    // For custom rule with selected days
+    if (rule === 'custom' && selectedDays.length > 0) {
+      const selectedDayNumbers = selectedDays.map(d => dayNameToNumber[d])
+
+      // Skip the first date (already created as main event)
+      current.setDate(current.getDate() + 1)
+
+      while (current <= end) {
+        if (selectedDayNumbers.includes(current.getDay())) {
+          dates.push(current.toISOString().split('T')[0])
+        }
+        current.setDate(current.getDate() + 1)
+      }
+      return dates
+    }
 
     // Skip the first date (already created as main event)
     switch (rule) {
@@ -321,7 +365,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
               label="Recurrence"
               value={formData.recurrence_rule}
               onChange={(e) =>
-                setFormData({ ...formData, recurrence_rule: e.target.value })
+                setFormData({ ...formData, recurrence_rule: e.target.value, recurrence_days: [] })
               }
               options={recurrenceOptions}
             />
@@ -337,15 +381,67 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
               />
             )}
           </div>
+
+          {/* Custom day-of-week selection */}
+          {formData.recurrence_rule === 'custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Days
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {daysOfWeek.map((day) => (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => toggleRecurrenceDay(day.value)}
+                    className={`
+                      px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                      ${formData.recurrence_days.includes(day.value)
+                        ? 'bg-red-600 text-white'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:border-red-400'
+                      }
+                    `}
+                  >
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+              {formData.recurrence_days.length === 0 && (
+                <p className="text-xs text-amber-600 mt-2">
+                  Please select at least one day
+                </p>
+              )}
+            </div>
+          )}
+
           {formData.recurrence_rule && formData.recurrence_end_date && (
             <p className="text-sm text-gray-500">
-              This event will repeat {formData.recurrence_rule} until{' '}
-              {new Date(formData.recurrence_end_date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {formData.recurrence_rule === 'custom' && formData.recurrence_days.length > 0 ? (
+                <>
+                  This event will repeat on{' '}
+                  {formData.recurrence_days
+                    .sort((a, b) => dayNameToNumber[a] - dayNameToNumber[b])
+                    .map(d => daysOfWeek.find(day => day.value === d)?.label)
+                    .join(', ')}{' '}
+                  until{' '}
+                  {new Date(formData.recurrence_end_date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </>
+              ) : formData.recurrence_rule !== 'custom' ? (
+                <>
+                  This event will repeat {formData.recurrence_rule} until{' '}
+                  {new Date(formData.recurrence_end_date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </>
+              ) : null}
             </p>
           )}
         </div>

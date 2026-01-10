@@ -33,7 +33,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { formatDate, getDaysUntil } from '@/lib/utils'
-import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder } from '@/types'
+import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder, PlayerDocument, TrialProspect } from '@/types'
 import {
   AddWellPassModal,
   AddMedicalAppointmentModal,
@@ -88,9 +88,11 @@ interface OperationsContentProps {
   medicalAppointments: MedicalAppointment[]
   insuranceClaims: InsuranceClaim[]
   trials: PlayerTrial[]
+  trialProspects: TrialProspect[]
   rooms: Room[]
   groceryOrders: GroceryOrder[]
   houses: House[]
+  playerDocuments?: Record<string, PlayerDocument[]> // playerId -> documents
 }
 
 type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery'
@@ -102,9 +104,11 @@ export function OperationsContent({
   medicalAppointments,
   insuranceClaims,
   trials,
+  trialProspects,
   rooms,
   groceryOrders,
   houses,
+  playerDocuments = {},
 }: OperationsContentProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabType>('visa')
@@ -114,6 +118,7 @@ export function OperationsContent({
   const [showMedicalModal, setShowMedicalModal] = useState(false)
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [showTrialModal, setShowTrialModal] = useState(false)
+  const [selectedTrial, setSelectedTrial] = useState<PlayerTrial | null>(null)
 
   // Refresh handler
   const handleRefresh = () => {
@@ -224,6 +229,7 @@ export function OperationsContent({
       {activeTab === 'visa' && (
         <VisaDocumentTracking
           players={players}
+          playerDocuments={playerDocuments}
           onUpdate={handleRefresh}
         />
       )}
@@ -233,6 +239,7 @@ export function OperationsContent({
         <RoomAllocation
           players={players}
           rooms={rooms}
+          trialProspects={trialProspects}
           onUpdate={handleRefresh}
         />
       )}
@@ -733,7 +740,14 @@ export function OperationsContent({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {activeTrials.map((trial) => (
-                    <div key={trial.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                    <div
+                      key={trial.id}
+                      onClick={() => {
+                        setSelectedTrial(trial)
+                        setShowTrialModal(true)
+                      }}
+                      className="flex items-center justify-between p-3 bg-white rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                    >
                       <div className="flex items-center gap-3">
                         <Avatar name={getPlayerName(trial.player_id)} size="sm" />
                         <div>
@@ -773,7 +787,11 @@ export function OperationsContent({
                   {trials.map((trial) => (
                     <div
                       key={trial.id}
-                      className={`p-4 border rounded-lg ${
+                      onClick={() => {
+                        setSelectedTrial(trial)
+                        setShowTrialModal(true)
+                      }}
+                      className={`p-4 border rounded-lg cursor-pointer hover:shadow-md transition-shadow ${
                         trial.status === 'ongoing' ? 'border-green-200 bg-green-50/30' :
                         trial.status === 'completed' ? 'border-gray-200' :
                         trial.status === 'cancelled' ? 'border-red-200 bg-red-50/30' :
@@ -1082,9 +1100,13 @@ export function OperationsContent({
 
       <AddTrialModal
         isOpen={showTrialModal}
-        onClose={() => setShowTrialModal(false)}
+        onClose={() => {
+          setShowTrialModal(false)
+          setSelectedTrial(null)
+        }}
         onSuccess={handleRefresh}
         players={players}
+        editTrial={selectedTrial}
       />
 
     </div>

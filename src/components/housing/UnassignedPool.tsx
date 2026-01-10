@@ -5,12 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Users } from 'lucide-react'
 import { DraggablePlayer } from './DraggablePlayer'
+import type { WhereaboutsDetails } from '@/types'
 
 interface Player {
   id: string
   player_id: string
   first_name: string
   last_name: string
+  whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
+  whereabouts_details?: WhereaboutsDetails
 }
 
 interface UnassignedPoolProps {

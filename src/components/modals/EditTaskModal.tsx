@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ interface Task {
   priority: 'low' | 'medium' | 'high' | 'urgent'
   category: string
   assigned_to?: string
+  assignees?: { staff_id: string }[]
   player_id?: string
   due_date?: string
   created_at: string
@@ -44,23 +45,36 @@ export function EditTaskModal({ isOpen, onClose, onSuccess, task, staff }: EditT
     description: '',
     priority: 'medium' as Task['priority'],
     category: 'other',
-    assigned_to: '',
+    assignee_ids: [] as string[],
     due_date: '',
   })
 
   useEffect(() => {
     if (task) {
+      // Get assignee IDs from task_assignees or fall back to assigned_to
+      const assigneeIds = task.assignees?.map(a => a.staff_id) ||
+        (task.assigned_to ? [task.assigned_to] : [])
+
       setFormData({
         title: task.title,
         description: task.description || '',
         priority: task.priority,
         category: task.category,
-        assigned_to: task.assigned_to || '',
+        assignee_ids: assigneeIds,
         due_date: task.due_date || '',
       })
       setError('')
     }
   }, [task])
+
+  const toggleAssignee = (staffId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignee_ids: prev.assignee_ids.includes(staffId)
+        ? prev.assignee_ids.filter(id => id !== staffId)
+        : [...prev.assignee_ids, staffId]
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,6 +85,8 @@ export function EditTaskModal({ isOpen, onClose, onSuccess, task, staff }: EditT
 
     try {
       const supabase = createClient()
+
+      // Update the task (keep assigned_to for backwards compat with first assignee)
       const { data, error: updateError } = await supabase
         .from('tasks')
         .update({
@@ -78,7 +94,7 @@ export function EditTaskModal({ isOpen, onClose, onSuccess, task, staff }: EditT
           description: formData.description || null,
           priority: formData.priority,
           category: formData.category,
-          assigned_to: formData.assigned_to || null,
+          assigned_to: formData.assignee_ids[0] || null,
           due_date: formData.due_date || null,
           updated_at: new Date().toISOString(),
         })
@@ -88,8 +104,25 @@ export function EditTaskModal({ isOpen, onClose, onSuccess, task, staff }: EditT
 
       if (updateError) throw updateError
 
+      // Update task_assignees - delete existing and insert new
+      await supabase
+        .from('task_assignees')
+        .delete()
+        .eq('task_id', task.id)
+
+      if (formData.assignee_ids.length > 0) {
+        const assigneeInserts = formData.assignee_ids.map(staffId => ({
+          task_id: task.id,
+          staff_id: staffId,
+        }))
+
+        await supabase
+          .from('task_assignees')
+          .insert(assigneeInserts)
+      }
+
       showToast('Task updated successfully')
-      onSuccess(data)
+      onSuccess({ ...data, assignees: formData.assignee_ids.map(id => ({ staff_id: id })) })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update task')
@@ -162,19 +195,39 @@ export function EditTaskModal({ isOpen, onClose, onSuccess, task, staff }: EditT
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Assign To</label>
-          <select
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-            value={formData.assigned_to}
-            onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-          >
-            <option value="">Unassigned</option>
-            {staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.full_name || member.email}
-              </option>
-            ))}
-          </select>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Assign To {formData.assignee_ids.length > 0 && (
+              <span className="text-gray-500 font-normal">
+                ({formData.assignee_ids.length} selected)
+              </span>
+            )}
+          </label>
+          <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto">
+            {staff.length === 0 ? (
+              <p className="p-3 text-sm text-gray-500">No staff members available</p>
+            ) : (
+              staff.map((member) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => toggleAssignee(member.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
+                    formData.assignee_ids.includes(member.id) ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  <span className="text-sm">
+                    {member.full_name || member.email}
+                  </span>
+                  {formData.assignee_ids.includes(member.id) && (
+                    <Check className="w-4 h-4 text-blue-600" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Click to select multiple staff members
+          </p>
         </div>
 
         <Input

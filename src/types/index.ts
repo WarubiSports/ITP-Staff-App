@@ -96,12 +96,25 @@ export interface Task {
   status: 'pending' | 'in_progress' | 'completed'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   category: 'training' | 'admin' | 'visa' | 'medical' | 'housing' | 'other'
-  assigned_to?: string
+  assigned_to?: string // Deprecated: use assignees instead
+  assignees?: TaskAssignee[] // Multiple assignees
   player_id?: string
   due_date?: string
   created_by: string
   created_at: string
   updated_at: string
+}
+
+export interface TaskAssignee {
+  id: string
+  task_id: string
+  staff_id: string
+  created_at: string
+  staff?: {
+    id: string
+    full_name: string
+    email: string
+  }
 }
 
 // Training session
@@ -376,6 +389,11 @@ export interface PlayerTrial {
   travel_arranged?: boolean
   accommodation_arranged?: boolean
   notes?: string
+  // Evaluation fields
+  evaluation_rating?: number
+  evaluation_notes?: string
+  // Calendar day selection
+  trial_days?: string[]
   created_at: string
   updated_at: string
 }
@@ -407,6 +425,11 @@ export interface TrialProspect {
   trial_end_date?: string
   accommodation_details?: string
   travel_arrangements?: string
+  // Housing for trialists
+  room_id?: string
+  accommodation_type?: 'house' | 'hotel' | 'airbnb' | 'family' | 'own_stay'
+  accommodation_address?: string
+  accommodation_notes?: string
   // Status
   status: 'inquiry' | 'scheduled' | 'in_progress' | 'evaluation' | 'decision_pending' | 'accepted' | 'rejected' | 'withdrawn'
   // Evaluation

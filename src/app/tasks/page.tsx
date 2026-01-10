@@ -16,10 +16,17 @@ export default async function TasksPage() {
     redirect('/login')
   }
 
-  // Fetch tasks
+  // Fetch tasks with assignees
   const { data: tasks } = await supabase
     .from('tasks')
-    .select('*')
+    .select(`
+      *,
+      assignees:task_assignees(
+        id,
+        staff_id,
+        staff:staff_profiles(id, full_name, email)
+      )
+    `)
     .order('created_at', { ascending: false })
 
   // Fetch players for task assignment

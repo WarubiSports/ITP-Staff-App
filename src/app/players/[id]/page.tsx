@@ -32,8 +32,13 @@ export default async function PlayerDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  // Fetch houses, rooms, and documents in parallel
-  const [{ data: houses }, { data: rooms }, { data: documents }] = await Promise.all([
+  // Calculate date 90 days ago for attendance stats
+  const ninetyDaysAgo = new Date()
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+  const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0]
+
+  // Fetch houses, rooms, documents, and attendance in parallel
+  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }] = await Promise.all([
     supabase.from('houses').select('id, name, address').order('name'),
     supabase.from('rooms').select('id, name, house_id, capacity, floor').order('name'),
     supabase
@@ -41,6 +46,12 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .select('*')
       .eq('player_id', player.id)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('training_attendance')
+      .select('*')
+      .eq('player_id', player.id)
+      .gte('session_date', ninetyDaysAgoStr)
+      .order('session_date', { ascending: false }),
   ])
 
   // Find assigned room if player has room_id
@@ -60,6 +71,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         rooms={rooms || []}
         assignedRoom={assignedRoom}
         documents={documents || []}
+        attendance={attendance || []}
       />
     </AppLayout>
   )

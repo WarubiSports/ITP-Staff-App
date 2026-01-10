@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarEvent, Player, PlayerTrial, TrialProspect } from '@/types'
+import { CalendarEvent, Player, PlayerTrial, TrialProspect, MedicalAppointment } from '@/types'
 import { Button } from '@/components/ui/button'
 import { CalendarGrid } from '@/components/calendar/CalendarGrid'
 import { WeekView } from '@/components/calendar/WeekView'
@@ -25,11 +25,16 @@ interface PlayerTrialWithPlayer extends PlayerTrial {
   player?: { id: string; first_name: string; last_name: string }
 }
 
+interface MedicalAppointmentWithPlayer extends MedicalAppointment {
+  player?: { id: string; first_name: string; last_name: string }
+}
+
 interface CalendarContentProps {
   events: CalendarEvent[]
   players: Pick<Player, 'id' | 'first_name' | 'last_name' | 'player_id'>[]
   playerTrials?: PlayerTrialWithPlayer[]
   trialProspects?: TrialProspect[]
+  medicalAppointments?: MedicalAppointmentWithPlayer[]
 }
 
 // Helper to parse date string (handles both "YYYY-MM-DD" and ISO formats)
@@ -42,6 +47,11 @@ function parseDateString(dateStr: string): Date {
     parseInt(parts[1]) - 1,
     parseInt(parts[2])
   )
+}
+
+// Day name to number mapping
+const dayNameToNumber: Record<string, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6
 }
 
 // Convert player trials to calendar events
@@ -57,21 +67,31 @@ function convertPlayerTrialsToEvents(trials: PlayerTrialWithPlayer[]): CalendarE
     const startDate = parseDateString(trial.trial_start_date)
     const endDate = parseDateString(trial.trial_end_date)
 
+    // Get allowed days (if specified)
+    const trialDays = (trial as any).trial_days as string[] | undefined
+    const allowedDays = trialDays && trialDays.length > 0
+      ? trialDays.map(d => dayNameToNumber[d.toLowerCase()])
+      : null
+
     // Create event for each day of the trial
     const current = new Date(startDate)
     while (current <= endDate) {
-      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
-      events.push({
-        id: `trial-${trial.id}-${dateStr}`,
-        title: `${playerName} @ ${trial.trial_club}`,
-        description: trial.notes || undefined,
-        date: dateStr,
-        type: 'trial',
-        location: trial.trial_club,
-        all_day: true,
-        created_at: trial.created_at,
-        updated_at: trial.updated_at,
-      })
+      // Check if this day should be included
+      const dayOfWeek = current.getDay()
+      if (allowedDays === null || allowedDays.includes(dayOfWeek)) {
+        const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
+        events.push({
+          id: `trial-${trial.id}-${dateStr}`,
+          title: `${playerName} @ ${trial.trial_club}`,
+          description: trial.notes || undefined,
+          date: dateStr,
+          type: 'trial',
+          location: trial.trial_club,
+          all_day: true,
+          created_at: trial.created_at,
+          updated_at: trial.updated_at,
+        })
+      }
       current.setDate(current.getDate() + 1)
     }
   })
@@ -118,20 +138,53 @@ function convertProspectsToEvents(prospects: TrialProspect[]): CalendarEvent[] {
   return events
 }
 
+// Convert medical appointments to calendar events
+function convertMedicalAppointmentsToEvents(appointments: MedicalAppointmentWithPlayer[]): CalendarEvent[] {
+  return appointments.map((appointment) => {
+    const playerName = appointment.player
+      ? `${appointment.player.first_name} ${appointment.player.last_name}`
+      : 'Unknown Player'
+
+    const doctorTypeLabels: Record<string, string> = {
+      general: 'General',
+      orthopedic: 'Orthopedic',
+      physiotherapy: 'Physio',
+      dentist: 'Dentist',
+      specialist: 'Specialist',
+      other: 'Other'
+    }
+
+    return {
+      id: `medical-${appointment.id}`,
+      title: `${playerName} - ${doctorTypeLabels[appointment.doctor_type] || 'Medical'}`,
+      description: `${appointment.reason}${appointment.clinic_name ? ` at ${appointment.clinic_name}` : ''}`,
+      date: appointment.appointment_date,
+      start_time: appointment.appointment_time || undefined,
+      type: 'medical',
+      location: appointment.clinic_address || appointment.clinic_name || undefined,
+      all_day: !appointment.appointment_time,
+      created_at: appointment.created_at,
+      updated_at: appointment.updated_at,
+    }
+  })
+}
+
 export function CalendarContent({
   events: initialEvents,
   players,
   playerTrials = [],
-  trialProspects = []
+  trialProspects = [],
+  medicalAppointments = []
 }: CalendarContentProps) {
   const router = useRouter()
 
-  // Merge regular events with trial events
+  // Merge regular events with trial events and medical appointments
   const events = useMemo(() => {
     const trialEvents = convertPlayerTrialsToEvents(playerTrials)
     const prospectEvents = convertProspectsToEvents(trialProspects)
-    return [...initialEvents, ...trialEvents, ...prospectEvents]
-  }, [initialEvents, playerTrials, trialProspects])
+    const medicalEvents = convertMedicalAppointmentsToEvents(medicalAppointments)
+    return [...initialEvents, ...trialEvents, ...prospectEvents, ...medicalEvents]
+  }, [initialEvents, playerTrials, trialProspects, medicalAppointments])
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)

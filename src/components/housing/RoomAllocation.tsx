@@ -14,11 +14,12 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Home, Users, DoorOpen } from 'lucide-react'
+import { Home, Users, DoorOpen, Plane, UserPlus, Calendar, Hotel, Building } from 'lucide-react'
+import { formatDate } from '@/lib/utils'
 import { DraggablePlayer } from './DraggablePlayer'
 import { DroppableRoom } from './DroppableRoom'
 import { UnassignedPool } from './UnassignedPool'
-import type { Room } from '@/types'
+import type { Room, WhereaboutsDetails, TrialProspect } from '@/types'
 
 interface Player {
   id: string
@@ -27,15 +28,18 @@ interface Player {
   last_name: string
   house_id?: string
   room_id?: string
+  whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
+  whereabouts_details?: WhereaboutsDetails
 }
 
 interface RoomAllocationProps {
   players: Player[]
   rooms: Room[]
+  trialProspects?: TrialProspect[]
   onUpdate: () => void
 }
 
-export function RoomAllocation({ players, rooms, onUpdate }: RoomAllocationProps) {
+export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }: RoomAllocationProps) {
   const [activePlayer, setActivePlayer] = useState<Player | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
@@ -126,6 +130,7 @@ export function RoomAllocation({ players, rooms, onUpdate }: RoomAllocationProps
   // Calculate stats
   const totalBeds = rooms.reduce((sum, r) => sum + r.capacity, 0)
   const occupiedBeds = players.filter((p) => p.room_id).length
+  const awayPlayers = players.filter((p) => p.whereabouts_status && p.whereabouts_status !== 'at_academy')
 
   return (
     <DndContext
@@ -136,7 +141,7 @@ export function RoomAllocation({ players, rooms, onUpdate }: RoomAllocationProps
     >
       <div className="space-y-6">
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -185,6 +190,19 @@ export function RoomAllocation({ players, rooms, onUpdate }: RoomAllocationProps
                 <div>
                   <p className="text-2xl font-bold">{unassignedPlayers.length}</p>
                   <p className="text-sm text-gray-500">Unassigned</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <Plane className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{awayPlayers.length}</p>
+                  <p className="text-sm text-gray-500">Currently Away</p>
                 </div>
               </div>
             </CardContent>
@@ -240,6 +258,153 @@ export function RoomAllocation({ players, rooms, onUpdate }: RoomAllocationProps
                 </Card>
               )
             })}
+
+            {/* Trial Prospects Section - Academy Housing */}
+            {(() => {
+              const academyTrialists = trialProspects.filter(p =>
+                p.accommodation_type === 'house' || !p.accommodation_type
+              )
+              const ownStayTrialists = trialProspects.filter(p =>
+                p.accommodation_type && p.accommodation_type !== 'house'
+              )
+
+              const accommodationTypeLabels: Record<string, string> = {
+                hotel: 'Hotel',
+                airbnb: 'Airbnb',
+                family: 'With Family',
+                own_stay: 'Own Accommodation',
+              }
+
+              return (
+                <>
+                  {academyTrialists.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <UserPlus className="w-5 h-5 text-blue-500" />
+                            Trialists - Academy Housing
+                          </CardTitle>
+                          <Badge variant="info">
+                            {academyTrialists.length} trialist{academyTrialists.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Trialists staying at academy accommodation
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {academyTrialists.map((prospect) => (
+                            <div
+                              key={prospect.id}
+                              className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {prospect.first_name} {prospect.last_name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{prospect.position}</p>
+                                </div>
+                                <Badge
+                                  variant={prospect.status === 'in_progress' ? 'success' : 'warning'}
+                                  className="text-[10px]"
+                                >
+                                  {prospect.status === 'in_progress' ? 'Active' : 'Scheduled'}
+                                </Badge>
+                              </div>
+                              {prospect.trial_start_date && prospect.trial_end_date && (
+                                <div className="flex items-center gap-1 mt-2 text-xs text-gray-600">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>
+                                    {formatDate(prospect.trial_start_date)} - {formatDate(prospect.trial_end_date)}
+                                  </span>
+                                </div>
+                              )}
+                              {prospect.accommodation_details && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  📍 {prospect.accommodation_details}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Own Stay Section */}
+                  {ownStayTrialists.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <Hotel className="w-5 h-5 text-purple-500" />
+                            Trialists - Own Stay
+                          </CardTitle>
+                          <Badge variant="default">
+                            {ownStayTrialists.length} trialist{ownStayTrialists.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Trialists with their own accommodation (hotel, Airbnb, family)
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {ownStayTrialists.map((prospect) => (
+                            <div
+                              key={prospect.id}
+                              className="p-3 bg-purple-50 border border-purple-200 rounded-lg"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {prospect.first_name} {prospect.last_name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{prospect.position}</p>
+                                </div>
+                                <Badge
+                                  variant={prospect.status === 'in_progress' ? 'success' : 'warning'}
+                                  className="text-[10px]"
+                                >
+                                  {prospect.status === 'in_progress' ? 'Active' : 'Scheduled'}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-1 mt-2">
+                                <Building className="w-3 h-3 text-purple-600" />
+                                <span className="text-xs font-medium text-purple-700">
+                                  {prospect.accommodation_type ? accommodationTypeLabels[prospect.accommodation_type] || prospect.accommodation_type : 'Own Stay'}
+                                </span>
+                              </div>
+                              {prospect.trial_start_date && prospect.trial_end_date && (
+                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-600">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>
+                                    {formatDate(prospect.trial_start_date)} - {formatDate(prospect.trial_end_date)}
+                                  </span>
+                                </div>
+                              )}
+                              {(prospect.accommodation_address || prospect.accommodation_details) && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  📍 {prospect.accommodation_address || prospect.accommodation_details}
+                                </p>
+                              )}
+                              {prospect.accommodation_notes && (
+                                <p className="text-xs text-gray-400 mt-1 italic">
+                                  {prospect.accommodation_notes}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
 

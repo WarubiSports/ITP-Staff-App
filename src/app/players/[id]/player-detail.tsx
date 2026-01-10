@@ -24,6 +24,10 @@ import {
   FolderOpen,
   Trash2,
   AlertTriangle,
+  BarChart3,
+  CheckCircle,
+  Clock,
+  XCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -81,15 +85,29 @@ interface Room {
   floor?: number
 }
 
+interface AttendanceRecord {
+  id: string
+  player_id: string
+  session_id: string
+  session_date: string
+  session_type: string
+  session_name?: string
+  status: 'present' | 'late' | 'excused' | 'absent'
+  late_minutes?: number
+  excuse_reason?: string
+  notes?: string
+}
+
 interface PlayerDetailProps {
   player: Player
   houses: House[]
   rooms: Room[]
   assignedRoom: Room | null | undefined
   documents: PlayerDocument[]
+  attendance: AttendanceRecord[]
 }
 
-export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents }: PlayerDetailProps) {
+export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance }: PlayerDetailProps) {
   const router = useRouter()
   const { showToast } = useToast()
 
@@ -622,6 +640,93 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                   disabled={!editing}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Attendance Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Attendance (Last 90 Days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {attendance.length === 0 ? (
+                <p className="text-sm text-gray-500">No attendance records found</p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Stats Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {(() => {
+                      const present = attendance.filter(a => a.status === 'present').length
+                      const late = attendance.filter(a => a.status === 'late').length
+                      const excused = attendance.filter(a => a.status === 'excused').length
+                      const absent = attendance.filter(a => a.status === 'absent').length
+                      const total = attendance.length
+                      const attendanceRate = total > 0 ? Math.round(((present + late) / total) * 100) : 0
+
+                      return (
+                        <>
+                          <div className="bg-green-50 p-3 rounded-lg text-center">
+                            <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
+                              <CheckCircle className="w-4 h-4" />
+                            </div>
+                            <div className="text-2xl font-bold text-green-700">{present}</div>
+                            <div className="text-xs text-green-600">Present</div>
+                          </div>
+                          <div className="bg-yellow-50 p-3 rounded-lg text-center">
+                            <div className="flex items-center justify-center gap-1 text-yellow-600 mb-1">
+                              <Clock className="w-4 h-4" />
+                            </div>
+                            <div className="text-2xl font-bold text-yellow-700">{late}</div>
+                            <div className="text-xs text-yellow-600">Late</div>
+                          </div>
+                          <div className="bg-blue-50 p-3 rounded-lg text-center">
+                            <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <div className="text-2xl font-bold text-blue-700">{excused}</div>
+                            <div className="text-xs text-blue-600">Excused</div>
+                          </div>
+                          <div className="bg-red-50 p-3 rounded-lg text-center">
+                            <div className="flex items-center justify-center gap-1 text-red-600 mb-1">
+                              <XCircle className="w-4 h-4" />
+                            </div>
+                            <div className="text-2xl font-bold text-red-700">{absent}</div>
+                            <div className="text-xs text-red-600">Absent</div>
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Attendance Rate */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Attendance Rate</span>
+                      <span className="text-lg font-bold text-gray-900">
+                        {attendance.length > 0
+                          ? Math.round(((attendance.filter(a => a.status === 'present' || a.status === 'late').length) / attendance.length) * 100)
+                          : 0}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all"
+                        style={{
+                          width: `${attendance.length > 0
+                            ? ((attendance.filter(a => a.status === 'present' || a.status === 'late').length) / attendance.length) * 100
+                            : 0}%`
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {attendance.length} sessions recorded
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

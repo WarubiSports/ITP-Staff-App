@@ -4,13 +4,15 @@ import { useDroppable } from '@dnd-kit/core'
 import { Badge } from '@/components/ui/badge'
 import { DoorOpen } from 'lucide-react'
 import { DraggablePlayer } from './DraggablePlayer'
-import type { Room } from '@/types'
+import type { Room, WhereaboutsDetails } from '@/types'
 
 interface Player {
   id: string
   player_id: string
   first_name: string
   last_name: string
+  whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
+  whereabouts_details?: WhereaboutsDetails
 }
 
 interface DroppableRoomProps {
