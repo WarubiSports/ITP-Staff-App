@@ -8,6 +8,8 @@ interface AppLayoutProps {
   children: React.ReactNode
   title: string
   subtitle?: string
+  /** Pre-formatted date from server to ensure consistent display */
+  formattedDate?: string
   user?: {
     email?: string
     user_metadata?: {
@@ -16,7 +18,7 @@ interface AppLayoutProps {
   }
 }
 
-export function AppLayout({ children, title, subtitle, user }: AppLayoutProps) {
+export function AppLayout({ children, title, subtitle, formattedDate, user }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
@@ -43,6 +45,7 @@ export function AppLayout({ children, title, subtitle, user }: AppLayoutProps) {
         <Header
           title={title}
           subtitle={subtitle}
+          formattedDate={formattedDate}
           onMenuClick={() => setSidebarOpen(true)}
         />
         <main className="flex-1 overflow-auto p-6 w-full">{children}</main>

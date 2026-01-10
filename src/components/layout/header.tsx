@@ -7,9 +7,18 @@ interface HeaderProps {
   title: string
   subtitle?: string
   onMenuClick?: () => void
+  /** Pre-formatted date string from server to avoid timezone mismatch */
+  formattedDate?: string
 }
 
-export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
+export function Header({ title, subtitle, onMenuClick, formattedDate }: HeaderProps) {
+  // Use server-provided date if available, otherwise format client-side
+  const displayDate = formattedDate ?? new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  })
+
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -40,11 +49,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
           </button>
           <div className="text-sm text-gray-500">
-            {new Date().toLocaleDateString('en-US', {
-              weekday: 'long',
-              month: 'short',
-              day: 'numeric',
-            })}
+            {displayDate}
           </div>
         </div>
       </div>

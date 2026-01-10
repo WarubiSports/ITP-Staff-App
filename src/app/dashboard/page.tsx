@@ -66,15 +66,25 @@ export default async function DashboardPage() {
     return task.due_date <= today
   })
 
+  // Format date once on server to ensure consistency across components
+  const serverDate = new Date()
+  const formattedDateLong = serverDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  const formattedDateShort = serverDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric'
+  })
+
   return (
     <AppLayout
       title="Today's Overview"
-      subtitle={new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })}
+      subtitle={formattedDateLong}
+      formattedDate={formattedDateShort}
       user={user}
     >
       <DashboardContent
