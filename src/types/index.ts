@@ -543,6 +543,7 @@ export interface BugReport {
   page_url?: string
   reporter_id?: string
   reporter_name?: string
+  screenshot_url?: string
   status: 'open' | 'in_progress' | 'resolved' | 'closed'
   priority: 'low' | 'medium' | 'high'
   admin_notes?: string

@@ -119,6 +119,7 @@ export function OperationsContent({
   const [showClaimModal, setShowClaimModal] = useState(false)
   const [showTrialModal, setShowTrialModal] = useState(false)
   const [selectedTrial, setSelectedTrial] = useState<PlayerTrial | null>(null)
+  const [selectedAppointment, setSelectedAppointment] = useState<MedicalAppointment | null>(null)
 
   // Refresh handler
   const handleRefresh = () => {
@@ -526,7 +527,14 @@ export function OperationsContent({
                     </thead>
                     <tbody>
                       {medicalAppointments.map((apt) => (
-                        <tr key={apt.id} className="border-b last:border-0 hover:bg-gray-50">
+                        <tr
+                          key={apt.id}
+                          onClick={() => {
+                            setSelectedAppointment(apt)
+                            setShowMedicalModal(true)
+                          }}
+                          className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
+                        >
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <Avatar name={getPlayerName(apt.player_id)} size="sm" />
@@ -1199,9 +1207,13 @@ export function OperationsContent({
 
       <AddMedicalAppointmentModal
         isOpen={showMedicalModal}
-        onClose={() => setShowMedicalModal(false)}
+        onClose={() => {
+          setShowMedicalModal(false)
+          setSelectedAppointment(null)
+        }}
         players={players}
         onSuccess={handleRefresh}
+        editAppointment={selectedAppointment}
       />
 
       <AddInsuranceClaimModal

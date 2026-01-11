@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Loader2, Bug } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Loader2, Bug, ImagePlus, X } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,62 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
     title: '',
     description: '',
   })
+  const [screenshot, setScreenshot] = useState<File | null>(null)
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file', 'error')
+        return
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image must be less than 5MB', 'error')
+        return
+      }
+      setScreenshot(file)
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeScreenshot = () => {
+    setScreenshot(null)
+    setScreenshotPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const uploadScreenshot = async (file: File): Promise<string | null> => {
+    const supabase = createClient()
+    const fileExt = file.name.split('.').pop()
+    const fileName = `bug-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+    const filePath = `bug-screenshots/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('uploads')
+      .upload(filePath, file)
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError)
+      return null
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('uploads')
+      .getPublicUrl(filePath)
+
+    return publicUrl
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,6 +89,16 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
     try {
       const supabase = createClient()
 
+      // Upload screenshot if provided
+      let screenshotUrl: string | null = null
+      if (screenshot) {
+        screenshotUrl = await uploadScreenshot(screenshot)
+        if (!screenshotUrl) {
+          // Continue without screenshot if upload fails
+          console.warn('Screenshot upload failed, continuing without it')
+        }
+      }
+
       const { error: insertError } = await supabase
         .from('bug_reports')
         .insert({
@@ -41,6 +107,7 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
           page_url: currentUrl || null,
           reporter_id: userId || null,
           reporter_name: userName || null,
+          screenshot_url: screenshotUrl,
           status: 'open',
           priority: 'medium',
         })
@@ -49,6 +116,7 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
 
       showToast('Bug report submitted. Thank you!')
       setFormData({ title: '', description: '' })
+      removeScreenshot()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit report')
@@ -58,8 +126,15 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
     }
   }
 
+  const handleClose = () => {
+    setFormData({ title: '', description: '' })
+    removeScreenshot()
+    setError('')
+    onClose()
+  }
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Report a Bug" size="md">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Report a Bug" size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
           <Bug className="w-4 h-4 flex-shrink-0" />
@@ -86,10 +161,51 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
           </label>
           <textarea
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
-            rows={4}
+            rows={3}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             placeholder="What were you trying to do? What happened instead?"
+          />
+        </div>
+
+        {/* Screenshot upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Screenshot (optional)
+          </label>
+
+          {screenshotPreview ? (
+            <div className="relative inline-block">
+              <img
+                src={screenshotPreview}
+                alt="Screenshot preview"
+                className="max-h-40 rounded-lg border border-gray-200"
+              />
+              <button
+                type="button"
+                onClick={removeScreenshot}
+                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+            >
+              <ImagePlus className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+              <p className="text-sm text-gray-500">Click to add a screenshot</p>
+              <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleScreenshotChange}
+            className="hidden"
           />
         </div>
 
@@ -100,7 +216,7 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
         )}
 
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
           <Button type="submit" disabled={loading || !formData.title.trim()}>
