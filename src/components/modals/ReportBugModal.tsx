@@ -5,8 +5,11 @@ import { Loader2, Bug, ImagePlus, X } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
+
+// Use environment variables for Supabase config
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 interface ReportBugModalProps {
   isOpen: boolean
@@ -60,25 +63,31 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
   }
 
   const uploadScreenshot = async (file: File): Promise<string | null> => {
-    const supabase = createClient()
     const fileExt = file.name.split('.').pop()
     const fileName = `bug-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
     const filePath = `bug-screenshots/${fileName}`
 
-    const { error: uploadError } = await supabase.storage
-      .from('uploads')
-      .upload(filePath, file)
+    try {
+      const response = await fetch(`${SUPABASE_URL}/storage/v1/object/uploads/${filePath}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: file
+      })
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError)
+      if (!response.ok) {
+        console.error('Upload error:', await response.text())
+        return null
+      }
+
+      // Return the public URL
+      return `${SUPABASE_URL}/storage/v1/object/public/uploads/${filePath}`
+    } catch (err) {
+      console.error('Upload error:', err)
       return null
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('uploads')
-      .getPublicUrl(filePath)
-
-    return publicUrl
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,8 +96,6 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
     setLoading(true)
 
     try {
-      const supabase = createClient()
-
       // Upload screenshot if provided
       let screenshotUrl: string | null = null
       if (screenshot) {
@@ -99,9 +106,16 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
         }
       }
 
-      const { error: insertError } = await supabase
-        .from('bug_reports')
-        .insert({
+      // Use direct fetch to avoid Supabase SSR client issues
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/bug_reports`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
           title: formData.title,
           description: formData.description || null,
           page_url: currentUrl || null,
@@ -111,8 +125,12 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
           status: 'open',
           priority: 'medium',
         })
+      })
 
-      if (insertError) throw insertError
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to submit report')
+      }
 
       showToast('Bug report submitted. Thank you!')
       setFormData({ title: '', description: '' })
