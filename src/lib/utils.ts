@@ -14,8 +14,22 @@ export function formatDate(date: string | Date): string {
 }
 
 export function formatTime(time: string): string {
-  const [hours, minutes] = time.split(':')
+  if (!time) return ''
+
+  // Handle ISO timestamp format (e.g., "2026-01-16T08:40:00")
+  let timeStr = time
+  if (time.includes('T')) {
+    timeStr = time.split('T')[1]?.slice(0, 5) || ''
+  }
+
+  if (!timeStr || !timeStr.includes(':')) return ''
+
+  const [hours, minutes] = timeStr.split(':')
+  if (!hours || !minutes) return ''
+
   const hour = parseInt(hours, 10)
+  if (isNaN(hour)) return ''
+
   const ampm = hour >= 12 ? 'PM' : 'AM'
   const displayHour = hour % 12 || 12
   return `${displayHour}:${minutes} ${ampm}`

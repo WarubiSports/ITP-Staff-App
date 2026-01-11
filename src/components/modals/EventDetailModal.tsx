@@ -7,8 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CalendarEvent, CalendarEventType, Player } from '@/types'
-import { createClient } from '@/lib/supabase/client'
 import { formatTime, formatDate } from '@/lib/utils'
+
+// Use direct fetch to avoid Supabase SSR client issues
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 import {
   Calendar,
   Clock,
@@ -76,8 +79,6 @@ export function EventDetailModal({
     selectedPlayers: event.attendees?.map((a) => a.player_id) || [],
   })
 
-  const supabase = createClient()
-
   const handleSave = async () => {
     setError('')
     setLoading(true)
@@ -90,26 +91,46 @@ export function EventDetailModal({
         ? `${formData.date}T23:59:59`
         : `${formData.date}T${formData.end_time}:00`
 
-      // Update event
-      const { error: updateError } = await supabase
-        .from('events')
-        .update({
-          title: formData.title,
-          date: formData.date,
-          start_time: startDateTime,
-          end_time: endDateTime,
-          type: formData.type,
-          location: formData.location || null,
-          description: formData.description || null,
-          all_day: formData.all_day,
-        })
-        .eq('id', event.id)
+      // Update event using direct fetch
+      const updateResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/events?id=eq.${event.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            title: formData.title,
+            date: formData.date,
+            start_time: startDateTime,
+            end_time: endDateTime,
+            type: formData.type,
+            location: formData.location || null,
+            description: formData.description || null,
+            all_day: formData.all_day,
+          })
+        }
+      )
 
-      if (updateError) throw updateError
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json()
+        throw new Error(errorData.message || 'Failed to update event')
+      }
 
-      // Update attendees
-      // First, delete all existing attendees
-      await supabase.from('event_attendees').delete().eq('event_id', event.id)
+      // Update attendees - first delete existing
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/event_attendees?event_id=eq.${event.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          }
+        }
+      )
 
       // Then insert new attendees
       if (formData.selectedPlayers.length > 0) {
@@ -118,10 +139,23 @@ export function EventDetailModal({
           player_id: playerId,
           status: 'pending',
         }))
-        const { error: attendeesError } = await supabase
-          .from('event_attendees')
-          .insert(attendees)
-        if (attendeesError) throw attendeesError
+        const attendeesResponse = await fetch(
+          `${SUPABASE_URL}/rest/v1/event_attendees`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify(attendees)
+          }
+        )
+        if (!attendeesResponse.ok) {
+          const errorData = await attendeesResponse.json()
+          throw new Error(errorData.message || 'Failed to update attendees')
+        }
       }
 
       setIsEditing(false)
@@ -137,8 +171,22 @@ export function EventDetailModal({
   const handleDelete = async () => {
     setLoading(true)
     try {
-      const { error } = await supabase.from('events').delete().eq('id', event.id)
-      if (error) throw error
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/events?id=eq.${event.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          }
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to delete event')
+      }
+
       onDelete()
       onClose()
     } catch (err) {
