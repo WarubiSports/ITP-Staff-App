@@ -6,8 +6,103 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/client'
 import { CalendarEventType, Player } from '@/types'
+
+// Direct fetch helper to bypass Supabase SSR client issues
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+
+  // Supabase SSR stores auth in cookies, not localStorage
+  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0]
+  const cookieName = `sb-${projectRef}-auth-token`
+
+  // Get all cookies and find the auth token parts
+  const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=')
+    if (key) acc[key] = value
+    return acc
+  }, {} as Record<string, string>)
+
+  // Supabase splits large tokens across multiple cookies (.0, .1, etc.)
+  let base64Token = ''
+  let i = 0
+  while (cookies[`${cookieName}.${i}`]) {
+    base64Token += cookies[`${cookieName}.${i}`]
+    i++
+  }
+
+  if (!base64Token) return null
+
+  try {
+    // Decode base64 and parse JSON
+    const decoded = atob(base64Token.replace('base64-', ''))
+    const parsed = JSON.parse(decoded)
+    return parsed.access_token || null
+  } catch {
+    return null
+  }
+}
+
+async function supabaseInsert<T>(table: string, data: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Prefer': 'return=representation',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    const result = await response.json()
+    return { data: Array.isArray(result) ? result[0] : result, error: null }
+  } catch (err) {
+    return { data: null, error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
+async function supabaseBulkInsert(table: string, data: Record<string, unknown>[]): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
 
 interface AddEventModalProps {
   isOpen: boolean
@@ -106,8 +201,6 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     setLoading(true)
 
     try {
-      const supabase = createClient()
-
       // Construct full timestamps from date + time
       const startDateTime = formData.all_day
         ? `${formData.date}T00:00:00`
@@ -131,11 +224,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
         recurrence_end_date: formData.recurrence_end_date || null,
       }
 
-      const { data: insertedEvent, error: insertError } = await supabase
-        .from('events')
-        .insert(eventData)
-        .select('id')
-        .single()
+      const { data: insertedEvent, error: insertError } = await supabaseInsert<{ id: string }>('events', eventData)
 
       if (insertError) throw insertError
 
@@ -146,9 +235,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
           player_id: playerId,
           status: 'pending',
         }))
-        const { error: attendeesError } = await supabase
-          .from('event_attendees')
-          .insert(attendees)
+        const { error: attendeesError } = await supabaseBulkInsert('event_attendees', attendees)
         if (attendeesError) console.error('Failed to add attendees:', attendeesError)
       }
 
@@ -178,7 +265,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
             }
           })
 
-          await supabase.from('events').insert(recurringEvents)
+          await supabaseBulkInsert('events', recurringEvents)
         }
       }
 

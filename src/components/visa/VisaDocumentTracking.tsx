@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   FileCheck,
   FileX,
@@ -13,6 +13,10 @@ import {
   CheckCircle2,
   Clock,
   User,
+  Paperclip,
+  Upload,
+  Download,
+  X,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,12 +24,14 @@ import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { formatDate, getDaysUntil } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { uploadVisaDocumentAction, getDocumentUrlAction, deleteDocumentAction } from '@/app/actions/documents'
 import type {
   VisaDocumentStatus,
   VisaApplicationStatus,
   VisaDocumentChecklist,
   visaDocumentLabels,
-  defaultVisaDocuments
+  defaultVisaDocuments,
+  PlayerDocument,
 } from '@/types'
 
 interface Player {
@@ -47,6 +53,7 @@ interface Player {
 
 interface VisaDocumentTrackingProps {
   players: Player[]
+  playerDocuments?: Record<string, PlayerDocument[]> // playerId -> documents
   onUpdate: () => void
 }
 
@@ -119,10 +126,13 @@ function get90DayDeadline(arrivalDate: string): string {
   return arrival.toISOString().split('T')[0]
 }
 
-export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTrackingProps) {
+export function VisaDocumentTracking({ players, playerDocuments = {}, onUpdate }: VisaDocumentTrackingProps) {
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null)
   const [updatingDoc, setUpdatingDoc] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'requires_visa' | 'urgent'>('all')
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null) // "playerId-docKey"
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [pendingUpload, setPendingUpload] = useState<{ playerId: string; docKey: string } | null>(null)
 
   // Filter players who need visa tracking (non-EU nationals)
   const euNationalities = ['Germany', 'German', 'Austria', 'Austrian', 'France', 'French', 'Italy', 'Italian',
@@ -206,6 +216,98 @@ export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTracking
     const entries = Object.entries(docs)
     const received = entries.filter(([, status]) => status === 'received' || status === 'not_required').length
     return { received, total: entries.length }
+  }
+
+  // Get attached document for a specific visa requirement
+  const getAttachedDocument = (playerId: string, docKey: string): PlayerDocument | undefined => {
+    const docs = playerDocuments[playerId] || []
+    return docs.find(d => d.document_type === docKey)
+  }
+
+  // Handle file selection for upload
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !pendingUpload) return
+
+    const { playerId, docKey } = pendingUpload
+    setUploadingDoc(`${playerId}-${docKey}`)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('playerId', playerId)
+      formData.append('documentType', docKey)
+      formData.append('documentName', documentLabels[docKey as keyof VisaDocumentChecklist]?.en || docKey)
+
+      const result = await uploadVisaDocumentAction(formData)
+
+      if (result.error) {
+        console.error('Upload error:', result.error)
+        alert(`Upload failed: ${result.error}`)
+      } else {
+        // Auto-update status to "received" when document is uploaded
+        const player = players.find(p => p.id === playerId)
+        const currentDocs = player?.visa_documents || defaultDocs
+        if (currentDocs[docKey as keyof VisaDocumentChecklist] !== 'received') {
+          const updatedDocs = { ...currentDocs, [docKey]: 'received' }
+          const supabase = createClient()
+          await supabase
+            .from('players')
+            .update({ visa_documents: updatedDocs })
+            .eq('id', playerId)
+        }
+        onUpdate()
+      }
+    } catch (err) {
+      console.error('Upload error:', err)
+    } finally {
+      setUploadingDoc(null)
+      setPendingUpload(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  // Trigger file picker for a specific document
+  const triggerUpload = (playerId: string, docKey: string) => {
+    setPendingUpload({ playerId, docKey })
+    fileInputRef.current?.click()
+  }
+
+  // Download attached document
+  const handleDownload = async (doc: PlayerDocument) => {
+    try {
+      const { url, error } = await getDocumentUrlAction(doc.file_path)
+      if (error) {
+        console.error('Download error:', error)
+        return
+      }
+      if (url) {
+        window.open(url, '_blank')
+      }
+    } catch (err) {
+      console.error('Download error:', err)
+    }
+  }
+
+  // Delete attached document
+  const handleDeleteDocument = async (doc: PlayerDocument, playerId: string, docKey: string) => {
+    if (!confirm('Remove this document?')) return
+
+    setUploadingDoc(`${playerId}-${docKey}`)
+    try {
+      const { success, error } = await deleteDocumentAction(doc.id, doc.file_path)
+      if (!success) {
+        console.error('Delete error:', error)
+      } else {
+        onUpdate()
+      }
+    } catch (err) {
+      console.error('Delete error:', err)
+    } finally {
+      setUploadingDoc(null)
+    }
   }
 
   return (
@@ -456,6 +558,9 @@ export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTracking
                             const StatusIcon = config.icon
                             const labels = documentLabels[docKey]
                             const isUpdating = updatingDoc === `${player.id}-${docKey}`
+                            const isUploading = uploadingDoc === `${player.id}-${docKey}`
+                            const attachedDoc = getAttachedDocument(player.id, docKey)
+                            const isLoading = isUpdating || isUploading
 
                             // Hide parent-related docs for non-minors
                             if (!playerIsMinor && (docKey === 'parents_passports' || docKey === 'parental_power_of_attorney')) {
@@ -463,24 +568,74 @@ export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTracking
                             }
 
                             return (
-                              <button
+                              <div
                                 key={docKey}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  toggleDocumentStatus(player.id, docKey, status)
-                                }}
-                                disabled={isUpdating}
-                                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors hover:bg-gray-50 ${
-                                  isUpdating ? 'opacity-50' : ''
+                                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors group ${
+                                  isLoading ? 'opacity-50' : 'hover:bg-gray-50'
                                 }`}
                               >
-                                <div className={`p-1.5 rounded ${config.bg}`}>
+                                {/* Status button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleDocumentStatus(player.id, docKey, status)
+                                  }}
+                                  disabled={isLoading}
+                                  className={`p-1.5 rounded ${config.bg} hover:opacity-80 transition-opacity`}
+                                  title="Click to change status"
+                                >
                                   <StatusIcon className={`w-4 h-4 ${config.color}`} />
-                                </div>
+                                </button>
+
+                                {/* Document info */}
                                 <div className="text-left flex-1 min-w-0">
                                   <p className="text-sm font-medium text-gray-900 truncate">{labels.en}</p>
                                   <p className="text-xs text-gray-500 truncate">{labels.de}</p>
                                 </div>
+
+                                {/* Attached document indicator / upload button */}
+                                <div className="flex items-center gap-1">
+                                  {attachedDoc ? (
+                                    // Document attached - show paperclip
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleDownload(attachedDoc)
+                                        }}
+                                        className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded transition-colors"
+                                        title="Download document"
+                                      >
+                                        <Paperclip className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleDeleteDocument(attachedDoc, player.id, docKey)
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                        title="Remove document"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    // No document - show upload button (always visible)
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        triggerUpload(player.id, docKey)
+                                      }}
+                                      disabled={isLoading}
+                                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 border border-dashed border-gray-300 hover:border-blue-400 rounded transition-colors"
+                                      title="Upload document"
+                                    >
+                                      <Upload className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Status badge */}
                                 <Badge
                                   variant={
                                     status === 'received' ? 'success' :
@@ -492,12 +647,12 @@ export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTracking
                                 >
                                   {config.label}
                                 </Badge>
-                              </button>
+                              </div>
                             )
                           })}
                         </div>
                         <p className="text-xs text-gray-500 mt-3">
-                          Click on a document to cycle through statuses: Pending → Submitted → Received → N/A
+                          Click status icon to cycle: Pending → Submitted → Received → N/A | Hover to upload/download files
                         </p>
                       </div>
 
@@ -525,6 +680,15 @@ export function VisaDocumentTracking({ players, onUpdate }: VisaDocumentTracking
           })}
         </div>
       )}
+
+      {/* Hidden file input for uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+        onChange={handleFileSelect}
+      />
     </div>
   )
 }

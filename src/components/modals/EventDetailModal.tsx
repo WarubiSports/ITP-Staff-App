@@ -8,10 +8,6 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CalendarEvent, CalendarEventType, Player } from '@/types'
 import { formatTime, formatDate } from '@/lib/utils'
-
-// Use direct fetch to avoid Supabase SSR client issues
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 import {
   Calendar,
   Clock,
@@ -22,6 +18,154 @@ import {
   X,
   Save,
 } from 'lucide-react'
+
+// Direct fetch helper to bypass Supabase SSR client issues
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+
+  // Supabase SSR stores auth in cookies, not localStorage
+  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0]
+  const cookieName = `sb-${projectRef}-auth-token`
+
+  // Get all cookies and find the auth token parts
+  const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=')
+    if (key) acc[key] = value
+    return acc
+  }, {} as Record<string, string>)
+
+  // Supabase splits large tokens across multiple cookies (.0, .1, etc.)
+  let base64Token = ''
+  let i = 0
+  while (cookies[`${cookieName}.${i}`]) {
+    base64Token += cookies[`${cookieName}.${i}`]
+    i++
+  }
+
+  if (!base64Token) return null
+
+  try {
+    // Decode base64 and parse JSON
+    const decoded = atob(base64Token.replace('base64-', ''))
+    const parsed = JSON.parse(decoded)
+    return parsed.access_token || null
+  } catch {
+    return null
+  }
+}
+
+async function supabaseUpdate(table: string, id: string, data: Record<string, unknown>): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
+async function supabaseDelete(table: string, id: string): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: 'DELETE',
+      headers,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
+async function supabaseDeleteByEventId(table: string, eventId: string): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?event_id=eq.${eventId}`, {
+      method: 'DELETE',
+      headers,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
+async function supabaseBulkInsert(table: string, data: Record<string, unknown>[]): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
 
 interface EventDetailModalProps {
   isOpen: boolean
@@ -91,46 +235,22 @@ export function EventDetailModal({
         ? `${formData.date}T23:59:59`
         : `${formData.date}T${formData.end_time}:00`
 
-      // Update event using direct fetch
-      const updateResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/events?id=eq.${event.id}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({
-            title: formData.title,
-            date: formData.date,
-            start_time: startDateTime,
-            end_time: endDateTime,
-            type: formData.type,
-            location: formData.location || null,
-            description: formData.description || null,
-            all_day: formData.all_day,
-          })
-        }
-      )
+      // Update event
+      const { error: updateError } = await supabaseUpdate('events', event.id, {
+        title: formData.title,
+        date: formData.date,
+        start_time: startDateTime,
+        end_time: endDateTime,
+        type: formData.type,
+        location: formData.location || null,
+        description: formData.description || null,
+        all_day: formData.all_day,
+      })
 
-      if (!updateResponse.ok) {
-        const errorData = await updateResponse.json()
-        throw new Error(errorData.message || 'Failed to update event')
-      }
+      if (updateError) throw updateError
 
       // Update attendees - first delete existing
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/event_attendees?event_id=eq.${event.id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          }
-        }
-      )
+      await supabaseDeleteByEventId('event_attendees', event.id)
 
       // Then insert new attendees
       if (formData.selectedPlayers.length > 0) {
@@ -139,23 +259,8 @@ export function EventDetailModal({
           player_id: playerId,
           status: 'pending',
         }))
-        const attendeesResponse = await fetch(
-          `${SUPABASE_URL}/rest/v1/event_attendees`,
-          {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-              'Content-Type': 'application/json',
-              'Prefer': 'return=minimal'
-            },
-            body: JSON.stringify(attendees)
-          }
-        )
-        if (!attendeesResponse.ok) {
-          const errorData = await attendeesResponse.json()
-          throw new Error(errorData.message || 'Failed to update attendees')
-        }
+        const { error: attendeesError } = await supabaseBulkInsert('event_attendees', attendees)
+        if (attendeesError) throw attendeesError
       }
 
       setIsEditing(false)
@@ -171,21 +276,9 @@ export function EventDetailModal({
   const handleDelete = async () => {
     setLoading(true)
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/events?id=eq.${event.id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          }
-        }
-      )
+      const { error } = await supabaseDelete('events', event.id)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to delete event')
-      }
+      if (error) throw error
 
       onDelete()
       onClose()

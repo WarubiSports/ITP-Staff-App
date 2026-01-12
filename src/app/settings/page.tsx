@@ -16,11 +16,17 @@ export default async function SettingsPage() {
     redirect('/login')
   }
 
-  // Fetch bug reports
-  const { data: bugReports } = await supabase
-    .from('bug_reports')
-    .select('*')
-    .order('created_at', { ascending: false })
+  // Only fetch bug reports for admin user
+  const isAdmin = user.email === 'max.bisinger@warubi-sports.com'
+  let bugReports: any[] = []
+
+  if (isAdmin) {
+    const { data } = await supabase
+      .from('bug_reports')
+      .select('*')
+      .order('created_at', { ascending: false })
+    bugReports = data || []
+  }
 
   return (
     <AppLayout
@@ -28,7 +34,7 @@ export default async function SettingsPage() {
       subtitle="Manage your account and preferences"
       user={user}
     >
-      <SettingsContent user={user} bugReports={bugReports || []} />
+      <SettingsContent user={user} bugReports={bugReports} isAdmin={isAdmin} />
     </AppLayout>
   )
 }

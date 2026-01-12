@@ -32,9 +32,10 @@ const eventTypeColors: Record<CalendarEventType, { bg: string; text: string; bor
   // Admin - Gray
   meeting: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-l-gray-500' },
   medical: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500' },
-  // Trials - Indigo
-  trial: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-l-indigo-500' },
-  prospect_trial: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-l-violet-500' },
+  // ITP Player Trials (external) - Purple/Indigo
+  trial: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-l-violet-500' },
+  // Prospect Trials (incoming to ITP) - Rose/Pink - distinct from player trials
+  prospect_trial: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-l-rose-500' },
   // Other
   visa: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-500' },
   other: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-l-gray-400' },

@@ -14,9 +14,8 @@ import {
   FolderOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { getDocumentUrl, deleteDocument, formatFileSize } from '@/lib/storage'
-import { createClient } from '@/lib/supabase/client'
+import { formatFileSize } from '@/lib/storage'
+import { getDocumentUrlAction, deleteDocumentAction } from '@/app/actions/documents'
 import { PlayerDocument } from '@/types'
 
 interface DocumentListProps {
@@ -56,7 +55,11 @@ export function DocumentList({ documents, onRefresh }: DocumentListProps) {
   const handleDownload = async (doc: PlayerDocument) => {
     setLoading(doc.id)
     try {
-      const url = await getDocumentUrl(doc.file_path)
+      const { url, error } = await getDocumentUrlAction(doc.file_path)
+      if (error) {
+        console.error('Download error:', error)
+        return
+      }
       if (url) {
         window.open(url, '_blank')
       }
@@ -74,12 +77,12 @@ export function DocumentList({ documents, onRefresh }: DocumentListProps) {
 
     setDeleting(doc.id)
     try {
-      // Delete from storage
-      await deleteDocument(doc.file_path)
+      const { success, error } = await deleteDocumentAction(doc.id, doc.file_path)
 
-      // Delete from database
-      const supabase = createClient()
-      await supabase.from('player_documents').delete().eq('id', doc.id)
+      if (!success) {
+        console.error('Delete error:', error)
+        return
+      }
 
       onRefresh()
     } catch (err) {

@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { uploadDocument, formatFileSize } from '@/lib/storage'
-import { createClient } from '@/lib/supabase/client'
+import { formatFileSize } from '@/lib/storage'
+import { uploadDocumentAction, saveDocumentMetadata } from '@/app/actions/documents'
 
 interface DocumentUploadProps {
   playerId: string
@@ -135,29 +135,32 @@ export function DocumentUpload({ playerId, onSuccess, onCancel }: DocumentUpload
     setError('')
 
     try {
-      // Upload file to storage
-      const { path, error: uploadError } = await uploadDocument(selectedFile, playerId)
+      // Upload file to storage via server action
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', selectedFile)
+      uploadFormData.append('playerId', playerId)
+
+      const { path, error: uploadError } = await uploadDocumentAction(uploadFormData)
 
       if (uploadError) {
         throw new Error(uploadError)
       }
 
-      // Save document metadata
-      const supabase = createClient()
-      const { error: dbError } = await supabase.from('player_documents').insert({
+      // Save document metadata via server action
+      const { success, error: metadataError } = await saveDocumentMetadata({
         player_id: playerId,
         name: formData.name,
         file_path: path,
         file_type: selectedFile.type,
         file_size: selectedFile.size,
         category: formData.category,
-        document_type: formData.document_type || null,
-        expiry_date: formData.expiry_date || null,
-        description: formData.description || null,
+        document_type: formData.document_type || undefined,
+        expiry_date: formData.expiry_date || undefined,
+        description: formData.description || undefined,
       })
 
-      if (dbError) {
-        throw dbError
+      if (!success || metadataError) {
+        throw new Error(metadataError || 'Failed to save document metadata')
       }
 
       onSuccess()

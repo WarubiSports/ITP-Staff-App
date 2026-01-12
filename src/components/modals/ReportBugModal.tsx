@@ -6,10 +6,73 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { createClient } from '@/lib/supabase/client'
 
-// Use environment variables for Supabase config
+// Direct fetch helper to bypass Supabase SSR client issues
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+
+  // Supabase SSR stores auth in cookies, not localStorage
+  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0]
+  const cookieName = `sb-${projectRef}-auth-token`
+
+  // Get all cookies and find the auth token parts
+  const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=')
+    if (key) acc[key] = value
+    return acc
+  }, {} as Record<string, string>)
+
+  // Supabase splits large tokens across multiple cookies (.0, .1, etc.)
+  let base64Token = ''
+  let i = 0
+  while (cookies[`${cookieName}.${i}`]) {
+    base64Token += cookies[`${cookieName}.${i}`]
+    i++
+  }
+
+  if (!base64Token) return null
+
+  try {
+    // Decode base64 and parse JSON
+    const decoded = atob(base64Token.replace('base64-', ''))
+    const parsed = JSON.parse(decoded)
+    return parsed.access_token || null
+  } catch {
+    return null
+  }
+}
+
+async function supabaseInsert(table: string, data: Record<string, unknown>): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
 
 interface ReportBugModalProps {
   isOpen: boolean
@@ -63,27 +126,27 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
   }
 
   const uploadScreenshot = async (file: File): Promise<string | null> => {
+    const supabase = createClient()
     const fileExt = file.name.split('.').pop()
     const fileName = `bug-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
     const filePath = `bug-screenshots/${fileName}`
 
     try {
-      const response = await fetch(`${SUPABASE_URL}/storage/v1/object/uploads/${filePath}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: file
-      })
+      const { error } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, file)
 
-      if (!response.ok) {
-        console.error('Upload error:', await response.text())
+      if (error) {
+        console.error('Upload error:', error)
         return null
       }
 
       // Return the public URL
-      return `${SUPABASE_URL}/storage/v1/object/public/uploads/${filePath}`
+      const { data: urlData } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filePath)
+
+      return urlData.publicUrl
     } catch (err) {
       console.error('Upload error:', err)
       return null
@@ -96,6 +159,8 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
     setLoading(true)
 
     try {
+      const supabase = createClient()
+
       // Upload screenshot if provided
       let screenshotUrl: string | null = null
       if (screenshot) {
@@ -106,31 +171,18 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
         }
       }
 
-      // Use direct fetch to avoid Supabase SSR client issues
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/bug_reports`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description || null,
-          page_url: currentUrl || null,
-          reporter_id: userId || null,
-          reporter_name: userName || null,
-          screenshot_url: screenshotUrl,
-          status: 'open',
-          priority: 'medium',
-        })
+      const { error: insertError } = await supabaseInsert('bug_reports', {
+        title: formData.title,
+        description: formData.description || null,
+        page_url: currentUrl || null,
+        reporter_id: userId || null,
+        reporter_name: userName || null,
+        screenshot_url: screenshotUrl,
+        status: 'open',
+        priority: 'medium',
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to submit report')
-      }
+      if (insertError) throw insertError
 
       showToast('Bug report submitted. Thank you!')
       setFormData({ title: '', description: '' })
