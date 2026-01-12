@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
+import { createStaffAccount } from '@/app/staff/actions'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -36,60 +37,28 @@ export default function SignupPage() {
     }
 
     try {
-      // First check if email is approved
-      const { data: approved, error: approvedError } = await supabase
-        .from('approved_staff')
-        .select('id, full_name, role')
-        .eq('email', email.toLowerCase().trim())
-        .is('registered_at', null)
-        .single()
+      // Create account via server action (bypasses email confirmation)
+      const result = await createStaffAccount(email, password)
 
-      if (approvedError || !approved) {
-        setError('This email is not authorized to create an account. Please contact your administrator.')
+      if (result.error) {
+        setError(result.error)
         setLoading(false)
         return
       }
 
-      // Create the account
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.toLowerCase().trim(),
-        password,
-        options: {
-          data: {
-            full_name: approved.full_name,
-            role: approved.role,
-          }
+      if (result.success) {
+        // Sign in with the new credentials
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase().trim(),
+          password,
+        })
+
+        if (signInError) {
+          setError('Account created but sign-in failed. Please go to login page.')
+          setLoading(false)
+          return
         }
-      })
 
-      if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
-          setError('An account with this email already exists. Please sign in instead.')
-        } else {
-          setError(signUpError.message)
-        }
-        setLoading(false)
-        return
-      }
-
-      if (data.user) {
-        // Create staff profile
-        await supabase
-          .from('staff_profiles')
-          .upsert({
-            id: data.user.id,
-            email: email.toLowerCase().trim(),
-            full_name: approved.full_name,
-            role: approved.role,
-          }, { onConflict: 'id' })
-
-        // Mark as registered
-        await supabase
-          .from('approved_staff')
-          .update({ registered_at: new Date().toISOString() })
-          .eq('id', approved.id)
-
-        // Auto sign in and redirect
         router.push('/dashboard')
         router.refresh()
       }

@@ -62,8 +62,7 @@ export async function inviteStaffMember(
     return { error: 'Server configuration error. Missing service role key.' }
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  const appUrl = 'https://itp-staff-app.vercel.app'
 
   try {
     // Check if email belongs to a player (players should not be staff)
@@ -153,6 +152,75 @@ export async function getApprovedStaff() {
   } catch (err) {
     console.error('Get approved staff error:', err)
     return { error: 'Failed to fetch approved staff' }
+  }
+}
+
+// Create staff account (bypasses email confirmation)
+export async function createStaffAccount(
+  email: string,
+  password: string
+) {
+  const supabaseAdmin = getAdminClient()
+
+  if (!supabaseAdmin) {
+    return { error: 'Server configuration error.' }
+  }
+
+  try {
+    // Check if email is approved
+    const { data: approved, error: approvedError } = await supabaseAdmin
+      .from('approved_staff')
+      .select('id, full_name, role')
+      .eq('email', email.toLowerCase().trim())
+      .is('registered_at', null)
+      .single()
+
+    if (approvedError || !approved) {
+      return { error: 'This email is not authorized to create an account.' }
+    }
+
+    // Create user via admin API (auto-confirms email)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: email.toLowerCase().trim(),
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: approved.full_name,
+        role: approved.role,
+      }
+    })
+
+    if (authError) {
+      if (authError.message.includes('already been registered')) {
+        return { error: 'An account with this email already exists. Please sign in instead.' }
+      }
+      return { error: authError.message }
+    }
+
+    if (authData.user) {
+      // Create staff profile
+      await supabaseAdmin
+        .from('staff_profiles')
+        .upsert({
+          id: authData.user.id,
+          email: email.toLowerCase().trim(),
+          full_name: approved.full_name,
+          role: approved.role,
+        }, { onConflict: 'id' })
+
+      // Mark as registered
+      await supabaseAdmin
+        .from('approved_staff')
+        .update({ registered_at: new Date().toISOString() })
+        .eq('id', approved.id)
+
+      return { success: true, userId: authData.user.id }
+    }
+
+    return { error: 'Failed to create account' }
+  } catch (err) {
+    console.error('Create account error:', err)
+    return { error: err instanceof Error ? err.message : 'Failed to create account' }
   }
 }
 
