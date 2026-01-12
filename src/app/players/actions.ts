@@ -93,6 +93,79 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
   }
 }
 
+// Auto-update players whose absence dates have passed
+export async function updateExpiredWhereabouts() {
+  const supabaseAdmin = getAdminClient()
+
+  if (!supabaseAdmin) {
+    return { error: 'Server configuration error.' }
+  }
+
+  try {
+    const today = new Date().toISOString().split('T')[0]
+
+    // Get all players who are not at_academy
+    const { data: players, error: fetchError } = await supabaseAdmin
+      .from('players')
+      .select('id, first_name, last_name, whereabouts_status, whereabouts_details')
+      .eq('status', 'active')
+      .neq('whereabouts_status', 'at_academy')
+
+    if (fetchError) {
+      console.error('Fetch error:', fetchError)
+      return { error: fetchError.message }
+    }
+
+    const playersToUpdate: string[] = []
+
+    for (const player of players || []) {
+      const details = player.whereabouts_details as Record<string, string> | null
+      if (!details) continue
+
+      // Check various date fields based on status
+      let endDate: string | null = null
+
+      if (player.whereabouts_status === 'home_leave' || player.whereabouts_status === 'traveling') {
+        endDate = details.return_date || null
+      } else if (player.whereabouts_status === 'on_trial') {
+        endDate = details.end_date || null
+      } else if (player.whereabouts_status === 'injured') {
+        endDate = details.expected_return || null
+      }
+
+      // If end date has passed, mark for update
+      if (endDate && endDate < today) {
+        playersToUpdate.push(player.id)
+        console.log(`Marking ${player.first_name} ${player.last_name} as back at academy (was ${player.whereabouts_status}, ended ${endDate})`)
+      }
+    }
+
+    // Update all expired players to at_academy
+    if (playersToUpdate.length > 0) {
+      const { error: updateError } = await supabaseAdmin
+        .from('players')
+        .update({
+          whereabouts_status: 'at_academy',
+          whereabouts_details: {},
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', playersToUpdate)
+
+      if (updateError) {
+        console.error('Update error:', updateError)
+        return { error: updateError.message }
+      }
+
+      console.log(`Updated ${playersToUpdate.length} players to at_academy`)
+    }
+
+    return { success: true, updated: playersToUpdate.length }
+  } catch (err) {
+    console.error('Update expired whereabouts error:', err)
+    return { error: err instanceof Error ? err.message : 'Failed to update' }
+  }
+}
+
 export async function deletePlayer(playerId: string, hardDelete: boolean = false) {
   const supabaseAdmin = getAdminClient()
 

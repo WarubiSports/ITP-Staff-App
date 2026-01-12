@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { DashboardContent } from './dashboard-content'
+import { updateExpiredWhereabouts } from '@/app/players/actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,9 @@ export default async function DashboardPage() {
   if (!user) {
     redirect('/login')
   }
+
+  // Auto-update players whose absence dates have passed
+  await updateExpiredWhereabouts()
 
   // Get today's date
   const today = new Date().toISOString().split('T')[0]
