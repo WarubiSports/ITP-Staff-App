@@ -79,79 +79,51 @@ export async function inviteStaffMember(
       }
     }
 
-    // Check if user already exists
+    // Check if already approved
+    const { data: existingApproval } = await supabaseAdmin
+      .from('approved_staff')
+      .select('id, registered_at')
+      .eq('email', email.toLowerCase().trim())
+      .single()
+
+    if (existingApproval) {
+      if (existingApproval.registered_at) {
+        return { error: 'This person has already registered.' }
+      }
+      return { error: 'This email is already approved and pending registration.' }
+    }
+
+    // Check if user already has an account
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-    const existingUser = existingUsers?.users?.find(u => u.email === email)
+    const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
 
     if (existingUser) {
       return { error: 'A user with this email already exists.' }
     }
 
-    // 1. Create user in Supabase Auth (no password, email confirmed)
-    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        role: role,
-      },
-    })
-
-    if (createError) {
-      throw createError
-    }
-
-    if (!userData.user) {
-      throw new Error('Failed to create user')
-    }
-
-    // 2. Generate secure setup token
-    const token = crypto.randomUUID() + '-' + crypto.randomUUID()
-
-    // 3. Store invite record (expires in 7 days)
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7)
-
-    const { error: inviteError } = await supabaseAdmin
-      .from('staff_invites')
+    // Add to approved_staff table
+    const { error: approveError } = await supabaseAdmin
+      .from('approved_staff')
       .insert({
-        user_id: userData.user.id,
-        token,
-        email,
-        expires_at: expiresAt.toISOString(),
+        email: email.toLowerCase().trim(),
+        full_name: fullName,
+        role,
+        approved_by: 'admin',
       })
 
-    if (inviteError) {
-      console.error('Failed to create invite record:', inviteError)
-      // Clean up - delete the user we just created
-      await supabaseAdmin.auth.admin.deleteUser(userData.user.id)
+    if (approveError) {
+      console.error('Failed to approve staff:', approveError)
       throw new Error('Failed to create invitation')
     }
 
-    // 4. Create staff profile
-    const { error: profileError } = await supabaseAdmin
-      .from('staff_profiles')
-      .upsert({
-        id: userData.user.id,
-        email,
-        full_name: fullName,
-        role,
-      }, {
-        onConflict: 'id',
-      })
-
-    if (profileError) {
-      console.error('Failed to create staff profile:', profileError)
-    }
-
-    // 5. Return setup URL for admin to share
-    const setupUrl = `${appUrl}/auth/setup/${token}`
+    // Return signup URL for admin to share
+    const signupUrl = `${appUrl}/auth/signup`
 
     return {
       success: true,
-      setupUrl,
+      signupUrl,
       fullName,
-      expiresAt: expiresAt.toISOString()
+      email: email.toLowerCase().trim(),
     }
   } catch (err) {
     console.error('Invite error:', err)
@@ -159,8 +131,8 @@ export async function inviteStaffMember(
   }
 }
 
-// Verify invite token and set password
-export async function setupAccount(token: string, password: string) {
+// Get all approved staff (for admin view)
+export async function getApprovedStaff() {
   const supabaseAdmin = getAdminClient()
 
   if (!supabaseAdmin) {
@@ -168,56 +140,24 @@ export async function setupAccount(token: string, password: string) {
   }
 
   try {
-    // 1. Find invite by token
-    const { data: invite, error: findError } = await supabaseAdmin
-      .from('staff_invites')
+    const { data, error } = await supabaseAdmin
+      .from('approved_staff')
       .select('*')
-      .eq('token', token)
-      .single()
+      .order('approved_at', { ascending: false })
 
-    if (findError || !invite) {
-      return { error: 'Invalid or expired invitation link.' }
+    if (error) {
+      throw error
     }
 
-    // 2. Check if expired
-    if (new Date(invite.expires_at) < new Date()) {
-      return { error: 'This invitation has expired. Please request a new one.' }
-    }
-
-    // 3. Check if already used
-    if (invite.used_at) {
-      return { error: 'This invitation has already been used.' }
-    }
-
-    // 4. Set user password
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      invite.user_id,
-      { password }
-    )
-
-    if (updateError) {
-      throw updateError
-    }
-
-    // 5. Mark invite as used
-    await supabaseAdmin
-      .from('staff_invites')
-      .update({ used_at: new Date().toISOString() })
-      .eq('id', invite.id)
-
-    return {
-      success: true,
-      email: invite.email,
-      userId: invite.user_id
-    }
+    return { success: true, staff: data || [] }
   } catch (err) {
-    console.error('Setup account error:', err)
-    return { error: err instanceof Error ? err.message : 'Failed to set up account' }
+    console.error('Get approved staff error:', err)
+    return { error: 'Failed to fetch approved staff' }
   }
 }
 
-// Get invite details by token (for displaying name on setup page)
-export async function getInviteDetails(token: string) {
+// Remove from approved list
+export async function removeApprovedStaff(id: string) {
   const supabaseAdmin = getAdminClient()
 
   if (!supabaseAdmin) {
@@ -225,39 +165,18 @@ export async function getInviteDetails(token: string) {
   }
 
   try {
-    const { data: invite, error } = await supabaseAdmin
-      .from('staff_invites')
-      .select('email, expires_at, used_at, user_id')
-      .eq('token', token)
-      .single()
+    const { error } = await supabaseAdmin
+      .from('approved_staff')
+      .delete()
+      .eq('id', id)
 
-    if (error || !invite) {
-      return { error: 'Invalid invitation link.' }
+    if (error) {
+      throw error
     }
 
-    if (invite.used_at) {
-      return { error: 'This invitation has already been used.', alreadyUsed: true }
-    }
-
-    if (new Date(invite.expires_at) < new Date()) {
-      return { error: 'This invitation has expired.', expired: true }
-    }
-
-    // Get user name from staff_profiles
-    const { data: profile } = await supabaseAdmin
-      .from('staff_profiles')
-      .select('full_name')
-      .eq('id', invite.user_id)
-      .single()
-
-    return {
-      success: true,
-      email: invite.email,
-      fullName: profile?.full_name || '',
-      expiresAt: invite.expires_at
-    }
+    return { success: true }
   } catch (err) {
-    console.error('Get invite details error:', err)
-    return { error: 'Failed to verify invitation.' }
+    console.error('Remove approved staff error:', err)
+    return { error: 'Failed to remove from approved list' }
   }
 }
