@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Mail, User, Shield, UserPlus, Copy, Check, Link, Clock } from 'lucide-react'
+import { Mail, User, UserPlus, Copy, Check } from 'lucide-react'
 import { inviteStaffMember } from '@/app/staff/actions'
 
 interface InviteStaffModalProps {
@@ -21,9 +21,9 @@ const roleOptions = [
 ]
 
 interface InviteResult {
-  setupUrl: string
+  signupUrl: string
   fullName: string
-  expiresAt: string
+  email: string
 }
 
 export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModalProps) {
@@ -31,7 +31,6 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
   const [error, setError] = useState('')
   const [inviteResult, setInviteResult] = useState<InviteResult | null>(null)
   const [copied, setCopied] = useState(false)
-  const [copiedMessage, setCopiedMessage] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
@@ -55,11 +54,11 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
         return
       }
 
-      if (result.setupUrl) {
+      if (result.success && result.signupUrl) {
         setInviteResult({
-          setupUrl: result.setupUrl,
+          signupUrl: result.signupUrl,
           fullName: result.fullName || formData.full_name,
-          expiresAt: result.expiresAt || ''
+          email: result.email || formData.email,
         })
       }
     } catch (err) {
@@ -69,30 +68,19 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
     }
   }
 
-  const handleCopyLink = async () => {
-    if (inviteResult?.setupUrl) {
-      await navigator.clipboard.writeText(inviteResult.setupUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
   const handleCopyMessage = async () => {
     if (inviteResult) {
-      const message = `Hi ${inviteResult.fullName.split(' ')[0]}! 👋
+      const message = `ITP Staff Portal Setup
 
-You've been invited to join the ITP Staff Portal.
+1. Go to: ${inviteResult.signupUrl}
+2. Register with: ${inviteResult.email}
+3. Set your password
 
-Click here to set up your account:
-${inviteResult.setupUrl}
-
-This link expires on ${formatExpiryDate(inviteResult.expiresAt)}.
-
-See you there! ⚽`
+Any issues, let me know.`
 
       await navigator.clipboard.writeText(message)
-      setCopiedMessage(true)
-      setTimeout(() => setCopiedMessage(false), 2000)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     }
   }
 
@@ -101,106 +89,62 @@ See you there! ⚽`
     setError('')
     setInviteResult(null)
     setCopied(false)
-    setCopiedMessage(false)
     onSuccess()
     onClose()
   }
 
   const handleClose = () => {
     if (inviteResult) {
-      // If we have an invite, call onSuccess before closing
       onSuccess()
     }
     setFormData({ email: '', full_name: '', role: 'staff' })
     setError('')
     setInviteResult(null)
     setCopied(false)
-    setCopiedMessage(false)
     onClose()
   }
 
-  const formatExpiryDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
-
-  // Show success screen with setup link
+  // Show success screen with copy button
   if (inviteResult) {
     return (
-      <Modal isOpen={isOpen} onClose={handleClose} title="Invitation Created!">
+      <Modal isOpen={isOpen} onClose={handleClose} title="Staff Added">
         <div className="space-y-6">
           <div className="text-center">
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <Check className="w-8 h-8 text-green-600" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">
-              {inviteResult.fullName} has been invited!
+              {inviteResult.fullName} added
             </h3>
             <p className="text-gray-500 mt-1">
-              Share the setup link below so they can activate their account.
+              Send them these setup instructions.
             </p>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Link className="w-4 h-4" />
-              <span className="font-medium">Setup Link</span>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="text-sm text-gray-600 whitespace-pre-line mb-4 font-mono bg-white p-3 rounded border">
+              {`ITP Staff Portal Setup
+
+1. Go to: ${inviteResult.signupUrl}
+2. Register with: ${inviteResult.email}
+3. Set your password
+
+Any issues, let me know.`}
             </div>
             <Button
               type="button"
-              variant="outline"
-              onClick={handleCopyLink}
-              className={`w-full justify-center py-3 ${copied ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''}`}
+              onClick={handleCopyMessage}
+              className={`w-full justify-center py-3 ${copied ? 'bg-green-600 hover:bg-green-700' : ''}`}
             >
               {copied ? (
                 <>
                   <Check className="w-5 h-5 mr-2" />
-                  Link Copied to Clipboard!
+                  Copied!
                 </>
               ) : (
                 <>
                   <Copy className="w-5 h-5 mr-2" />
-                  Copy Setup Link
-                </>
-              )}
-            </Button>
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <div className="flex items-center gap-2">
-                <Clock className="w-3 h-3" />
-                <span>Expires {formatExpiryDate(inviteResult.expiresAt)}</span>
-              </div>
-              <a
-                href={inviteResult.setupUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                Test link →
-              </a>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 p-4 rounded-lg space-y-3">
-            <p className="text-sm font-medium text-blue-800">Or copy a ready-to-send message:</p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCopyMessage}
-              className={`w-full justify-center py-3 ${copiedMessage ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600' : 'border-blue-300 text-blue-700 hover:bg-blue-100'}`}
-            >
-              {copiedMessage ? (
-                <>
-                  <Check className="w-5 h-5 mr-2" />
-                  Message Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-5 h-5 mr-2" />
-                  Copy for WhatsApp / SMS
+                  Copy Instructions
                 </>
               )}
             </Button>
@@ -233,7 +177,7 @@ See you there! ⚽`
         )}
 
         <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-          Create an account for a new staff member. You'll get a setup link to share with them.
+          Add a staff member so they can create their account.
         </div>
 
         <div className="space-y-4">
@@ -280,11 +224,11 @@ See you there! ⚽`
           </Button>
           <Button type="submit" disabled={loading}>
             {loading ? (
-              'Creating...'
+              'Adding...'
             ) : (
               <>
                 <UserPlus className="w-4 h-4 mr-2" />
-                Create Invitation
+                Add Staff
               </>
             )}
           </Button>
