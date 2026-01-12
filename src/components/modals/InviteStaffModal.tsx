@@ -73,10 +73,10 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
       const message = `ITP Staff Portal Setup
 
 1. Go to: ${inviteResult.signupUrl}
-2. Register with: ${inviteResult.email}
+2. Use email: ${inviteResult.email}
 3. Set your password
 
-Any issues, let me know.`
+Important: You must use ${inviteResult.email} to register.`
 
       await navigator.clipboard.writeText(message)
       setCopied(true)
@@ -126,10 +126,10 @@ Any issues, let me know.`
               {`ITP Staff Portal Setup
 
 1. Go to: ${inviteResult.signupUrl}
-2. Register with: ${inviteResult.email}
+2. Use email: ${inviteResult.email}
 3. Set your password
 
-Any issues, let me know.`}
+Important: You must use ${inviteResult.email} to register.`}
             </div>
             <Button
               type="button"
