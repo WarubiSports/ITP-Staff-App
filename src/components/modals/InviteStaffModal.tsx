@@ -31,6 +31,7 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
   const [error, setError] = useState('')
   const [inviteResult, setInviteResult] = useState<InviteResult | null>(null)
   const [copied, setCopied] = useState(false)
+  const [copiedMessage, setCopiedMessage] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
@@ -76,11 +77,31 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
     }
   }
 
+  const handleCopyMessage = async () => {
+    if (inviteResult) {
+      const message = `Hi ${inviteResult.fullName.split(' ')[0]}! 👋
+
+You've been invited to join the ITP Staff Portal.
+
+Click here to set up your account:
+${inviteResult.setupUrl}
+
+This link expires on ${formatExpiryDate(inviteResult.expiresAt)}.
+
+See you there! ⚽`
+
+      await navigator.clipboard.writeText(message)
+      setCopiedMessage(true)
+      setTimeout(() => setCopiedMessage(false), 2000)
+    }
+  }
+
   const handleDone = () => {
     setFormData({ email: '', full_name: '', role: 'staff' })
     setError('')
     setInviteResult(null)
     setCopied(false)
+    setCopiedMessage(false)
     onSuccess()
     onClose()
   }
@@ -94,6 +115,7 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
     setError('')
     setInviteResult(null)
     setCopied(false)
+    setCopiedMessage(false)
     onClose()
   }
 
@@ -162,13 +184,26 @@ export function InviteStaffModal({ isOpen, onClose, onSuccess }: InviteStaffModa
             </div>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-            <p className="font-medium mb-1">Share this link via:</p>
-            <ul className="list-disc list-inside text-blue-700 space-y-1">
-              <li>WhatsApp, Slack, or Teams message</li>
-              <li>Email (copy and paste)</li>
-              <li>In person</li>
-            </ul>
+          <div className="bg-blue-50 p-4 rounded-lg space-y-3">
+            <p className="text-sm font-medium text-blue-800">Or copy a ready-to-send message:</p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCopyMessage}
+              className={`w-full justify-center py-3 ${copiedMessage ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600' : 'border-blue-300 text-blue-700 hover:bg-blue-100'}`}
+            >
+              {copiedMessage ? (
+                <>
+                  <Check className="w-5 h-5 mr-2" />
+                  Message Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-5 h-5 mr-2" />
+                  Copy for WhatsApp / SMS
+                </>
+              )}
+            </Button>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
