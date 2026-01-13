@@ -92,6 +92,16 @@ export default async function OperationsPage() {
     .eq('category', 'identity')
     .order('created_at', { ascending: false })
 
+  // Fetch chores with house and player info
+  const { data: chores } = await supabase
+    .from('chores')
+    .select(`
+      *,
+      house:houses(id, name),
+      assigned_player:players(id, first_name, last_name)
+    `)
+    .order('created_at', { ascending: false })
+
   // Group documents by player_id
   type PlayerDoc = NonNullable<typeof playerDocs>[number]
   const playerDocuments: Record<string, PlayerDoc[]> = {}
@@ -122,6 +132,8 @@ export default async function OperationsPage() {
         groceryOrders={groceryOrders || []}
         houses={houses || []}
         playerDocuments={playerDocuments}
+        chores={chores || []}
+        currentUserId={user.id}
       />
     </AppLayout>
   )

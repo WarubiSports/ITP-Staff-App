@@ -27,13 +27,25 @@ import {
   ShoppingCart,
   Package,
   Truck,
+  ListTodo,
+  Circle,
+  Image,
+  Edit2,
+  Trash2,
+  Repeat,
+  Check,
+  X,
+  User,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/components/ui/toast'
+import { createClient } from '@/lib/supabase/client'
 import { formatDate, getDaysUntil } from '@/lib/utils'
-import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder, PlayerDocument, TrialProspect } from '@/types'
+import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder, PlayerDocument, TrialProspect, Chore } from '@/types'
 import {
   AddWellPassModal,
   AddMedicalAppointmentModal,
@@ -93,9 +105,11 @@ interface OperationsContentProps {
   groceryOrders: GroceryOrder[]
   houses: House[]
   playerDocuments?: Record<string, PlayerDocument[]> // playerId -> documents
+  chores: Chore[]
+  currentUserId: string
 }
 
-type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery'
+type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery' | 'chores'
 
 export function OperationsContent({
   players,
@@ -109,8 +123,12 @@ export function OperationsContent({
   groceryOrders,
   houses,
   playerDocuments = {},
+  chores: initialChores,
+  currentUserId,
 }: OperationsContentProps) {
   const router = useRouter()
+  const supabase = createClient()
+  const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<TabType>('visa')
 
   // Modal states
@@ -120,6 +138,27 @@ export function OperationsContent({
   const [showTrialModal, setShowTrialModal] = useState(false)
   const [selectedTrial, setSelectedTrial] = useState<PlayerTrial | null>(null)
   const [selectedAppointment, setSelectedAppointment] = useState<MedicalAppointment | null>(null)
+
+  // Chores state
+  const [chores, setChores] = useState(initialChores)
+  const [showChoreModal, setShowChoreModal] = useState(false)
+  const [editingChore, setEditingChore] = useState<Chore | null>(null)
+  const [showApprovalModal, setShowApprovalModal] = useState(false)
+  const [approvalChore, setApprovalChore] = useState<Chore | null>(null)
+  const [approvalPhoto, setApprovalPhoto] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [choreSubmitting, setChoreSubmitting] = useState(false)
+  const [newChore, setNewChore] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'low' | 'medium' | 'high',
+    house_id: '',
+    assigned_to: '',
+    deadline: '',
+    requires_photo: true,
+    recurrence: 'none' as 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly',
+    recurrence_end_date: '',
+  })
 
   // Refresh handler
   const handleRefresh = () => {
@@ -172,10 +211,228 @@ export function OperationsContent({
     o.status === 'pending'
   )
 
+  // Chore counts
+  const pendingApprovalChores = chores.filter((c) => c.status === 'pending_approval')
+  const pendingChores = chores.filter((c) => c.status === 'pending')
+
   // Helper to get player name by ID
   const getPlayerName = (playerId: string) => {
     const player = players.find(p => p.id === playerId)
     return player ? `${player.first_name} ${player.last_name}` : 'Unknown'
+  }
+
+  // Get players filtered by selected house for chore assignment
+  const getPlayersForHouse = (houseId: string) => {
+    if (!houseId) return players
+    return players.filter((p) => p.house_id === houseId)
+  }
+
+  // Chore helper functions
+  const resetChoreForm = () => {
+    setNewChore({
+      title: '',
+      description: '',
+      priority: 'medium',
+      house_id: '',
+      assigned_to: '',
+      deadline: '',
+      requires_photo: true,
+      recurrence: 'none',
+      recurrence_end_date: '',
+    })
+  }
+
+  const addChore = async () => {
+    if (!newChore.title.trim() || !newChore.house_id) {
+      showToast('Please fill in required fields', 'error')
+      return
+    }
+
+    setChoreSubmitting(true)
+
+    try {
+      if (newChore.recurrence !== 'none' && newChore.recurrence_end_date) {
+        const startDate = newChore.deadline ? new Date(newChore.deadline) : new Date()
+        const endDate = new Date(newChore.recurrence_end_date)
+        const dates: Date[] = []
+
+        let current = new Date(startDate)
+        while (current <= endDate) {
+          dates.push(new Date(current))
+          switch (newChore.recurrence) {
+            case 'daily': current.setDate(current.getDate() + 1); break
+            case 'weekly': current.setDate(current.getDate() + 7); break
+            case 'biweekly': current.setDate(current.getDate() + 14); break
+            case 'monthly': current.setMonth(current.getMonth() + 1); break
+          }
+        }
+
+        const groupId = `recurring_${Date.now()}`
+        const chorePromises = dates.map((date) =>
+          supabase
+            .from('chores')
+            .insert({
+              title: newChore.title,
+              description: newChore.description || null,
+              priority: newChore.priority,
+              house_id: newChore.house_id,
+              assigned_to: newChore.assigned_to || null,
+              deadline: date.toISOString().split('T')[0],
+              requires_photo: newChore.requires_photo,
+              recurring_group_id: groupId,
+              status: 'pending',
+              created_by: currentUserId,
+            })
+            .select(`*, house:houses(id, name), assigned_player:players(id, first_name, last_name)`)
+            .single()
+        )
+
+        const results = await Promise.all(chorePromises)
+        const newChores = results.filter((r) => r.data).map((r) => r.data!)
+        setChores([...newChores, ...chores])
+        showToast(`Created ${newChores.length} recurring chores`)
+      } else {
+        const { data, error } = await supabase
+          .from('chores')
+          .insert({
+            title: newChore.title,
+            description: newChore.description || null,
+            priority: newChore.priority,
+            house_id: newChore.house_id,
+            assigned_to: newChore.assigned_to || null,
+            deadline: newChore.deadline || null,
+            requires_photo: newChore.requires_photo,
+            status: 'pending',
+            created_by: currentUserId,
+          })
+          .select(`*, house:houses(id, name), assigned_player:players(id, first_name, last_name)`)
+          .single()
+
+        if (error) throw error
+        setChores([data, ...chores])
+        showToast('Chore created successfully')
+      }
+
+      resetChoreForm()
+      setShowChoreModal(false)
+    } catch (error) {
+      console.error('Error creating chore:', error)
+      showToast('Failed to create chore', 'error')
+    } finally {
+      setChoreSubmitting(false)
+    }
+  }
+
+  const updateChore = async () => {
+    if (!editingChore) return
+    setChoreSubmitting(true)
+
+    try {
+      const { data, error } = await supabase
+        .from('chores')
+        .update({
+          title: newChore.title,
+          description: newChore.description || null,
+          priority: newChore.priority,
+          house_id: newChore.house_id,
+          assigned_to: newChore.assigned_to || null,
+          deadline: newChore.deadline || null,
+          requires_photo: newChore.requires_photo,
+        })
+        .eq('id', editingChore.id)
+        .select(`*, house:houses(id, name), assigned_player:players(id, first_name, last_name)`)
+        .single()
+
+      if (error) throw error
+      setChores(chores.map((c) => (c.id === data.id ? data : c)))
+      showToast('Chore updated successfully')
+      setEditingChore(null)
+      resetChoreForm()
+    } catch (error) {
+      console.error('Error updating chore:', error)
+      showToast('Failed to update chore', 'error')
+    } finally {
+      setChoreSubmitting(false)
+    }
+  }
+
+  const deleteChore = async (choreId: string) => {
+    const { error } = await supabase.from('chores').delete().eq('id', choreId)
+    if (!error) {
+      setChores(chores.filter((c) => c.id !== choreId))
+      showToast('Chore deleted')
+    } else {
+      showToast('Failed to delete chore', 'error')
+    }
+  }
+
+  const openChoreApprovalModal = async (chore: Chore) => {
+    setApprovalChore(chore)
+    setRejectReason('')
+    try {
+      const { data } = await supabase.from('chore_photos').select('photo_data').eq('chore_id', chore.id).single()
+      setApprovalPhoto(data?.photo_data || null)
+    } catch {
+      setApprovalPhoto(null)
+    }
+    setShowApprovalModal(true)
+  }
+
+  const approveChore = async () => {
+    if (!approvalChore) return
+    setChoreSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('chores')
+        .update({ status: 'approved', approved_at: new Date().toISOString(), approved_by: currentUserId })
+        .eq('id', approvalChore.id)
+      if (error) throw error
+      setChores(chores.map((c) => c.id === approvalChore.id ? { ...c, status: 'approved' as const } : c))
+      showToast('Chore approved')
+      setShowApprovalModal(false)
+      setApprovalChore(null)
+    } catch (error) {
+      showToast('Failed to approve chore', 'error')
+    } finally {
+      setChoreSubmitting(false)
+    }
+  }
+
+  const rejectChore = async () => {
+    if (!approvalChore) return
+    setChoreSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('chores')
+        .update({ status: 'rejected', rejection_reason: rejectReason || null })
+        .eq('id', approvalChore.id)
+      if (error) throw error
+      setChores(chores.map((c) => c.id === approvalChore.id ? { ...c, status: 'rejected' as const } : c))
+      showToast('Chore rejected')
+      setShowApprovalModal(false)
+      setApprovalChore(null)
+      setRejectReason('')
+    } catch (error) {
+      showToast('Failed to reject chore', 'error')
+    } finally {
+      setChoreSubmitting(false)
+    }
+  }
+
+  const openEditChoreModal = (chore: Chore) => {
+    setEditingChore(chore)
+    setNewChore({
+      title: chore.title,
+      description: chore.description || '',
+      priority: chore.priority,
+      house_id: chore.house_id,
+      assigned_to: chore.assigned_to || '',
+      deadline: chore.deadline?.split('T')[0] || '',
+      requires_photo: chore.requires_photo ?? true,
+      recurrence: 'none',
+      recurrence_end_date: '',
+    })
+    setShowChoreModal(true)
   }
 
   const tabs = [
@@ -187,6 +444,7 @@ export function OperationsContent({
     { id: 'billing', label: 'Billing', icon: FileText, count: pendingClaims.length },
     { id: 'trials', label: 'Trials', icon: UserPlus, count: activeTrials.length },
     { id: 'grocery', label: 'Grocery', icon: ShoppingCart, count: pendingGroceryOrders.length },
+    { id: 'chores', label: 'Chores', icon: ListTodo, count: pendingApprovalChores.length },
   ]
 
   return (
@@ -1192,6 +1450,319 @@ export function OperationsContent({
                   )
                 })}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Chores Tab */}
+      {activeTab === 'chores' && (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Player Chores</h2>
+            <Button onClick={() => { setEditingChore(null); resetChoreForm(); setShowChoreModal(true); }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Chore
+            </Button>
+          </div>
+
+          {/* Pending Approval Alert */}
+          {pendingApprovalChores.length > 0 && (
+            <div className="flex items-center gap-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <Image className="w-5 h-5 text-purple-600" />
+              <span className="text-purple-700 font-medium">
+                {pendingApprovalChores.length} chore{pendingApprovalChores.length > 1 ? 's' : ''} awaiting your approval
+              </span>
+            </div>
+          )}
+
+          {/* Add/Edit Chore Modal */}
+          {showChoreModal && (
+            <Card className="border-2 border-red-200">
+              <CardHeader>
+                <CardTitle>{editingChore ? 'Edit Chore' : 'New Chore'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Input
+                    label="Chore Title *"
+                    placeholder="e.g., Clean kitchen, Take out trash"
+                    value={newChore.title}
+                    onChange={(e) => setNewChore({ ...newChore, title: e.target.value })}
+                  />
+                  <Input
+                    label="Description (optional)"
+                    placeholder="Add more details..."
+                    value={newChore.description}
+                    onChange={(e) => setNewChore({ ...newChore, description: e.target.value })}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">House *</label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        value={newChore.house_id}
+                        onChange={(e) => setNewChore({ ...newChore, house_id: e.target.value, assigned_to: '' })}
+                      >
+                        <option value="">Select House</option>
+                        {houses.map((house) => (
+                          <option key={house.id} value={house.id}>{house.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Assign To</label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        value={newChore.assigned_to}
+                        onChange={(e) => setNewChore({ ...newChore, assigned_to: e.target.value })}
+                      >
+                        <option value="">Unassigned</option>
+                        {getPlayersForHouse(newChore.house_id).map((player) => (
+                          <option key={player.id} value={player.id}>{player.first_name} {player.last_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        value={newChore.priority}
+                        onChange={(e) => setNewChore({ ...newChore, priority: e.target.value as 'low' | 'medium' | 'high' })}
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        value={newChore.deadline}
+                        onChange={(e) => setNewChore({ ...newChore, deadline: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="requires_photo"
+                      checked={newChore.requires_photo}
+                      onChange={(e) => setNewChore({ ...newChore, requires_photo: e.target.checked })}
+                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                    />
+                    <label htmlFor="requires_photo" className="text-sm text-gray-700">
+                      Require photo verification
+                    </label>
+                  </div>
+
+                  {/* Recurrence (only for new chores) */}
+                  {!editingChore && (
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        <Repeat className="w-4 h-4" />
+                        Repeat Settings
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Repeat</label>
+                          <select
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            value={newChore.recurrence}
+                            onChange={(e) => setNewChore({ ...newChore, recurrence: e.target.value as typeof newChore.recurrence })}
+                          >
+                            <option value="none">Does not repeat</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="biweekly">Every 2 weeks</option>
+                            <option value="monthly">Monthly</option>
+                          </select>
+                        </div>
+                        {newChore.recurrence !== 'none' && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Repeat Until</label>
+                            <input
+                              type="date"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                              value={newChore.recurrence_end_date}
+                              onChange={(e) => setNewChore({ ...newChore, recurrence_end_date: e.target.value })}
+                              min={new Date().toISOString().split('T')[0]}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end pt-2">
+                    <Button variant="outline" onClick={() => { setShowChoreModal(false); setEditingChore(null); resetChoreForm(); }}>
+                      Cancel
+                    </Button>
+                    <Button onClick={editingChore ? updateChore : addChore} disabled={choreSubmitting}>
+                      {choreSubmitting ? 'Saving...' : editingChore ? 'Save Changes' : 'Create Chore'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Chores List */}
+          <div className="space-y-3">
+            {chores.length === 0 ? (
+              <Card>
+                <CardContent className="py-12">
+                  <div className="text-center text-gray-500">
+                    <ListTodo className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-lg font-medium">No chores yet</p>
+                    <p className="text-sm">Create your first chore to get started</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              chores.map((chore) => {
+                const isOverdue = chore.deadline && new Date(chore.deadline) < new Date() && chore.status === 'pending'
+                const priorityColors: Record<string, string> = { low: 'bg-gray-100 text-gray-700', medium: 'bg-blue-100 text-blue-700', high: 'bg-red-100 text-red-700' }
+                const statusColors: Record<string, string> = { pending: 'bg-yellow-100 text-yellow-700', pending_approval: 'bg-purple-100 text-purple-700', completed: 'bg-green-100 text-green-700', approved: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700' }
+                const statusLabels: Record<string, string> = { pending: 'Pending', pending_approval: 'Awaiting Approval', completed: 'Completed', approved: 'Approved', rejected: 'Rejected' }
+
+                return (
+                  <Card
+                    key={chore.id}
+                    className={`transition-all ${['completed', 'approved'].includes(chore.status) ? 'opacity-60' : ''} ${isOverdue ? 'border-red-200 bg-red-50/30' : ''} ${chore.status === 'pending_approval' ? 'border-purple-200 bg-purple-50/30' : ''}`}
+                  >
+                    <CardContent className="py-4">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 mt-1">
+                          {chore.status === 'pending' && <Circle className="w-5 h-5 text-yellow-500" />}
+                          {chore.status === 'pending_approval' && <Image className="w-5 h-5 text-purple-500" />}
+                          {['completed', 'approved'].includes(chore.status) && <CheckCircle className="w-5 h-5 text-green-500" />}
+                          {chore.status === 'rejected' && <XCircle className="w-5 h-5 text-red-500" />}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <h3 className={`font-medium text-gray-900 ${['completed', 'approved'].includes(chore.status) ? 'line-through' : ''}`}>
+                                {chore.title}
+                                {chore.recurring_group_id && <Repeat className="w-3 h-3 inline-block ml-2 text-gray-400" />}
+                              </h3>
+                              {chore.description && <p className="text-sm text-gray-500 mt-1">{chore.description}</p>}
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {chore.status === 'pending_approval' && (
+                                <Button size="sm" onClick={() => openChoreApprovalModal(chore)}>Review</Button>
+                              )}
+                              {chore.status === 'pending' && (
+                                <>
+                                  <button onClick={() => openEditChoreModal(chore)} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded" title="Edit">
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => deleteChore(chore.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded" title="Delete">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-3 flex-wrap">
+                            <Badge className={statusColors[chore.status]}>{statusLabels[chore.status]}</Badge>
+                            <Badge className={priorityColors[chore.priority]}>{chore.priority}</Badge>
+                            <span className="flex items-center gap-1 text-sm text-gray-500">
+                              <Home className="w-3 h-3" />
+                              {chore.house?.name || 'Unknown House'}
+                            </span>
+                            {chore.assigned_player && (
+                              <span className="flex items-center gap-1 text-sm text-blue-600">
+                                <User className="w-3 h-3" />
+                                {chore.assigned_player.first_name} {chore.assigned_player.last_name}
+                              </span>
+                            )}
+                            {chore.deadline && (
+                              <span className={`flex items-center gap-1 text-sm ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                                <Clock className="w-3 h-3" />
+                                {isOverdue ? 'Overdue: ' : ''}{formatDate(chore.deadline)}
+                              </span>
+                            )}
+                            {chore.requires_photo && (
+                              <span className="flex items-center gap-1 text-sm text-gray-400">
+                                <Image className="w-3 h-3" />
+                                Photo required
+                              </span>
+                            )}
+                          </div>
+
+                          {chore.rejection_reason && (
+                            <p className="text-sm text-red-600 mt-2">Rejection reason: {chore.rejection_reason}</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
+
+          {/* Approval Modal */}
+          {showApprovalModal && approvalChore && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <Card className="w-full max-w-lg">
+                <CardHeader>
+                  <CardTitle>Review Chore: {approvalChore.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-gray-600"><strong>House:</strong> {approvalChore.house?.name}</p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Assigned to:</strong>{' '}
+                        {approvalChore.assigned_player ? `${approvalChore.assigned_player.first_name} ${approvalChore.assigned_player.last_name}` : 'Unassigned'}
+                      </p>
+                    </div>
+
+                    {approvalPhoto ? (
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Submitted Photo:</p>
+                        <img src={approvalPhoto} alt="Chore completion" className="w-full rounded-lg border border-gray-200" />
+                      </div>
+                    ) : (
+                      <div className="p-8 bg-gray-50 rounded-lg text-center text-gray-500">No photo available</div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Rejection Reason (optional)</label>
+                      <textarea
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        rows={2}
+                        placeholder="If rejecting, explain why..."
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => { setShowApprovalModal(false); setApprovalChore(null); setApprovalPhoto(null); setRejectReason(''); }}>
+                        Cancel
+                      </Button>
+                      <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={rejectChore} disabled={choreSubmitting}>
+                        <X className="w-4 h-4 mr-2" />
+                        Reject
+                      </Button>
+                      <Button onClick={approveChore} disabled={choreSubmitting}>
+                        <Check className="w-4 h-4 mr-2" />
+                        Approve
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>

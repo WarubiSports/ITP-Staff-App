@@ -550,3 +550,36 @@ export interface BugReport {
   created_at: string
   updated_at: string
 }
+
+// Player house chores (different from staff tasks)
+export interface Chore {
+  id: string
+  title: string
+  description?: string
+  status: 'pending' | 'pending_approval' | 'completed' | 'approved' | 'rejected'
+  priority: 'low' | 'medium' | 'high'
+  house_id: string
+  assigned_to?: string // Player ID
+  deadline?: string
+  requires_photo?: boolean
+  completed_at?: string
+  approved_at?: string
+  approved_by?: string
+  rejection_reason?: string
+  recurring_group_id?: string
+  created_by?: string
+  created_at: string
+  updated_at?: string
+  // Joined data
+  house?: Pick<House, 'id' | 'name'>
+  assigned_player?: Pick<Player, 'id' | 'first_name' | 'last_name'>
+}
+
+// Chore photo submission
+export interface ChorePhoto {
+  id: string
+  chore_id: string
+  photo_data: string // Base64 or URL
+  submitted_at: string
+  submitted_by?: string
+}
