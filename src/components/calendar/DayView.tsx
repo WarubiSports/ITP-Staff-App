@@ -12,7 +12,8 @@ interface DayViewProps {
   onAddEvent: (date: Date) => void
 }
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
+// Start day at 7 AM: 7, 8, ... 23, 0, 1, ... 6
+const HOURS = Array.from({ length: 24 }, (_, i) => (i + 7) % 24)
 
 export function DayView({
   currentDate,
@@ -33,7 +34,11 @@ export function DayView({
     return dateEvents.filter((event) => {
       if (event.all_day) return false
       if (!event.start_time) return false
-      const eventHour = parseInt(event.start_time.split('T')[1]?.split(':')[0] || '0')
+      // Handle both ISO format (2024-01-16T10:00:00) and simple HH:MM format
+      const timeStr = event.start_time.includes('T')
+        ? event.start_time.split('T')[1]
+        : event.start_time
+      const eventHour = parseInt(timeStr?.split(':')[0] || '0')
       return eventHour === hour
     })
   }
