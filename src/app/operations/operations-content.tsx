@@ -291,6 +291,24 @@ export function OperationsContent({
         const newChores = results.filter((r) => r.data).map((r) => r.data!)
         setChores([...newChores, ...chores])
         showToast(`Created ${newChores.length} recurring chores`)
+
+        // Cleanup: Keep only 3 most recent chores per house
+        if (newChore.house_id) {
+          const { data: allHouseChores } = await supabase
+            .from('chores')
+            .select('id')
+            .eq('house_id', newChore.house_id)
+            .order('created_at', { ascending: false })
+
+          if (allHouseChores && allHouseChores.length > 3) {
+            const choresToDelete = allHouseChores.slice(3).map(c => c.id)
+            await supabase
+              .from('chores')
+              .delete()
+              .in('id', choresToDelete)
+            setChores(prev => prev.filter(c => !choresToDelete.includes(c.id)))
+          }
+        }
       } else {
         const { data, error } = await supabase
           .from('chores')
@@ -311,6 +329,25 @@ export function OperationsContent({
         if (error) throw error
         setChores([data, ...chores])
         showToast('Chore created successfully')
+
+        // Cleanup: Keep only 3 most recent chores per house
+        if (newChore.house_id) {
+          const { data: allHouseChores } = await supabase
+            .from('chores')
+            .select('id')
+            .eq('house_id', newChore.house_id)
+            .order('created_at', { ascending: false })
+
+          if (allHouseChores && allHouseChores.length > 3) {
+            const choresToDelete = allHouseChores.slice(3).map(c => c.id)
+            await supabase
+              .from('chores')
+              .delete()
+              .in('id', choresToDelete)
+            // Update local state to remove deleted chores
+            setChores(prev => prev.filter(c => !choresToDelete.includes(c.id)))
+          }
+        }
       }
 
       resetChoreForm()
