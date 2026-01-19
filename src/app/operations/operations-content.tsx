@@ -57,6 +57,51 @@ import { VisaDocumentTracking } from '@/components/visa'
 import { CapacityChart } from '@/components/charts/CapacityChart'
 import type { VisaApplicationStatus, VisaDocumentChecklist } from '@/types'
 
+// Category ordering and labels for grocery items
+const CATEGORY_ORDER = ['produce', 'meat', 'dairy', 'carbs', 'drinks', 'spices', 'frozen', 'household']
+const CATEGORY_LABELS: Record<string, string> = {
+  produce: 'Produce',
+  meat: 'Meat & Eggs',
+  dairy: 'Dairy',
+  carbs: 'Carbs',
+  drinks: 'Drinks',
+  spices: 'Spices',
+  frozen: 'Frozen',
+  household: 'Household',
+}
+
+// Helper to consolidate items for a house
+const getConsolidatedItemsForHouse = (houseOrders: GroceryOrder[]) => {
+  const items: Record<string, {
+    name: string
+    category: string
+    totalQty: number
+  }> = {}
+
+  houseOrders.forEach(order => {
+    order.items?.forEach(orderItem => {
+      if (!orderItem.item) return
+      const key = orderItem.item.id
+
+      if (!items[key]) {
+        items[key] = {
+          name: orderItem.item.name,
+          category: orderItem.item.category,
+          totalQty: 0,
+        }
+      }
+      items[key].totalQty += orderItem.quantity
+    })
+  })
+
+  return Object.values(items).sort((a, b) => {
+    const catA = CATEGORY_ORDER.indexOf(a.category)
+    const catB = CATEGORY_ORDER.indexOf(b.category)
+    if (catA !== catB) return catA - catB
+    return a.name.localeCompare(b.name)
+  })
+}
+
 interface Player {
   id: string
   player_id: string
@@ -1365,7 +1410,7 @@ export function OperationsContent({
                 </CardContent>
               </Card>
 
-              {/* Orders by House */}
+              {/* Orders by House - Consolidated Items View */}
               <h3 className="text-md font-medium text-gray-700">Orders by House</h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Unassigned orders first if any */}
@@ -1373,6 +1418,7 @@ export function OperationsContent({
                   const unassignedOrders = groceryOrders.filter(o => !o.player?.house_id)
                   if (unassignedOrders.length === 0) return null
                   const unassignedTotal = unassignedOrders.reduce((sum, o) => sum + o.total_amount, 0)
+                  const unassignedItems = getConsolidatedItemsForHouse(unassignedOrders)
                   return (
                     <Card className="border-amber-200">
                       <CardHeader>
@@ -1388,33 +1434,29 @@ export function OperationsContent({
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {unassignedOrders.map(order => (
-                            <div
-                              key={order.id}
-                              className="flex items-center justify-between py-2 border-b last:border-0"
-                            >
-                              <div>
-                                <p className="font-medium">
-                                  {order.player?.first_name} {order.player?.last_name}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  {formatDate(order.delivery_date)} - {order.items?.length || 0} items
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium">€{order.total_amount.toFixed(2)}</p>
-                                <Badge
-                                  variant={
-                                    order.status === 'delivered' ? 'success' :
-                                    order.status === 'approved' ? 'info' :
-                                    order.status === 'cancelled' ? 'danger' : 'warning'
-                                  }
-                                >
-                                  {order.status}
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
+                          {unassignedItems.length === 0 ? (
+                            <p className="text-gray-500 text-sm">No items</p>
+                          ) : (
+                            <>
+                              {CATEGORY_ORDER.map(category => {
+                                const categoryItems = unassignedItems.filter(i => i.category === category)
+                                if (categoryItems.length === 0) return null
+                                return (
+                                  <div key={category}>
+                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                                      {CATEGORY_LABELS[category] || category}
+                                    </h4>
+                                    {categoryItems.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between py-1">
+                                        <span>{item.name}</span>
+                                        <span className="font-medium">x{item.totalQty}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )
+                              })}
+                            </>
+                          )}
                           <div className="pt-2 border-t flex justify-between font-medium">
                             <span>Unassigned Total</span>
                             <span>€{unassignedTotal.toFixed(2)}</span>
@@ -1430,6 +1472,7 @@ export function OperationsContent({
                   const houseOrders = groceryOrders.filter(o => o.player?.house_id === house.id)
                   const housePlayers = players.filter(p => p.house_id === house.id)
                   const totalSpent = houseOrders.reduce((sum, o) => sum + o.total_amount, 0)
+                  const houseItems = getConsolidatedItemsForHouse(houseOrders)
 
                   return (
                     <Card key={house.id}>
@@ -1449,33 +1492,23 @@ export function OperationsContent({
                           <p className="text-gray-500 text-sm">No orders</p>
                         ) : (
                           <div className="space-y-3">
-                            {houseOrders.map(order => (
-                              <div
-                                key={order.id}
-                                className="flex items-center justify-between py-2 border-b last:border-0"
-                              >
-                                <div>
-                                  <p className="font-medium">
-                                    {order.player?.first_name} {order.player?.last_name}
-                                  </p>
-                                  <p className="text-sm text-gray-500">
-                                    {formatDate(order.delivery_date)} - {order.items?.length || 0} items
-                                  </p>
+                            {CATEGORY_ORDER.map(category => {
+                              const categoryItems = houseItems.filter(i => i.category === category)
+                              if (categoryItems.length === 0) return null
+                              return (
+                                <div key={category}>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                                    {CATEGORY_LABELS[category] || category}
+                                  </h4>
+                                  {categoryItems.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between py-1">
+                                      <span>{item.name}</span>
+                                      <span className="font-medium">x{item.totalQty}</span>
+                                    </div>
+                                  ))}
                                 </div>
-                                <div className="text-right">
-                                  <p className="font-medium">€{order.total_amount.toFixed(2)}</p>
-                                  <Badge
-                                    variant={
-                                      order.status === 'delivered' ? 'success' :
-                                      order.status === 'approved' ? 'info' :
-                                      order.status === 'cancelled' ? 'danger' : 'warning'
-                                    }
-                                  >
-                                    {order.status}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                             <div className="pt-2 border-t flex justify-between font-medium">
                               <span>House Total</span>
                               <span>€{totalSpent.toFixed(2)}</span>
