@@ -75,13 +75,16 @@ export default async function OperationsPage() {
     .select('id, name')
     .order('name')
 
-  // Fetch grocery orders with player info
+  // Fetch grocery orders with player info and item details
   const { data: groceryOrders } = await supabase
     .from('grocery_orders')
     .select(`
       *,
       player:players(id, first_name, last_name, house_id),
-      items:grocery_order_items(id, quantity, price_at_order)
+      items:grocery_order_items(
+        id, quantity, price_at_order,
+        item:grocery_items(id, name, category)
+      )
     `)
     .order('delivery_date', { ascending: true })
 
