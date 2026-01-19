@@ -365,6 +365,7 @@ export interface InsuranceClaim {
   payment_reference?: string
   rejection_reason?: string
   notes?: string
+  scan_path?: string
   created_at: string
   updated_at: string
 }

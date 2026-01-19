@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
+import { uploadVisaDocumentAction, getDocumentUrlAction } from '@/app/actions/documents'
+import { Upload, X, FileText } from 'lucide-react'
 
 interface Player {
   id: string
@@ -24,6 +26,9 @@ interface AddInsuranceClaimModalProps {
 export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess }: AddInsuranceClaimModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState<{ path: string; name: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     player_id: '',
     invoice_number: '',
@@ -39,6 +44,65 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess }: 
     rejection_reason: '',
     notes: '',
   })
+
+  // Handle file selection for scan upload
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !formData.player_id) {
+      if (!formData.player_id) {
+        setError('Please select a player first before uploading a scan')
+      }
+      return
+    }
+
+    setUploading(true)
+    setError('')
+
+    try {
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+      formDataUpload.append('playerId', formData.player_id)
+      formDataUpload.append('documentType', 'insurance_claim_scan')
+      formDataUpload.append('documentName', `Insurance Scan - ${formData.invoice_number || 'New Claim'}`)
+
+      const result = await uploadVisaDocumentAction(formDataUpload)
+
+      if (result.error) {
+        setError(`Upload failed: ${result.error}`)
+      } else {
+        setUploadedFile({ path: result.path, name: file.name })
+      }
+    } catch (err) {
+      setError('Failed to upload file')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  // View uploaded scan
+  const handleViewScan = async () => {
+    if (!uploadedFile) return
+    try {
+      const { url, error } = await getDocumentUrlAction(uploadedFile.path)
+      if (error) {
+        setError('Failed to open document')
+        return
+      }
+      if (url) {
+        window.open(url, '_blank')
+      }
+    } catch {
+      setError('Failed to open document')
+    }
+  }
+
+  // Remove uploaded scan
+  const handleRemoveScan = () => {
+    setUploadedFile(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,6 +127,7 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess }: 
           payment_reference: formData.payment_reference || null,
           rejection_reason: formData.rejection_reason || null,
           notes: formData.notes || null,
+          scan_path: uploadedFile?.path || null,
         })
 
       if (insertError) throw insertError
@@ -82,6 +147,7 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess }: 
         rejection_reason: '',
         notes: '',
       })
+      setUploadedFile(null)
       onSuccess()
       onClose()
     } catch (err) {
@@ -220,6 +286,64 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess }: 
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           rows={2}
           placeholder="Additional notes..."
+        />
+
+        {/* Scan Upload Section */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Invoice/Receipt Scan
+          </label>
+          {uploadedFile ? (
+            <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <FileText className="w-5 h-5 text-green-600" />
+              <span className="flex-1 text-sm text-green-800 truncate">{uploadedFile.name}</span>
+              <button
+                type="button"
+                onClick={handleViewScan}
+                className="text-sm text-green-600 hover:text-green-800 font-medium"
+              >
+                View
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveScan}
+                className="p-1 text-gray-400 hover:text-red-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || !formData.player_id}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  {formData.player_id ? 'Upload Scan' : 'Select player first'}
+                </>
+              )}
+            </button>
+          )}
+          <p className="mt-1 text-xs text-gray-500">
+            Attach a scan of the invoice or receipt (PDF, JPG, PNG)
+          </p>
+        </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={handleFileSelect}
         />
 
         <div className="flex justify-end gap-3 pt-4 border-t">
