@@ -80,17 +80,19 @@ const getConsolidatedItemsForHouse = (houseOrders: GroceryOrder[]) => {
 
   houseOrders.forEach(order => {
     order.items?.forEach(orderItem => {
-      if (!orderItem.item) return
-      const key = orderItem.item.id
+      // Handle items with or without item data
+      const itemId = orderItem.item?.id || `unknown-${orderItem.item_id || orderItem.id}`
+      const itemName = orderItem.item?.name || 'Unknown Item'
+      const itemCategory = orderItem.item?.category || 'other'
 
-      if (!items[key]) {
-        items[key] = {
-          name: orderItem.item.name,
-          category: orderItem.item.category,
+      if (!items[itemId]) {
+        items[itemId] = {
+          name: itemName,
+          category: itemCategory,
           totalQty: 0,
         }
       }
-      items[key].totalQty += orderItem.quantity
+      items[itemId].totalQty += orderItem.quantity
     })
   })
 
@@ -1455,6 +1457,22 @@ export function OperationsContent({
                                   </div>
                                 )
                               })}
+                              {/* Items with unknown categories */}
+                              {(() => {
+                                const otherItems = unassignedItems.filter(i => !CATEGORY_ORDER.includes(i.category))
+                                if (otherItems.length === 0) return null
+                                return (
+                                  <div>
+                                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Other</h4>
+                                    {otherItems.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between py-1">
+                                        <span>{item.name}</span>
+                                        <span className="font-medium">x{item.totalQty}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )
+                              })()}
                             </>
                           )}
                           <div className="pt-2 border-t flex justify-between font-medium">
@@ -1509,6 +1527,22 @@ export function OperationsContent({
                                 </div>
                               )
                             })}
+                            {/* Items with unknown categories */}
+                            {(() => {
+                              const otherItems = houseItems.filter(i => !CATEGORY_ORDER.includes(i.category))
+                              if (otherItems.length === 0) return null
+                              return (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Other</h4>
+                                  {otherItems.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between py-1">
+                                      <span>{item.name}</span>
+                                      <span className="font-medium">x{item.totalQty}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            })()}
                             <div className="pt-2 border-t flex justify-between font-medium">
                               <span>House Total</span>
                               <span>€{totalSpent.toFixed(2)}</span>
