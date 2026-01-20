@@ -16,12 +16,12 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+    const supabase = createClient()
 
     // Validate passwords match
     if (password !== confirmPassword) {

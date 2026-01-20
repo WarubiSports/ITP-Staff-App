@@ -12,7 +12,7 @@ export interface Player {
   height_cm?: number
   jersey_number?: number
   photo_url?: string
-  email?: string
+  email: string // Required for Player App authentication
   phone?: string
   parent1_name?: string
   parent1_email?: string

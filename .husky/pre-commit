@@ -1,0 +1,32 @@
+#!/bin/sh
+
+echo "🔨 Running pre-commit checks..."
+
+# Run TypeScript type check (faster than full build)
+echo "📝 Type checking..."
+npx tsc --noEmit
+
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript errors found. Fix them before committing."
+  exit 1
+fi
+
+# Run linter
+echo "🔍 Linting..."
+npm run lint
+
+if [ $? -ne 0 ]; then
+  echo "❌ Lint errors found. Fix them before committing."
+  exit 1
+fi
+
+# Run tests
+echo "🧪 Running tests..."
+npm test
+
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed. Fix them before committing."
+  exit 1
+fi
+
+echo "✅ Pre-commit checks passed!"
