@@ -122,18 +122,18 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
 
   const isDemo = player.first_name === 'Demo' && player.last_name === 'Player'
 
-  const handleDelete = async () => {
+  const handleDelete = async (hardDelete: boolean = false) => {
     setDeleting(true)
     setError(null)
 
     try {
-      const result = await deletePlayer(player.id, isDemo)
+      const result = await deletePlayer(player.id, hardDelete || isDemo)
 
       if (result.error) {
         throw new Error(result.error)
       }
 
-      showToast(isDemo ? 'Demo player permanently deleted' : 'Player archived successfully')
+      showToast(hardDelete || isDemo ? 'Player permanently deleted' : 'Player archived successfully')
       router.push('/players')
       router.refresh()
     } catch (err) {
@@ -788,50 +788,68 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
       <Modal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        title={isDemo ? 'Delete Player' : 'Archive Player'}
+        title="Remove Player"
         size="sm"
       >
         <div className="space-y-4">
-          <div className="flex items-start gap-3 p-4 bg-red-50 rounded-lg">
-            <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg">
+            <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-red-900">
-                {isDemo
-                  ? 'This will permanently delete the demo player.'
-                  : `This will archive ${player.first_name} ${player.last_name}.`}
-              </p>
-              <p className="text-sm text-red-700 mt-1">
-                {isDemo
-                  ? 'This action cannot be undone. All associated data will be removed.'
-                  : 'The player will be moved to the "Cancelled" status and hidden from active lists. You can restore them later by changing their status back to "Active".'}
+              <p className="font-medium text-amber-900">
+                What would you like to do with {player.first_name} {player.last_name}?
               </p>
             </div>
           </div>
 
-          <div className="flex gap-3 justify-end pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
-              disabled={deleting}
-            >
-              Cancel
-            </Button>
+          {!isDemo && (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="font-medium text-gray-900">Archive (Recommended)</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Moves to "Cancelled" status. Can be restored later.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => handleDelete(false)}
+                disabled={deleting}
+                className="mt-2 w-full"
+              >
+                Archive Player
+              </Button>
+            </div>
+          )}
+
+          <div className="p-3 bg-red-50 rounded-lg">
+            <p className="font-medium text-red-900">Delete Permanently</p>
+            <p className="text-sm text-red-600 mt-1">
+              Removes all data. Cannot be undone.
+            </p>
             <Button
               variant="danger"
-              onClick={handleDelete}
+              onClick={() => handleDelete(true)}
               disabled={deleting}
+              className="mt-2 w-full"
             >
               {deleting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isDemo ? 'Deleting...' : 'Archiving...'}
+                  Deleting...
                 </>
               ) : (
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
-                  {isDemo ? 'Delete Permanently' : 'Archive Player'}
+                  Delete Permanently
                 </>
               )}
+            </Button>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleting}
+            >
+              Cancel
             </Button>
           </div>
         </div>
