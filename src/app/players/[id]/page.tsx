@@ -21,12 +21,17 @@ export default async function PlayerDetailPage({ params }: PageProps) {
     redirect('/login')
   }
 
-  // Fetch player by player_id or id
-  const { data: player, error } = await supabase
-    .from('players')
-    .select('*')
-    .or(`player_id.eq.${id},id.eq.${id}`)
-    .single()
+  // Fetch player by player_id or UUID id
+  // Check if id looks like a UUID (contains dashes and is 36 chars)
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
+  let query = supabase.from('players').select('*')
+  if (isUUID) {
+    query = query.or(`player_id.eq.${id},id.eq.${id}`)
+  } else {
+    query = query.eq('player_id', id)
+  }
+  const { data: player, error } = await query.single()
 
   if (error || !player) {
     notFound()
