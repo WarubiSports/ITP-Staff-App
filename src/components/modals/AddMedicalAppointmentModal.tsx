@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { Trash2 } from 'lucide-react'
 import type { MedicalAppointment } from '@/types'
+import { getErrorMessage } from '@/lib/utils'
 
 interface Player {
   id: string
@@ -130,7 +131,7 @@ export function AddMedicalAppointmentModal({
       onSuccess()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${isEditMode ? 'update' : 'add'} appointment`)
+      setError(getErrorMessage(err, `Failed to ${isEditMode ? 'update' : 'add'} appointment`))
     } finally {
       setLoading(false)
     }
@@ -154,7 +155,7 @@ export function AddMedicalAppointmentModal({
       onSuccess()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete appointment')
+      setError(getErrorMessage(err, 'Failed to delete appointment'))
     } finally {
       setDeleting(false)
     }

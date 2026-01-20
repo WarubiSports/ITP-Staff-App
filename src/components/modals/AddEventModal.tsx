@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { CalendarEventType, Player } from '@/types'
+import { getErrorMessage } from '@/lib/utils'
 
 // Direct fetch helper to bypass Supabase SSR client issues
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -288,7 +289,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
       onSuccess()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create event')
+      setError(getErrorMessage(err, 'Failed to create event'))
     } finally {
       setLoading(false)
     }

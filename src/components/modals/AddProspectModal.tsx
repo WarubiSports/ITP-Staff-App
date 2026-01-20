@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
+import { getErrorMessage } from '@/lib/utils'
 
 interface AddProspectModalProps {
   isOpen: boolean
@@ -172,7 +173,7 @@ export function AddProspectModal({ isOpen, onClose, onSuccess }: AddProspectModa
       onSuccess()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add prospect')
+      setError(getErrorMessage(err, 'Failed to add prospect'))
     } finally {
       setLoading(false)
     }

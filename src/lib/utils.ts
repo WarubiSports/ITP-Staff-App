@@ -86,3 +86,35 @@ export function getPriorityColor(priority: string): string {
   }
   return colors[priority] || 'bg-gray-100 text-gray-800'
 }
+
+// Extract detailed error message from Supabase/PostgreSQL errors
+export function getErrorMessage(err: unknown, fallback: string = 'An error occurred'): string {
+  if (!err) return fallback
+
+  const error = err as {
+    message?: string
+    details?: string
+    hint?: string
+    code?: string
+  }
+
+  let message = error.message || fallback
+
+  // Add details/hint for more context
+  if (error.details) {
+    message = `${message}: ${error.details}`
+  } else if (error.hint) {
+    message = `${message} (${error.hint})`
+  }
+
+  // Handle common PostgreSQL error codes
+  if (error.code === '23505') {
+    message = 'A record with this value already exists'
+  } else if (error.code === '23503') {
+    message = 'Cannot delete: this record is referenced by other data'
+  } else if (error.code === '42501') {
+    message = 'Permission denied. Please contact an administrator.'
+  }
+
+  return message
+}
