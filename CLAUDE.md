@@ -6,8 +6,8 @@ Two apps sharing a single Supabase backend:
 
 | App | Stack | Path | Deployment |
 |-----|-------|------|------------|
-| Staff App | Next.js | `/Applications/Apps/itp-staff-app` | `itp-staff-app.vercel.app` |
-| Player App | React/Vite | `/Applications/Apps/ITP-Player-App` | `itp-player-app.vercel.app` |
+| Staff App | Next.js | `~/projects/ITP-Staff-App` | `itp-staff-app.vercel.app` |
+| Player App | React/Vite | `~/projects/ITP-Player-App` | `itp-player-app.vercel.app` |
 
 ## SSO Flow (Staff → Player App)
 
