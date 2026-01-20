@@ -1,4 +1,19 @@
-# ITP Staff App - Project Context
+# ITP Staff App
+
+## Quick Reference
+
+```bash
+npm run dev      # Start dev server (localhost:3000)
+npm run build    # Production build
+npm run lint     # ESLint check
+```
+
+## Test Accounts
+- Staff: max.bisinger@warubi-sports.com (use magic link or password)
+
+---
+
+# Project Context
 
 ## Architecture
 
