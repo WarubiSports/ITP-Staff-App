@@ -121,8 +121,8 @@ export function NewPlayerForm({ houses }: NewPlayerFormProps) {
 
       if (insertError) throw insertError
 
-      // Redirect to the new player's profile
-      router.push(`/players/${data.player_id}`)
+      // Redirect to the new player's profile (use UUID id for reliable routing)
+      router.push(`/players/${data.id}`)
     } catch (err: unknown) {
       console.error('Create player error:', err)
       const errorObj = err as { message?: string; details?: string; hint?: string; code?: string }
