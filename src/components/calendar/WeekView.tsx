@@ -52,7 +52,11 @@ export function WeekView({
     return dateEvents.filter((event) => {
       if (event.all_day) return false
       if (!event.start_time) return false
-      const eventHour = parseInt(event.start_time.split('T')[1]?.split(':')[0] || '0')
+      // Handle both ISO timestamps (2026-01-20T15:10:00) and time-only strings (15:10:00)
+      const timePart = event.start_time.includes('T')
+        ? event.start_time.split('T')[1]
+        : event.start_time
+      const eventHour = parseInt(timePart?.split(':')[0] || '0')
       return eventHour === hour
     })
   }
