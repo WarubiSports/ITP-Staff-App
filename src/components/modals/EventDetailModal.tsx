@@ -211,11 +211,25 @@ export function EventDetailModal({
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  // Check if this is a synthetic event (medical, trial, prospect)
+  const isMedicalEvent = event.id.startsWith('medical-')
+  const isTrialEvent = event.id.startsWith('trial-') || event.id.startsWith('prospect-')
+  const isReadOnly = isMedicalEvent || isTrialEvent
+
+  // Helper to parse time from either ISO format or time-only string
+  const parseTime = (timeStr: string | undefined): string => {
+    if (!timeStr) return '09:00'
+    if (timeStr.includes('T')) {
+      return timeStr.split('T')[1]?.slice(0, 5) || '09:00'
+    }
+    return timeStr.slice(0, 5)
+  }
+
   const [formData, setFormData] = useState({
     title: event.title,
     date: event.date,
-    start_time: event.start_time?.split('T')[1]?.slice(0, 5) || '09:00',
-    end_time: event.end_time?.split('T')[1]?.slice(0, 5) || '10:00',
+    start_time: parseTime(event.start_time),
+    end_time: parseTime(event.end_time) || '10:00',
     type: event.type,
     location: event.location || '',
     description: event.description || '',
@@ -308,21 +322,35 @@ export function EventDetailModal({
             {getEventTypeLabel(event.type)}
           </span>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-            <Edit2 className="w-4 h-4 mr-1" />
-            Edit
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="text-red-600 hover:bg-red-50"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
+        {!isReadOnly && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Edit2 className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </div>
+
+      {isMedicalEvent && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+          To edit this appointment, go to <strong>Operations → Medical</strong>
+        </div>
+      )}
+
+      {isTrialEvent && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+          To edit this trial, go to <strong>Operations → Trials</strong> or the player's profile
+        </div>
+      )}
 
       <div className="space-y-3 text-sm">
         <div className="flex items-center gap-3 text-gray-600">
