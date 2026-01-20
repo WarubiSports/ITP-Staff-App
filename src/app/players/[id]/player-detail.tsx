@@ -153,7 +153,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
       const result = await updatePlayer(player.id, {
         first_name: player.first_name,
         last_name: player.last_name,
-        email: player.email || null,
+        email: player.email?.toLowerCase() || null,
         phone: player.phone || null,
         status: player.status,
         positions: player.positions,

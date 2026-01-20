@@ -84,7 +84,7 @@ export function NewPlayerForm({ houses }: NewPlayerFormProps) {
         player_id: formData.player_id,
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
-        email: formData.email.trim(),
+        email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim() || null,
         status: formData.status,
         positions: formData.positions
