@@ -39,7 +39,19 @@ import { useToast } from '@/components/ui/toast'
 function formatTime(timestamp: string | undefined): string | undefined {
   if (!timestamp) return undefined
   try {
-    const date = new Date(timestamp)
+    const trimmed = timestamp.trim()
+
+    // Extract HH:MM from time-like strings (handles "HH:MM", "HH:MM:SS", "HH:MM:SS+TZ")
+    const timeMatch = trimmed.match(/^(\d{2}:\d{2})/)
+    if (timeMatch) {
+      return timeMatch[1]
+    }
+
+    const date = new Date(trimmed)
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return trimmed
+    }
     return date.toLocaleTimeString('de-DE', {
       hour: '2-digit',
       minute: '2-digit',
