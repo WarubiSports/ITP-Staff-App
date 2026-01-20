@@ -74,9 +74,9 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
         travel_arranged: editTrial.travel_arranged || false,
         accommodation_arranged: editTrial.accommodation_arranged || false,
         notes: editTrial.notes || '',
-        evaluation_rating: (editTrial as any).evaluation_rating || 0,
-        evaluation_notes: (editTrial as any).evaluation_notes || '',
-        trial_days: (editTrial as any).trial_days || [],
+        evaluation_rating: editTrial.evaluation_rating || 0,
+        evaluation_notes: editTrial.evaluation_notes || '',
+        trial_days: editTrial.trial_days || [],
       })
     } else {
       setFormData(initialFormData)

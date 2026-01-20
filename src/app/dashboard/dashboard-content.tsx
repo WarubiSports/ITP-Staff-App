@@ -8,7 +8,6 @@ import {
   Calendar,
   ClipboardList,
   AlertTriangle,
-  Clock,
   Shield,
   Plane,
   Home,
@@ -16,7 +15,6 @@ import {
   HeartPulse,
   GraduationCap,
   Car,
-  Stethoscope,
   MapPin,
   CheckSquare,
   ArrowRight,
@@ -28,7 +26,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Avatar } from '@/components/ui/avatar'
 import { formatDate, getDaysUntil, cn } from '@/lib/utils'
 import { QuickAddTaskModal } from '@/components/modals/QuickAddTaskModal'
 import { WhereaboutsListModal } from '@/components/modals/WhereaboutsListModal'
@@ -153,7 +150,7 @@ const whereaboutsConfig: Record<string, { icon: typeof Home; color: string; bg: 
 export function DashboardContent({
   players,
   todayTasks,
-  allTasks,
+  allTasks: _allTasks,
   todayEvents,
   todayMedical,
   activeTrials,
@@ -270,7 +267,7 @@ export function DashboardContent({
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalScheduleItems}</p>
-                <p className="text-sm text-gray-500">Today's Schedule</p>
+                <p className="text-sm text-gray-500">Today&apos;s Schedule</p>
               </div>
             </div>
           </CardContent>
@@ -311,7 +308,7 @@ export function DashboardContent({
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="flex items-center gap-2">
                 <CalendarClock className="w-5 h-5 text-gray-500" />
-                Today's Schedule
+                Today&apos;s Schedule
               </CardTitle>
               <Link href="/operations">
                 <Button variant="ghost" size="sm">

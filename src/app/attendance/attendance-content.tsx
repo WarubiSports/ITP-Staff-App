@@ -16,7 +16,6 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'

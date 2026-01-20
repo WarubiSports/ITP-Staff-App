@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { SettingsContent } from './settings-content'
+import type { BugReport } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export default async function SettingsPage() {
 
   // Only fetch bug reports for admin user
   const isAdmin = user.email === 'max.bisinger@warubi-sports.com'
-  let bugReports: any[] = []
+  let bugReports: BugReport[] = []
 
   if (isAdmin) {
     const { data } = await supabase

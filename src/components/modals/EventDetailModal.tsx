@@ -348,7 +348,7 @@ export function EventDetailModal({
 
       {isTrialEvent && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
-          To edit this trial, go to <strong>Operations → Trials</strong> or the player's profile
+          To edit this trial, go to <strong>Operations → Trials</strong> or the player&apos;s profile
         </div>
       )}
 

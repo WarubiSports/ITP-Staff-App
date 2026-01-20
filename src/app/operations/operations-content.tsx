@@ -3,16 +3,13 @@
 // Operations content component
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import {
   Plane,
   Home,
   Shield,
   Clock,
-  Users,
   AlertTriangle,
   Plus,
-  ChevronRight,
   Activity,
   ExternalLink,
   Stethoscope,
@@ -21,9 +18,6 @@ import {
   CheckCircle,
   XCircle,
   Euro,
-  DoorOpen,
-  ChevronDown,
-  ChevronUp,
   ShoppingCart,
   Package,
   Truck,
@@ -160,7 +154,7 @@ type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'bill
 
 export function OperationsContent({
   players,
-  events,
+  events: _events,
   wellpassMemberships,
   medicalAppointments,
   insuranceClaims,
@@ -260,7 +254,7 @@ export function OperationsContent({
 
   // Chore counts
   const pendingApprovalChores = chores.filter((c) => c.status === 'pending_approval')
-  const pendingChores = chores.filter((c) => c.status === 'pending')
+  const _pendingChores = chores.filter((c) => c.status === 'pending')
 
   // Helper to get player name by ID
   const getPlayerName = (playerId: string) => {
@@ -303,7 +297,7 @@ export function OperationsContent({
         const endDate = new Date(newChore.recurrence_end_date)
         const dates: Date[] = []
 
-        let current = new Date(startDate)
+        const current = new Date(startDate)
         while (current <= endDate) {
           dates.push(new Date(current))
           switch (newChore.recurrence) {
@@ -475,7 +469,7 @@ export function OperationsContent({
       showToast('Chore approved')
       setShowApprovalModal(false)
       setApprovalChore(null)
-    } catch (error) {
+    } catch {
       showToast('Failed to approve chore', 'error')
     } finally {
       setChoreSubmitting(false)
@@ -496,7 +490,7 @@ export function OperationsContent({
       setShowApprovalModal(false)
       setApprovalChore(null)
       setRejectReason('')
-    } catch (error) {
+    } catch {
       showToast('Failed to reject chore', 'error')
     } finally {
       setChoreSubmitting(false)

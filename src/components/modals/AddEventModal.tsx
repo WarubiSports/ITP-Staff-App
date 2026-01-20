@@ -305,7 +305,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     const dates: string[] = []
     const start = new Date(startDate)
     const end = new Date(endDate)
-    let current = new Date(start)
+    const current = new Date(start)
 
     // For custom rule with selected days
     if (rule === 'custom' && selectedDays.length > 0) {

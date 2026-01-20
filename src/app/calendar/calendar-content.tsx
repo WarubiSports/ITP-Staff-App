@@ -68,7 +68,7 @@ function convertPlayerTrialsToEvents(trials: PlayerTrialWithPlayer[]): CalendarE
     const endDate = parseDateString(trial.trial_end_date)
 
     // Get allowed days (if specified)
-    const trialDays = (trial as any).trial_days as string[] | undefined
+    const trialDays = trial.trial_days
     const allowedDays = trialDays && trialDays.length > 0
       ? trialDays.map(d => dayNameToNumber[d.toLowerCase()])
       : null

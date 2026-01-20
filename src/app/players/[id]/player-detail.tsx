@@ -805,7 +805,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="font-medium text-gray-900">Archive (Recommended)</p>
               <p className="text-sm text-gray-600 mt-1">
-                Moves to "Cancelled" status. Can be restored later.
+                Moves to &quot;Cancelled&quot; status. Can be restored later.
               </p>
               <Button
                 variant="outline"

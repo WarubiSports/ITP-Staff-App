@@ -67,7 +67,8 @@ const statusConfig: Record<VisaDocumentStatus, { icon: typeof FileCheck; color: 
 }
 
 // Application status configuration
-const appStatusConfig: Record<VisaApplicationStatus, { color: string; label: string }> = {
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
+const appStatusConfig: Record<VisaApplicationStatus, { color: BadgeVariant; label: string }> = {
   not_started: { color: 'default', label: 'Not Started' },
   documents_pending: { color: 'warning', label: 'Documents Pending' },
   applied: { color: 'info', label: 'Applied' },
@@ -480,7 +481,7 @@ export function VisaDocumentTracking({ players, playerDocuments = {}, onUpdate }
                           </div>
 
                           {/* Visa Status */}
-                          <Badge variant={appStatusConfig[visaStatus].color as any}>
+                          <Badge variant={appStatusConfig[visaStatus].color}>
                             {appStatusConfig[visaStatus].label}
                           </Badge>
 
