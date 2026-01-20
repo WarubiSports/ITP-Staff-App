@@ -14,7 +14,7 @@ interface WeekViewProps {
   onAddEvent: (date: Date) => void
 }
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
+const HOURS = Array.from({ length: 17 }, (_, i) => i + 7) // 7 AM to 11 PM
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export function WeekView({

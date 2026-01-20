@@ -12,8 +12,8 @@ interface DayViewProps {
   onAddEvent: (date: Date) => void
 }
 
-// Start day at 7 AM: 7, 8, ... 23, 0, 1, ... 6
-const HOURS = Array.from({ length: 24 }, (_, i) => (i + 7) % 24)
+// Show 7 AM to 11 PM (typical working hours)
+const HOURS = Array.from({ length: 17 }, (_, i) => i + 7)
 
 export function DayView({
   currentDate,
