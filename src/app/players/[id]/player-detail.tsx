@@ -299,11 +299,12 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                   disabled={!editing}
                 />
                 <Input
-                  label="Email"
+                  label="Email *"
                   type="email"
                   value={player.email || ''}
                   onChange={(e) => updateField('email', e.target.value)}
                   disabled={!editing}
+                  required
                 />
                 <Input
                   label="Phone"

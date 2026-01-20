@@ -84,7 +84,7 @@ export function NewPlayerForm({ houses }: NewPlayerFormProps) {
         player_id: formData.player_id,
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
-        email: formData.email.trim() || null,
+        email: formData.email.trim(),
         phone: formData.phone.trim() || null,
         status: formData.status,
         positions: formData.positions
@@ -199,10 +199,11 @@ export function NewPlayerForm({ houses }: NewPlayerFormProps) {
                   required
                 />
                 <Input
-                  label="Email"
+                  label="Email *"
                   type="email"
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
+                  required
                 />
                 <Input
                   label="Phone"
