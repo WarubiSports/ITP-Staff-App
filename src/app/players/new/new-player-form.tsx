@@ -79,6 +79,12 @@ export function NewPlayerForm({ houses }: NewPlayerFormProps) {
       return
     }
 
+    if (!formData.email.trim()) {
+      setError('Email is required for player authentication')
+      setSaving(false)
+      return
+    }
+
     try {
       const playerData = {
         player_id: formData.player_id,
@@ -117,8 +123,12 @@ export function NewPlayerForm({ houses }: NewPlayerFormProps) {
 
       // Redirect to the new player's profile
       router.push(`/players/${data.player_id}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create player')
+    } catch (err: unknown) {
+      console.error('Create player error:', err)
+      const errorObj = err as { message?: string; details?: string; hint?: string; code?: string }
+      const message = errorObj.message || 'Failed to create player'
+      const details = errorObj.details || errorObj.hint || ''
+      setError(details ? `${message}: ${details}` : message)
     } finally {
       setSaving(false)
     }
