@@ -1,7 +1,7 @@
 'use client'
 
 // Operations content component
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plane,
@@ -174,6 +174,14 @@ export function OperationsContent({
   const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<TabType>('visa')
 
+  // Players state - keep local copy that syncs with props to handle refresh timing
+  const [localPlayers, setLocalPlayers] = useState(players)
+
+  // Sync local players when props change (e.g., after router.refresh())
+  useEffect(() => {
+    setLocalPlayers(players)
+  }, [players])
+
   // Trials state
   const [localTrials, setLocalTrials] = useState(trials)
   const [localArchivedTrials, setLocalArchivedTrials] = useState(archivedTrials)
@@ -266,14 +274,14 @@ export function OperationsContent({
 
   // Helper to get player name by ID
   const getPlayerName = (playerId: string) => {
-    const player = players.find(p => p.id === playerId)
+    const player = localPlayers.find(p => p.id === playerId)
     return player ? `${player.first_name} ${player.last_name}` : 'Unknown'
   }
 
   // Get players filtered by selected house for chore assignment
   const getPlayersForHouse = (houseId: string) => {
-    if (!houseId) return players
-    return players.filter((p) => p.house_id === houseId)
+    if (!houseId) return localPlayers
+    return localPlayers.filter((p) => p.house_id === houseId)
   }
 
   // Chore helper functions
@@ -1623,7 +1631,7 @@ export function OperationsContent({
                 {/* Houses */}
                 {houses.map(house => {
                   const houseOrders = groceryOrders.filter(o => o.player?.house_id === house.id)
-                  const housePlayers = players.filter(p => p.house_id === house.id)
+                  const housePlayers = localPlayers.filter(p => p.house_id === house.id)
                   const totalSpent = houseOrders.reduce((sum, o) => sum + o.total_amount, 0)
                   const houseItems = getConsolidatedItemsForHouse(houseOrders)
 
