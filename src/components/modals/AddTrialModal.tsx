@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
-import { Trash2, Star } from 'lucide-react'
+import { Trash2, Star, Archive } from 'lucide-react'
 import { PlayerTrial } from '@/types'
 
 interface Player {
@@ -30,6 +30,7 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
   const isEditMode = !!editTrial
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [error, setError] = useState('')
 
@@ -157,6 +158,29 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
       setError(err instanceof Error ? err.message : 'Failed to delete trial')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleArchive = async () => {
+    if (!editTrial) return
+    setArchiving(true)
+    setError('')
+
+    try {
+      const supabase = createClient()
+      const { error: archiveError } = await supabase
+        .from('player_trials')
+        .update({ archived: true })
+        .eq('id', editTrial.id)
+
+      if (archiveError) throw archiveError
+
+      onSuccess()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to archive trial')
+    } finally {
+      setArchiving(false)
     }
   }
 
@@ -446,14 +470,26 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
 
           <div className="flex justify-between pt-4 border-t">
             {isEditMode ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleArchive}
+                  disabled={archiving}
+                  className="text-amber-700 border-amber-300 hover:bg-amber-50"
+                >
+                  <Archive className="w-4 h-4 mr-2" />
+                  {archiving ? 'Archiving...' : 'Archive'}
+                </Button>
+              </div>
             ) : (
               <div />
             )}
