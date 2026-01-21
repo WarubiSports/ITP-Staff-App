@@ -49,10 +49,11 @@ export default async function OperationsPage() {
     .select('*')
     .order('invoice_date', { ascending: false })
 
-  // Fetch player trials
+  // Fetch player trials (only non-archived)
   const { data: trials } = await supabase
     .from('player_trials')
     .select('*')
+    .or('archived.is.null,archived.eq.false')
     .order('trial_start_date', { ascending: false })
 
   // Fetch trial prospects (prospective players trialing FOR the ITP)

@@ -42,8 +42,8 @@ export default async function PlayerDetailPage({ params }: PageProps) {
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
   const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0]
 
-  // Fetch houses, rooms, documents, and attendance in parallel
-  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }] = await Promise.all([
+  // Fetch houses, rooms, documents, attendance, and archived trials in parallel
+  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }, { data: archivedTrials }] = await Promise.all([
     supabase.from('houses').select('id, name, address').order('name'),
     supabase.from('rooms').select('id, name, house_id, capacity, floor').order('name'),
     supabase
@@ -57,6 +57,12 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .eq('player_id', player.id)
       .gte('session_date', ninetyDaysAgoStr)
       .order('session_date', { ascending: false }),
+    supabase
+      .from('player_trials')
+      .select('*')
+      .eq('player_id', player.id)
+      .eq('archived', true)
+      .order('trial_start_date', { ascending: false }),
   ])
 
   // Find assigned room if player has room_id
@@ -77,6 +83,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         assignedRoom={assignedRoom}
         documents={documents || []}
         attendance={attendance || []}
+        archivedTrials={archivedTrials || []}
       />
     </AppLayout>
   )

@@ -41,7 +41,7 @@ import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
 import { DocumentUpload } from '@/components/documents/DocumentUpload'
 import { DocumentList } from '@/components/documents/DocumentList'
-import type { WhereaboutsDetails, PlayerDocument } from '@/types'
+import type { WhereaboutsDetails, PlayerDocument, PlayerTrial } from '@/types'
 
 interface Player {
   id: string
@@ -105,9 +105,10 @@ interface PlayerDetailProps {
   assignedRoom: Room | null | undefined
   documents: PlayerDocument[]
   attendance: AttendanceRecord[]
+  archivedTrials: PlayerTrial[]
 }
 
-export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance }: PlayerDetailProps) {
+export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials }: PlayerDetailProps) {
   const router = useRouter()
   const { showToast } = useToast()
 
@@ -509,6 +510,75 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
               )}
             </CardContent>
           </Card>
+
+          {/* Trial History - Archived trials */}
+          {archivedTrials.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Trial History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {archivedTrials.map((trial) => (
+                    <div
+                      key={trial.id}
+                      className="p-4 border rounded-lg bg-gray-50"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{trial.trial_club}</h4>
+                          <p className="text-sm text-gray-500">
+                            {formatDate(trial.trial_start_date)} - {formatDate(trial.trial_end_date)}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant={
+                            trial.status === 'completed' ? 'success' :
+                            trial.status === 'cancelled' ? 'danger' : 'default'
+                          }>
+                            {trial.status}
+                          </Badge>
+                          {trial.trial_outcome && (
+                            <Badge variant={
+                              trial.trial_outcome === 'offer_received' ? 'success' :
+                              trial.trial_outcome === 'no_offer' ? 'danger' :
+                              trial.trial_outcome === 'player_declined' ? 'warning' : 'info'
+                            }>
+                              {trial.trial_outcome.replace(/_/g, ' ')}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {trial.evaluation_rating && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <span className="text-sm text-gray-500">Rating:</span>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span
+                              key={star}
+                              className={star <= trial.evaluation_rating! ? 'text-yellow-400' : 'text-gray-300'}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {trial.evaluation_notes && (
+                        <p className="text-sm text-gray-600 mt-2">{trial.evaluation_notes}</p>
+                      )}
+                      {trial.offer_details && trial.trial_outcome === 'offer_received' && (
+                        <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-800">
+                          <span className="font-medium">Offer:</span> {trial.offer_details}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}

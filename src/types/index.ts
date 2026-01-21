@@ -395,6 +395,8 @@ export interface PlayerTrial {
   evaluation_notes?: string
   // Calendar day selection
   trial_days?: string[]
+  // Archive status
+  archived?: boolean
   created_at: string
   updated_at: string
 }

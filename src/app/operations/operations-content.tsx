@@ -30,6 +30,7 @@ import {
   Check,
   X,
   User,
+  Archive,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -172,6 +173,9 @@ export function OperationsContent({
   const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<TabType>('visa')
 
+  // Trials state (for archiving)
+  const [localTrials, setLocalTrials] = useState(trials)
+
   // Modal states
   const [showWellPassModal, setShowWellPassModal] = useState(false)
   const [showMedicalModal, setShowMedicalModal] = useState(false)
@@ -204,6 +208,26 @@ export function OperationsContent({
   // Refresh handler
   const handleRefresh = () => {
     router.refresh()
+  }
+
+  // Archive trial handler
+  const handleArchiveTrial = async (trialId: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent opening the edit modal
+    try {
+      const { error } = await supabase
+        .from('player_trials')
+        .update({ archived: true })
+        .eq('id', trialId)
+
+      if (error) throw error
+
+      // Remove from local state
+      setLocalTrials(prev => prev.filter(t => t.id !== trialId))
+      showToast('Trial archived successfully', 'success')
+    } catch (err) {
+      console.error('Failed to archive trial:', err)
+      showToast('Failed to archive trial', 'error')
+    }
   }
 
   // Calculate visa alerts (expiring within 60 days)
@@ -243,7 +267,7 @@ export function OperationsContent({
   )
 
   // Active trials
-  const activeTrials = trials.filter((t) =>
+  const activeTrials = localTrials.filter((t) =>
     t.status === 'scheduled' || t.status === 'ongoing'
   )
 
@@ -1111,7 +1135,7 @@ export function OperationsContent({
             </Card>
           )}
 
-          {trials.length === 0 ? (
+          {localTrials.length === 0 ? (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center text-gray-500">
@@ -1128,7 +1152,7 @@ export function OperationsContent({
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {trials.map((trial) => (
+                  {localTrials.map((trial) => (
                     <div
                       key={trial.id}
                       onClick={() => {
@@ -1171,6 +1195,13 @@ export function OperationsContent({
                               {trial.trial_outcome.replace('_', ' ')}
                             </Badge>
                           )}
+                          <button
+                            onClick={(e) => handleArchiveTrial(trial.id, e)}
+                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            title="Archive trial"
+                          >
+                            <Archive className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
