@@ -56,6 +56,13 @@ export default async function OperationsPage() {
     .or('archived.is.null,archived.eq.false')
     .order('trial_start_date', { ascending: false })
 
+  // Fetch archived trials
+  const { data: archivedTrials } = await supabase
+    .from('player_trials')
+    .select('*')
+    .eq('archived', true)
+    .order('trial_start_date', { ascending: false })
+
   // Fetch trial prospects (prospective players trialing FOR the ITP)
   const { data: trialProspects } = await supabase
     .from('trial_prospects')
@@ -131,6 +138,7 @@ export default async function OperationsPage() {
         medicalAppointments={medicalAppointments || []}
         insuranceClaims={insuranceClaims || []}
         trials={trials || []}
+        archivedTrials={archivedTrials || []}
         trialProspects={trialProspects || []}
         rooms={rooms || []}
         groceryOrders={groceryOrders || []}

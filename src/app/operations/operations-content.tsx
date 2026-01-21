@@ -30,7 +30,6 @@ import {
   Check,
   X,
   User,
-  Archive,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -142,6 +141,7 @@ interface OperationsContentProps {
   medicalAppointments: MedicalAppointment[]
   insuranceClaims: InsuranceClaim[]
   trials: PlayerTrial[]
+  archivedTrials: PlayerTrial[]
   trialProspects: TrialProspect[]
   rooms: Room[]
   groceryOrders: GroceryOrder[]
@@ -160,6 +160,7 @@ export function OperationsContent({
   medicalAppointments,
   insuranceClaims,
   trials,
+  archivedTrials,
   trialProspects,
   rooms,
   groceryOrders,
@@ -173,8 +174,10 @@ export function OperationsContent({
   const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<TabType>('visa')
 
-  // Trials state (for archiving)
+  // Trials state
   const [localTrials, setLocalTrials] = useState(trials)
+  const [localArchivedTrials, setLocalArchivedTrials] = useState(archivedTrials)
+  const [showArchivedTrials, setShowArchivedTrials] = useState(false)
 
   // Modal states
   const [showWellPassModal, setShowWellPassModal] = useState(false)
@@ -208,26 +211,6 @@ export function OperationsContent({
   // Refresh handler
   const handleRefresh = () => {
     router.refresh()
-  }
-
-  // Archive trial handler
-  const handleArchiveTrial = async (trialId: string, e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent opening the edit modal
-    try {
-      const { error } = await supabase
-        .from('player_trials')
-        .update({ archived: true })
-        .eq('id', trialId)
-
-      if (error) throw error
-
-      // Remove from local state
-      setLocalTrials(prev => prev.filter(t => t.id !== trialId))
-      showToast('Trial archived successfully', 'success')
-    } catch (err) {
-      console.error('Failed to archive trial:', err)
-      showToast('Failed to archive trial', 'error')
-    }
   }
 
   // Calculate visa alerts (expiring within 60 days)
@@ -1091,51 +1074,76 @@ export function OperationsContent({
       {activeTab === 'trials' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Player Trials</h2>
-            <Button onClick={() => setShowTrialModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Schedule Trial
-            </Button>
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold text-gray-900">Player Trials</h2>
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setShowArchivedTrials(false)}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    !showArchivedTrials ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Active ({localTrials.length})
+                </button>
+                <button
+                  onClick={() => setShowArchivedTrials(true)}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    showArchivedTrials ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Archived ({localArchivedTrials.length})
+                </button>
+              </div>
+            </div>
+            {!showArchivedTrials && (
+              <Button onClick={() => setShowTrialModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Schedule Trial
+              </Button>
+            )}
           </div>
 
-          {/* Active Trials Alert */}
-          {activeTrials.length > 0 && (
-            <Card className="border-green-200 bg-green-50/50">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <UserPlus className="w-5 h-5 text-green-600" />
-                  <h3 className="font-semibold text-green-900">Active External Trials ({activeTrials.length})</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {activeTrials.map((trial) => (
-                    <div
-                      key={trial.id}
-                      onClick={() => {
-                        setSelectedTrial(trial)
-                        setShowTrialModal(true)
-                      }}
-                      className="flex items-center justify-between p-3 bg-white rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar name={getPlayerName(trial.player_id)} size="sm" />
-                        <div>
-                          <p className="font-medium">{getPlayerName(trial.player_id)}</p>
-                          <p className="text-sm text-gray-500">
-                            Trialing at: {trial.trial_club}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant={trial.status === 'ongoing' ? 'success' : 'info'}>
-                        {trial.status}
-                      </Badge>
+          {/* Active Trials View */}
+          {!showArchivedTrials && (
+            <>
+              {/* Active Trials Alert */}
+              {activeTrials.length > 0 && (
+                <Card className="border-green-200 bg-green-50/50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <UserPlus className="w-5 h-5 text-green-600" />
+                      <h3 className="font-semibold text-green-900">Active External Trials ({activeTrials.length})</h3>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {activeTrials.map((trial) => (
+                        <div
+                          key={trial.id}
+                          onClick={() => {
+                            setSelectedTrial(trial)
+                            setShowTrialModal(true)
+                          }}
+                          className="flex items-center justify-between p-3 bg-white rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar name={getPlayerName(trial.player_id)} size="sm" />
+                            <div>
+                              <p className="font-medium">{getPlayerName(trial.player_id)}</p>
+                              <p className="text-sm text-gray-500">
+                                Trialing at: {trial.trial_club}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant={trial.status === 'ongoing' ? 'success' : 'info'}>
+                            {trial.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-          {localTrials.length === 0 ? (
+              {localTrials.length === 0 ? (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center text-gray-500">
@@ -1195,14 +1203,6 @@ export function OperationsContent({
                               {trial.trial_outcome.replace('_', ' ')}
                             </Badge>
                           )}
-                          <button
-                            onClick={(e) => handleArchiveTrial(trial.id, e)}
-                            className="flex items-center gap-1 px-2 py-1 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
-                            title="Archive trial"
-                          >
-                            <Archive className="w-3 h-3" />
-                            Archive
-                          </button>
                         </div>
                       </div>
 
@@ -1247,6 +1247,107 @@ export function OperationsContent({
                 </div>
               </CardContent>
             </Card>
+          )}
+            </>
+          )}
+
+          {/* Archived Trials View */}
+          {showArchivedTrials && (
+            <>
+              {localArchivedTrials.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12">
+                    <div className="text-center text-gray-500">
+                      <UserPlus className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-lg font-medium">No archived trials</p>
+                      <p className="text-sm">Archived trials will appear here</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Archived Trials</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {localArchivedTrials.map((trial) => (
+                        <div
+                          key={trial.id}
+                          className="p-4 border rounded-lg bg-gray-50"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar name={getPlayerName(trial.player_id)} size="lg" />
+                              <div>
+                                <h3 className="font-semibold text-gray-900">
+                                  {getPlayerName(trial.player_id)}
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                  Trialed at: <span className="font-medium text-gray-700">{trial.trial_club}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={
+                                trial.status === 'completed' ? 'success' :
+                                trial.status === 'cancelled' ? 'danger' : 'default'
+                              }>
+                                {trial.status}
+                              </Badge>
+                              {trial.trial_outcome && (
+                                <Badge variant={
+                                  trial.trial_outcome === 'offer_received' ? 'success' :
+                                  trial.trial_outcome === 'no_offer' ? 'danger' :
+                                  trial.trial_outcome === 'player_declined' ? 'warning' : 'info'
+                                }>
+                                  {trial.trial_outcome.replace('_', ' ')}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase">Trial Period</p>
+                              <p className="font-medium">
+                                {formatDate(trial.trial_start_date)} - {formatDate(trial.trial_end_date)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase">Club Contact</p>
+                              <p className="font-medium">{trial.club_contact_name || 'N/A'}</p>
+                            </div>
+                            {trial.evaluation_rating && (
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Rating</p>
+                                <div className="flex gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <span
+                                      key={star}
+                                      className={star <= trial.evaluation_rating! ? 'text-yellow-400' : 'text-gray-300'}
+                                    >
+                                      ★
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {trial.evaluation_notes && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-xs text-gray-500 uppercase mb-1">Evaluation Notes</p>
+                              <p className="text-sm text-gray-700">{trial.evaluation_notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
       )}

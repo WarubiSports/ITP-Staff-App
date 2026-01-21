@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  RotateCcw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { formatDate } from '@/lib/utils'
 import { updatePlayer, deletePlayer } from '../actions'
+import { createClient } from '@/lib/supabase/client'
 import { UpdateWhereaboutsModal } from '@/components/modals'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -120,8 +122,27 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
   const [error, setError] = useState<string | null>(null)
   const [showWhereaboutsModal, setShowWhereaboutsModal] = useState(false)
   const [showUploadForm, setShowUploadForm] = useState(false)
+  const [localArchivedTrials, setLocalArchivedTrials] = useState(archivedTrials)
 
   const isDemo = player.first_name === 'Demo' && player.last_name === 'Player'
+
+  const handleUnarchiveTrial = async (trialId: string) => {
+    try {
+      const supabase = createClient()
+      const { error: unarchiveError } = await supabase
+        .from('player_trials')
+        .update({ archived: false })
+        .eq('id', trialId)
+
+      if (unarchiveError) throw unarchiveError
+
+      setLocalArchivedTrials(prev => prev.filter(t => t.id !== trialId))
+      showToast('Trial restored to active list', 'success')
+    } catch (err) {
+      console.error('Failed to unarchive trial:', err)
+      showToast('Failed to restore trial', 'error')
+    }
+  }
 
   const handleDelete = async (hardDelete: boolean = false) => {
     setDeleting(true)
@@ -512,7 +533,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
           </Card>
 
           {/* Trial History - Archived trials */}
-          {archivedTrials.length > 0 && (
+          {localArchivedTrials.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -522,7 +543,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {archivedTrials.map((trial) => (
+                  {localArchivedTrials.map((trial) => (
                     <div
                       key={trial.id}
                       className="p-4 border rounded-lg bg-gray-50"
@@ -534,7 +555,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             {formatDate(trial.trial_start_date)} - {formatDate(trial.trial_end_date)}
                           </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <Badge variant={
                             trial.status === 'completed' ? 'success' :
                             trial.status === 'cancelled' ? 'danger' : 'default'
@@ -550,6 +571,13 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                               {trial.trial_outcome.replace(/_/g, ' ')}
                             </Badge>
                           )}
+                          <button
+                            onClick={() => handleUnarchiveTrial(trial.id)}
+                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Restore to active trials"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                       {trial.evaluation_rating && (
