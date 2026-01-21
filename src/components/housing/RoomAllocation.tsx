@@ -101,17 +101,17 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
   const updatePlayerRoom = async (
     playerId: string,
     roomId: string | null,
-    _houseId: string | null
+    houseId: string | null
   ) => {
     setIsUpdating(true)
     try {
       const supabase = createClient()
-      // Only update room_id - house can be derived from room relationship
-      // (house_id column has type mismatch: players.house_id is UUID, rooms.house_id is TEXT)
+      // Update both room_id and house_id together
       const { error } = await supabase
         .from('players')
         .update({
           room_id: roomId,
+          house_id: houseId,
         })
         .eq('id', playerId)
 
