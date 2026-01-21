@@ -1197,10 +1197,11 @@ export function OperationsContent({
                           )}
                           <button
                             onClick={(e) => handleArchiveTrial(trial.id, e)}
-                            className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
                             title="Archive trial"
                           >
-                            <Archive className="w-4 h-4" />
+                            <Archive className="w-3 h-3" />
+                            Archive
                           </button>
                         </div>
                       </div>
