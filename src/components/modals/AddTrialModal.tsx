@@ -17,6 +17,126 @@ interface Player {
   last_name: string
 }
 
+// Day name to number mapping for trial days
+const dayNameToNumber: Record<string, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6
+}
+
+// Helper to create calendar events for a trial so they appear in Player App
+async function createTrialCalendarEvents(
+  trialId: string,
+  playerId: string,
+  playerName: string,
+  trialClub: string,
+  startDate: string,
+  endDate: string,
+  trialDays: string[] | null,
+  notes: string | null
+) {
+  const supabase = createClient()
+
+  // First, delete any existing events for this trial
+  await deleteTrialCalendarEvents(trialId)
+
+  // Generate dates between start and end
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const events: Array<{
+    title: string
+    date: string
+    start_time: string
+    end_time: string
+    type: string
+    location: string
+    description: string
+    all_day: boolean
+    is_mandatory: boolean
+  }> = []
+
+  // Get allowed days (if specified)
+  const allowedDays = trialDays && trialDays.length > 0
+    ? trialDays.map(d => dayNameToNumber[d.toLowerCase()])
+    : null
+
+  const current = new Date(start)
+  while (current <= end) {
+    // Check if this day should be included
+    const dayOfWeek = current.getDay()
+    if (allowedDays === null || allowedDays.includes(dayOfWeek)) {
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
+      events.push({
+        title: `Trial: ${playerName} @ ${trialClub}`,
+        date: dateStr,
+        start_time: `${dateStr}T09:00:00`,
+        end_time: `${dateStr}T17:00:00`,
+        type: 'external_trial',
+        location: trialClub,
+        description: `[TRIAL:${trialId}] ${notes || ''}`.trim(),
+        all_day: true,
+        is_mandatory: false,
+      })
+    }
+    current.setDate(current.getDate() + 1)
+  }
+
+  if (events.length === 0) return
+
+  // Insert all events
+  const { data: insertedEvents, error: eventsError } = await supabase
+    .from('events')
+    .insert(events)
+    .select('id')
+
+  if (eventsError) {
+    console.error('Failed to create trial calendar events:', eventsError)
+    return
+  }
+
+  // Link player to each event via event_attendees
+  if (insertedEvents && insertedEvents.length > 0) {
+    const attendees = insertedEvents.map(event => ({
+      event_id: event.id,
+      player_id: playerId,
+      status: 'confirmed',
+    }))
+
+    const { error: attendeesError } = await supabase
+      .from('event_attendees')
+      .insert(attendees)
+
+    if (attendeesError) {
+      console.error('Failed to link player to trial events:', attendeesError)
+    }
+  }
+}
+
+// Helper to delete calendar events for a trial
+async function deleteTrialCalendarEvents(trialId: string) {
+  const supabase = createClient()
+
+  // Find events with this trial ID in description
+  const { data: events } = await supabase
+    .from('events')
+    .select('id')
+    .like('description', `[TRIAL:${trialId}]%`)
+
+  if (events && events.length > 0) {
+    const eventIds = events.map(e => e.id)
+
+    // Delete attendees first (foreign key constraint)
+    await supabase
+      .from('event_attendees')
+      .delete()
+      .in('event_id', eventIds)
+
+    // Delete events
+    await supabase
+      .from('events')
+      .delete()
+      .in('id', eventIds)
+  }
+}
+
 interface TrialModalProps {
   isOpen: boolean
   onClose: () => void
@@ -112,6 +232,8 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
         trial_days: formData.trial_days.length > 0 ? formData.trial_days : null,
       }
 
+      let trialId: string
+
       if (isEditMode && editTrial) {
         const { error: updateError } = await supabase
           .from('player_trials')
@@ -119,12 +241,37 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
           .eq('id', editTrial.id)
 
         if (updateError) throw updateError
+        trialId = editTrial.id
       } else {
-        const { error: insertError } = await supabase
+        const { data: insertedTrial, error: insertError } = await supabase
           .from('player_trials')
           .insert(dataToSave)
+          .select('id')
+          .single()
 
         if (insertError) throw insertError
+        trialId = insertedTrial.id
+      }
+
+      // Create calendar events for the trial so it shows in Player App
+      // Only create events for scheduled or ongoing trials
+      const player = players.find(p => p.id === formData.player_id)
+      const playerName = player ? `${player.first_name} ${player.last_name}` : 'Player'
+
+      if (formData.status === 'scheduled' || formData.status === 'ongoing') {
+        await createTrialCalendarEvents(
+          trialId,
+          formData.player_id,
+          playerName,
+          formData.trial_club,
+          formData.trial_start_date,
+          formData.trial_end_date,
+          formData.trial_days.length > 0 ? formData.trial_days : null,
+          formData.notes
+        )
+      } else {
+        // If status is completed or cancelled, remove calendar events
+        await deleteTrialCalendarEvents(trialId)
       }
 
       setFormData(initialFormData)
@@ -144,6 +291,10 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
 
     try {
       const supabase = createClient()
+
+      // Delete associated calendar events first
+      await deleteTrialCalendarEvents(editTrial.id)
+
       const { error: deleteError } = await supabase
         .from('player_trials')
         .delete()
@@ -168,6 +319,10 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
 
     try {
       const supabase = createClient()
+
+      // Delete associated calendar events when archiving
+      await deleteTrialCalendarEvents(editTrial.id)
+
       const { error: archiveError } = await supabase
         .from('player_trials')
         .update({ archived: true })

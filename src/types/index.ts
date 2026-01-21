@@ -289,6 +289,7 @@ export type CalendarEventType =
   // Trials
   | 'trial'
   | 'prospect_trial'
+  | 'external_trial'  // ITP player on trial at another club (visible to player)
   // Other
   | 'other'
   | 'visa'

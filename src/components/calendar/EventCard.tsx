@@ -34,6 +34,7 @@ const eventTypeColors: Record<CalendarEventType, { bg: string; text: string; bor
   medical: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-l-green-500' },
   // ITP Player Trials (external) - Purple/Indigo
   trial: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-l-violet-500' },
+  external_trial: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-l-violet-500' },
   // Prospect Trials (incoming to ITP) - Rose/Pink - distinct from player trials
   prospect_trial: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-l-rose-500' },
   // Other
@@ -69,6 +70,7 @@ const getEventTypeLabel = (type: CalendarEventType) => {
     meeting: 'Meeting',
     medical: 'Medical',
     trial: 'Player Trial',
+    external_trial: 'External Trial',
     prospect_trial: 'Prospect Trial',
     visa: 'Visa',
     other: 'Other',
