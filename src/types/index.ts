@@ -587,3 +587,31 @@ export interface ChorePhoto {
   submitted_at: string
   submitted_by?: string
 }
+
+// Player pickup tracking (airport/train station arrivals)
+export interface Pickup {
+  id: string
+  player_id: string
+  assigned_staff_id?: string
+  location_type: 'airport' | 'train_station'
+  location_name: string
+  arrival_date: string
+  arrival_time?: string
+  transport_type: 'warubi_car' | 'koln_van' | 'rental' | 'public_transport'
+  flight_train_number?: string
+  has_family: boolean
+  family_count: number
+  family_notes?: string
+  status: 'scheduled' | 'completed' | 'cancelled'
+  notes?: string
+  calendar_event_id?: string
+  created_at: string
+  updated_at: string
+  // Joined data
+  player?: Pick<Player, 'id' | 'first_name' | 'last_name'>
+  assigned_staff?: {
+    id: string
+    full_name: string
+    email: string
+  }
+}

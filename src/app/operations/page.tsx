@@ -113,6 +113,22 @@ export default async function OperationsPage() {
     `)
     .order('created_at', { ascending: false })
 
+  // Fetch pickups with player and staff info
+  const { data: pickups } = await supabase
+    .from('pickups')
+    .select(`
+      *,
+      player:players(id, first_name, last_name),
+      assigned_staff:staff_profiles(id, full_name, email)
+    `)
+    .order('arrival_date', { ascending: true })
+
+  // Fetch staff profiles for pickup assignment dropdown
+  const { data: staffProfiles } = await supabase
+    .from('staff_profiles')
+    .select('id, full_name')
+    .order('full_name')
+
   // Group documents by player_id
   type PlayerDoc = NonNullable<typeof playerDocs>[number]
   const playerDocuments: Record<string, PlayerDoc[]> = {}
@@ -145,6 +161,8 @@ export default async function OperationsPage() {
         houses={houses || []}
         playerDocuments={playerDocuments}
         chores={chores || []}
+        pickups={pickups || []}
+        staffProfiles={staffProfiles || []}
         currentUserId={user.id}
       />
     </AppLayout>

@@ -30,6 +30,7 @@ import {
   Check,
   X,
   User,
+  Car,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -39,12 +40,13 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/toast'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, getDaysUntil } from '@/lib/utils'
-import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder, PlayerDocument, TrialProspect, Chore } from '@/types'
+import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder, PlayerDocument, TrialProspect, Chore, Pickup } from '@/types'
 import {
   AddWellPassModal,
   AddMedicalAppointmentModal,
   AddInsuranceClaimModal,
   AddTrialModal,
+  AddPickupModal,
 } from '@/components/modals'
 import { RoomAllocation } from '@/components/housing'
 import { VisaDocumentTracking } from '@/components/visa'
@@ -134,6 +136,11 @@ interface House {
   name: string
 }
 
+interface StaffProfile {
+  id: string
+  full_name: string
+}
+
 interface OperationsContentProps {
   players: Player[]
   events: CalendarEvent[]
@@ -148,10 +155,12 @@ interface OperationsContentProps {
   houses: House[]
   playerDocuments?: Record<string, PlayerDocument[]> // playerId -> documents
   chores: Chore[]
+  pickups: Pickup[]
+  staffProfiles: StaffProfile[]
   currentUserId: string
 }
 
-type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery' | 'chores'
+type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery' | 'chores' | 'pickups'
 
 export function OperationsContent({
   players,
@@ -167,6 +176,8 @@ export function OperationsContent({
   houses,
   playerDocuments = {},
   chores: initialChores,
+  pickups: initialPickups,
+  staffProfiles,
   currentUserId,
 }: OperationsContentProps) {
   const router = useRouter()
@@ -199,6 +210,11 @@ export function OperationsContent({
   // Chores state
   const [chores, setChores] = useState(initialChores)
   const [showChoreModal, setShowChoreModal] = useState(false)
+
+  // Pickups state
+  const [localPickups, setLocalPickups] = useState(initialPickups)
+  const [showPickupModal, setShowPickupModal] = useState(false)
+  const [selectedPickup, setSelectedPickup] = useState<Pickup | null>(null)
   const [editingChore, setEditingChore] = useState<Chore | null>(null)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [approvalChore, setApprovalChore] = useState<Chore | null>(null)
@@ -267,6 +283,13 @@ export function OperationsContent({
   const pendingGroceryOrders = groceryOrders.filter((o) =>
     o.status === 'pending'
   )
+
+  // Upcoming pickups (next 14 days, scheduled)
+  const upcomingPickups = localPickups.filter((p) => {
+    if (p.status !== 'scheduled') return false
+    const days = getDaysUntil(p.arrival_date)
+    return days >= 0 && days <= 14
+  })
 
   // Chore counts
   const pendingApprovalChores = chores.filter((c) => c.status === 'pending_approval')
@@ -539,6 +562,7 @@ export function OperationsContent({
     { id: 'trials', label: 'Trials', icon: UserPlus, count: activeTrials.length },
     { id: 'grocery', label: 'Grocery', icon: ShoppingCart, count: pendingGroceryOrders.length },
     { id: 'chores', label: 'Chores', icon: ListTodo, count: pendingApprovalChores.length },
+    { id: 'pickups', label: 'Pickups', icon: Car, count: upcomingPickups.length },
   ]
 
   return (
@@ -2015,6 +2039,158 @@ export function OperationsContent({
         </div>
       )}
 
+      {/* Pickups Tab */}
+      {activeTab === 'pickups' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Player Pickups</h2>
+            <Button onClick={() => { setSelectedPickup(null); setShowPickupModal(true); }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Schedule Pickup
+            </Button>
+          </div>
+
+          {/* Upcoming Pickups Alert */}
+          {upcomingPickups.length > 0 && (
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Car className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-semibold text-blue-900">Upcoming Pickups (Next 14 Days)</h3>
+                </div>
+                <div className="space-y-2">
+                  {upcomingPickups.slice(0, 5).map((pickup) => (
+                    <div key={pickup.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={pickup.player ? `${pickup.player.first_name} ${pickup.player.last_name}` : 'Unknown'} size="sm" />
+                        <div>
+                          <p className="font-medium">
+                            {pickup.player ? `${pickup.player.first_name} ${pickup.player.last_name}` : 'Unknown'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {pickup.location_name}
+                            {pickup.flight_train_number && ` - ${pickup.flight_train_number}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatDate(pickup.arrival_date)}</p>
+                        {pickup.arrival_time && <p className="text-sm text-gray-500">{pickup.arrival_time}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {localPickups.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-gray-500">
+                  <Car className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-lg font-medium">No pickups scheduled</p>
+                  <p className="text-sm">Schedule pickups to track player arrivals</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>All Pickups</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Player</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Date/Time</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Location</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Transport</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Staff</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Family</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {localPickups.map((pickup) => {
+                        const transportLabels: Record<string, string> = {
+                          warubi_car: 'Warubi Car',
+                          koln_van: 'Köln Van',
+                          rental: 'Rental',
+                          public_transport: 'Public Transport',
+                        }
+                        return (
+                          <tr
+                            key={pickup.id}
+                            onClick={() => {
+                              setSelectedPickup(pickup)
+                              setShowPickupModal(true)
+                            }}
+                            className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
+                          >
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <Avatar name={pickup.player ? `${pickup.player.first_name} ${pickup.player.last_name}` : 'Unknown'} size="sm" />
+                                <span className="font-medium">
+                                  {pickup.player ? `${pickup.player.first_name} ${pickup.player.last_name}` : 'Unknown'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <p>{formatDate(pickup.arrival_date)}</p>
+                                {pickup.arrival_time && <p className="text-sm text-gray-500">{pickup.arrival_time}</p>}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <p>{pickup.location_name}</p>
+                                {pickup.flight_train_number && (
+                                  <p className="text-sm text-gray-500">{pickup.flight_train_number}</p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge variant="default">{transportLabels[pickup.transport_type]}</Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              {pickup.assigned_staff ? (
+                                <span>{pickup.assigned_staff.full_name}</span>
+                              ) : (
+                                <span className="text-gray-400">Unassigned</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {pickup.has_family ? (
+                                <span className="text-blue-600">+{pickup.family_count}</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge
+                                variant={
+                                  pickup.status === 'scheduled' ? 'warning' :
+                                  pickup.status === 'completed' ? 'success' : 'danger'
+                                }
+                              >
+                                {pickup.status}
+                              </Badge>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       <AddWellPassModal
         isOpen={showWellPassModal}
@@ -2054,6 +2230,34 @@ export function OperationsContent({
         onSuccess={handleRefresh}
         players={players}
         editTrial={selectedTrial}
+      />
+
+      <AddPickupModal
+        isOpen={showPickupModal}
+        onClose={() => {
+          setShowPickupModal(false)
+          setSelectedPickup(null)
+        }}
+        players={players}
+        staffProfiles={staffProfiles}
+        onSuccess={() => {
+          handleRefresh()
+          // Also refresh local state
+          const refreshPickups = async () => {
+            const supabase = createClient()
+            const { data } = await supabase
+              .from('pickups')
+              .select(`
+                *,
+                player:players(id, first_name, last_name),
+                assigned_staff:staff_profiles(id, full_name, email)
+              `)
+              .order('arrival_date', { ascending: true })
+            if (data) setLocalPickups(data)
+          }
+          refreshPickups()
+        }}
+        editPickup={selectedPickup}
       />
 
     </div>
