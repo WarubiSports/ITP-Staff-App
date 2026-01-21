@@ -56,6 +56,7 @@ interface Player {
   positions?: string[]
   nationality?: string
   date_of_birth?: string
+  jersey_number?: number
   insurance_expiry?: string
   insurance_provider?: string
   insurance_number?: string
@@ -192,6 +193,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
         emergency_contact_name: player.emergency_contact_name || null,
         emergency_contact_phone: player.emergency_contact_phone || null,
         notes: player.notes || null,
+        jersey_number: player.jersey_number || null,
       })
 
       if (result.error) {
@@ -215,7 +217,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
     setError(null)
   }
 
-  const updateField = (field: keyof Player, value: string | string[] | null) => {
+  const updateField = (field: keyof Player, value: string | string[] | number | null) => {
     setPlayer((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -288,6 +290,9 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">
                     {player.first_name} {player.last_name}
+                    {player.jersey_number && (
+                      <span className="ml-2 text-gray-400 font-normal">#{player.jersey_number}</span>
+                    )}
                   </h2>
                   <p className="text-gray-500">{player.player_id}</p>
                   <Badge
@@ -381,6 +386,19 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                     )
                   }
                   disabled={!editing}
+                />
+                <Input
+                  label="Jersey Number"
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={player.jersey_number?.toString() || ''}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    updateField('jersey_number', val ? parseInt(val, 10) : null)
+                  }}
+                  disabled={!editing}
+                  placeholder="e.g., 5"
                 />
               </div>
             </CardContent>

@@ -38,6 +38,7 @@ interface PlayerUpdateData {
   emergency_contact_name?: string | null
   emergency_contact_phone?: string | null
   notes?: string | null
+  jersey_number?: number | null
 }
 
 export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
