@@ -4,7 +4,8 @@ import { useDroppable } from '@dnd-kit/core'
 import { Badge } from '@/components/ui/badge'
 import { DoorOpen } from 'lucide-react'
 import { DraggablePlayer } from './DraggablePlayer'
-import type { Room, WhereaboutsDetails } from '@/types'
+import { DraggableTrialist } from './DraggableTrialist'
+import type { Room, WhereaboutsDetails, TrialProspect } from '@/types'
 
 interface Player {
   id: string
@@ -18,12 +19,14 @@ interface Player {
 interface DroppableRoomProps {
   room: Room
   players: Player[]
+  trialists?: TrialProspect[]
   isUpdating?: boolean
 }
 
-export function DroppableRoom({ room, players, isUpdating }: DroppableRoomProps) {
-  const isFull = players.length >= room.capacity
-  const isEmpty = players.length === 0
+export function DroppableRoom({ room, players, trialists = [], isUpdating }: DroppableRoomProps) {
+  const totalOccupants = players.length + trialists.length
+  const isFull = totalOccupants >= room.capacity
+  const isEmpty = totalOccupants === 0
 
   const { isOver, setNodeRef } = useDroppable({
     id: room.id,
@@ -53,7 +56,7 @@ export function DroppableRoom({ room, players, isUpdating }: DroppableRoomProps)
           variant={isFull ? 'warning' : isEmpty ? 'default' : 'success'}
           className="text-xs"
         >
-          {players.length}/{room.capacity}
+          {totalOccupants}/{room.capacity}
         </Badge>
       </div>
 
@@ -74,13 +77,16 @@ export function DroppableRoom({ room, players, isUpdating }: DroppableRoomProps)
             {players.map((player) => (
               <DraggablePlayer key={player.id} player={player} />
             ))}
+            {trialists.map((trialist) => (
+              <DraggableTrialist key={trialist.id} trialist={trialist} />
+            ))}
             {/* Show drop zone if not full */}
             {!isFull && (
               <div className={`
                 py-2 text-center text-xs text-gray-400 border-2 border-dashed rounded-lg
                 ${isOver ? 'border-blue-300 bg-blue-100/50' : 'border-gray-200'}
               `}>
-                {isOver ? 'Drop here' : `${room.capacity - players.length} bed${room.capacity - players.length > 1 ? 's' : ''} available`}
+                {isOver ? 'Drop here' : `${room.capacity - totalOccupants} bed${room.capacity - totalOccupants > 1 ? 's' : ''} available`}
               </div>
             )}
           </>

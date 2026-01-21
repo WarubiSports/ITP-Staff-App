@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Home, Users, DoorOpen, Plane, UserPlus, Calendar, Hotel, Building } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { DraggablePlayer } from './DraggablePlayer'
+import { DraggableTrialist } from './DraggableTrialist'
 import { DroppableRoom } from './DroppableRoom'
 import { UnassignedPool } from './UnassignedPool'
 import type { Room, WhereaboutsDetails, TrialProspect } from '@/types'
@@ -32,6 +33,17 @@ interface Player {
   whereabouts_details?: WhereaboutsDetails
 }
 
+// Unified type for drag-and-drop (can be player or trialist)
+interface DraggableItem {
+  id: string
+  first_name: string
+  last_name: string
+  room_id?: string
+  isTrialist?: boolean
+  player_id?: string // Only for players
+  position?: string // Only for trialists
+}
+
 interface RoomAllocationProps {
   players: Player[]
   rooms: Room[]
@@ -40,7 +52,7 @@ interface RoomAllocationProps {
 }
 
 export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }: RoomAllocationProps) {
-  const [activePlayer, setActivePlayer] = useState<Player | null>(null)
+  const [activeItem, setActiveItem] = useState<DraggableItem | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
   const sensors = useSensors(
@@ -54,29 +66,64 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
   const unassignedPlayers = players.filter((p) => !p.room_id)
   const houses = ['Widdersdorf 1', 'Widdersdorf 2', 'Widdersdorf 3']
 
+  // Get trialists who want academy housing and aren't assigned to a room yet
+  const unassignedTrialists = trialProspects.filter(p =>
+    (p.accommodation_type === 'house' || !p.accommodation_type) && !p.room_id
+  )
+
   const handleDragStart = (event: DragStartEvent) => {
-    const playerId = event.active.id as string
-    const player = players.find((p) => p.id === playerId)
-    setActivePlayer(player || null)
+    const itemId = event.active.id as string
+
+    // Check if it's a trialist (prefixed with 'trialist-')
+    if (itemId.startsWith('trialist-')) {
+      const trialistId = itemId.replace('trialist-', '')
+      const trialist = trialProspects.find((t) => t.id === trialistId)
+      if (trialist) {
+        setActiveItem({
+          id: trialist.id,
+          first_name: trialist.first_name,
+          last_name: trialist.last_name,
+          room_id: trialist.room_id,
+          isTrialist: true,
+          position: trialist.position,
+        })
+      }
+    } else {
+      // Regular player
+      const player = players.find((p) => p.id === itemId)
+      if (player) {
+        setActiveItem({
+          id: player.id,
+          first_name: player.first_name,
+          last_name: player.last_name,
+          room_id: player.room_id,
+          isTrialist: false,
+          player_id: player.player_id,
+        })
+      }
+    }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
-    setActivePlayer(null)
+    const currentItem = activeItem
+    setActiveItem(null)
 
-    if (!over) return
+    if (!over || !currentItem) return
 
-    const playerId = active.id as string
+    const itemId = active.id as string
     const targetId = over.id as string
-
-    // Find the player
-    const player = players.find((p) => p.id === playerId)
-    if (!player) return
+    const isTrialist = itemId.startsWith('trialist-')
+    const actualId = isTrialist ? itemId.replace('trialist-', '') : itemId
 
     // Check if dropped on unassigned pool
     if (targetId === 'unassigned') {
-      if (player.room_id) {
-        await updatePlayerRoom(playerId, null, null)
+      if (currentItem.room_id) {
+        if (isTrialist) {
+          await updateTrialistRoom(actualId, null)
+        } else {
+          await updatePlayerRoom(actualId, null, null)
+        }
       }
       return
     }
@@ -84,16 +131,23 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
     // Check if dropped on a room
     const room = rooms.find((r) => r.id === targetId)
     if (room) {
-      // Check capacity
-      const currentOccupants = players.filter((p) => p.room_id === room.id).length
-      if (currentOccupants >= room.capacity && player.room_id !== room.id) {
+      // Check capacity - count both players and trialists in the room
+      const playersInRoom = players.filter((p) => p.room_id === room.id).length
+      const trialistsInRoom = trialProspects.filter((t) => t.room_id === room.id).length
+      const currentOccupants = playersInRoom + trialistsInRoom
+
+      if (currentOccupants >= room.capacity && currentItem.room_id !== room.id) {
         // Room is full, don't allow drop
         return
       }
 
-      // Update player's room
-      if (player.room_id !== room.id) {
-        await updatePlayerRoom(playerId, room.id, room.house_id)
+      // Update room assignment
+      if (currentItem.room_id !== room.id) {
+        if (isTrialist) {
+          await updateTrialistRoom(actualId, room.id)
+        } else {
+          await updatePlayerRoom(actualId, room.id, room.house_id)
+        }
       }
     }
   }
@@ -122,6 +176,30 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
       }
     } catch (err) {
       console.error('Error updating player room:', err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const updateTrialistRoom = async (
+    trialistId: string,
+    roomId: string | null
+  ) => {
+    setIsUpdating(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('trial_prospects')
+        .update({ room_id: roomId })
+        .eq('id', trialistId)
+
+      if (error) {
+        console.error('Failed to update trialist room:', error)
+      } else {
+        onUpdate()
+      }
+    } catch (err) {
+      console.error('Error updating trialist room:', err)
     } finally {
       setIsUpdating(false)
     }
@@ -221,9 +299,13 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
             {houses.map((houseName) => {
               const houseRooms = rooms.filter((r) => r.house_id === houseName)
               const houseCapacity = houseRooms.reduce((sum, r) => sum + r.capacity, 0)
-              const houseOccupancy = players.filter(
+              const housePlayerCount = players.filter(
                 (p) => houseRooms.some((r) => r.id === p.room_id)
               ).length
+              const houseTrialistCount = trialProspects.filter(
+                (t) => houseRooms.some((r) => r.id === t.room_id)
+              ).length
+              const houseOccupancy = housePlayerCount + houseTrialistCount
 
               return (
                 <Card key={houseName}>
@@ -244,11 +326,13 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {houseRooms.map((room) => {
                         const roomPlayers = players.filter((p) => p.room_id === room.id)
+                        const roomTrialists = trialProspects.filter((t) => t.room_id === room.id)
                         return (
                           <DroppableRoom
                             key={room.id}
                             room={room}
                             players={roomPlayers}
+                            trialists={roomTrialists}
                             isUpdating={isUpdating}
                           />
                         )
@@ -261,8 +345,9 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
 
             {/* Trial Prospects Section - Academy Housing */}
             {(() => {
+              // Only show trialists who are NOT assigned to a room
               const academyTrialists = trialProspects.filter(p =>
-                p.accommodation_type === 'house' || !p.accommodation_type
+                (p.accommodation_type === 'house' || !p.accommodation_type) && !p.room_id
               )
               const ownStayTrialists = trialProspects.filter(p =>
                 p.accommodation_type && p.accommodation_type !== 'house'
@@ -294,40 +379,12 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
                         </p>
                       </CardHeader>
                       <CardContent>
+                        <p className="text-xs text-blue-600 mb-3">
+                          Drag trialists to a room to assign them
+                        </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {academyTrialists.map((prospect) => (
-                            <div
-                              key={prospect.id}
-                              className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
-                            >
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    {prospect.first_name} {prospect.last_name}
-                                  </p>
-                                  <p className="text-xs text-gray-500">{prospect.position}</p>
-                                </div>
-                                <Badge
-                                  variant={prospect.status === 'in_progress' ? 'success' : 'warning'}
-                                  className="text-[10px]"
-                                >
-                                  {prospect.status === 'in_progress' ? 'Active' : 'Scheduled'}
-                                </Badge>
-                              </div>
-                              {prospect.trial_start_date && prospect.trial_end_date && (
-                                <div className="flex items-center gap-1 mt-2 text-xs text-gray-600">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>
-                                    {formatDate(prospect.trial_start_date)} - {formatDate(prospect.trial_end_date)}
-                                  </span>
-                                </div>
-                              )}
-                              {prospect.accommodation_details && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  📍 {prospect.accommodation_details}
-                                </p>
-                              )}
-                            </div>
+                            <DraggableTrialist key={prospect.id} trialist={prospect} />
                           ))}
                         </div>
                       </CardContent>
@@ -410,9 +467,24 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
 
         {/* Drag Overlay */}
         <DragOverlay>
-          {activePlayer ? (
+          {activeItem ? (
             <div className="bg-white shadow-lg rounded-lg p-2 border-2 border-blue-500">
-              <DraggablePlayer player={activePlayer} isDragging />
+              {activeItem.isTrialist ? (
+                <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                  <span className="text-sm font-medium">{activeItem.first_name} {activeItem.last_name}</span>
+                  <Badge variant="info" className="text-[10px]">Trialist</Badge>
+                </div>
+              ) : (
+                <DraggablePlayer
+                  player={{
+                    id: activeItem.id,
+                    player_id: activeItem.player_id || '',
+                    first_name: activeItem.first_name,
+                    last_name: activeItem.last_name,
+                  }}
+                  isDragging
+                />
+              )}
             </div>
           ) : null}
         </DragOverlay>

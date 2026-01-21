@@ -1,4 +1,5 @@
 export { RoomAllocation } from './RoomAllocation'
 export { DraggablePlayer } from './DraggablePlayer'
+export { DraggableTrialist } from './DraggableTrialist'
 export { DroppableRoom } from './DroppableRoom'
 export { UnassignedPool } from './UnassignedPool'
