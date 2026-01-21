@@ -186,6 +186,7 @@ export function OperationsContent({
   const [showTrialModal, setShowTrialModal] = useState(false)
   const [selectedTrial, setSelectedTrial] = useState<PlayerTrial | null>(null)
   const [selectedAppointment, setSelectedAppointment] = useState<MedicalAppointment | null>(null)
+  const [selectedClaim, setSelectedClaim] = useState<InsuranceClaim | null>(null)
 
   // Chores state
   const [chores, setChores] = useState(initialChores)
@@ -1033,7 +1034,14 @@ export function OperationsContent({
                     </thead>
                     <tbody>
                       {insuranceClaims.map((claim) => (
-                        <tr key={claim.id} className="border-b last:border-0 hover:bg-gray-50">
+                        <tr
+                          key={claim.id}
+                          onClick={() => {
+                            setSelectedClaim(claim)
+                            setShowClaimModal(true)
+                          }}
+                          className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
+                        >
                           <td className="py-3 px-4 font-mono text-sm">{claim.invoice_number}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
@@ -2020,9 +2028,13 @@ export function OperationsContent({
 
       <AddInsuranceClaimModal
         isOpen={showClaimModal}
-        onClose={() => setShowClaimModal(false)}
+        onClose={() => {
+          setShowClaimModal(false)
+          setSelectedClaim(null)
+        }}
         players={players}
         onSuccess={handleRefresh}
+        editClaim={selectedClaim}
       />
 
       <AddTrialModal
