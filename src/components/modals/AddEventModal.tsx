@@ -203,12 +203,18 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
 
     try {
       // Construct full timestamps from date + time
+      // Convert local time (Europe/Berlin) to UTC ISO string for consistent storage
+      const createUtcTimestamp = (date: string, time: string) => {
+        const localDateTime = new Date(`${date}T${time}:00`)
+        return localDateTime.toISOString()
+      }
+
       const startDateTime = formData.all_day
-        ? `${formData.date}T00:00:00`
-        : `${formData.date}T${formData.start_time}:00`
+        ? createUtcTimestamp(formData.date, '00:00')
+        : createUtcTimestamp(formData.date, formData.start_time)
       const endDateTime = formData.all_day
-        ? `${formData.date}T23:59:59`
-        : `${formData.date}T${formData.end_time}:00`
+        ? createUtcTimestamp(formData.date, '23:59')
+        : createUtcTimestamp(formData.date, formData.end_time)
 
       const eventData = {
         title: formData.title,
@@ -252,11 +258,11 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
         if (instances.length > 0) {
           const recurringEvents = instances.map((date) => {
             const instanceStart = formData.all_day
-              ? `${date}T00:00:00`
-              : `${date}T${formData.start_time}:00`
+              ? createUtcTimestamp(date, '00:00')
+              : createUtcTimestamp(date, formData.start_time)
             const instanceEnd = formData.all_day
-              ? `${date}T23:59:59`
-              : `${date}T${formData.end_time}:00`
+              ? createUtcTimestamp(date, '23:59')
+              : createUtcTimestamp(date, formData.end_time)
             return {
               ...eventData,
               date,
