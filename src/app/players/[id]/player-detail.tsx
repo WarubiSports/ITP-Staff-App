@@ -114,11 +114,12 @@ interface WellnessLog {
   id: string
   player_id: string
   date: string
-  sleep_quality: number // 1-5
-  energy_level: number // 1-5
-  muscle_soreness: number // 1-5 (higher = more sore)
-  stress_level: number // 1-5 (higher = more stressed)
-  mood_rating?: number // 1-5
+  sleep_hours?: number
+  sleep_quality: number // 1-10 scale
+  energy_level: number // 1-10 scale
+  muscle_soreness: number // 1-10 (higher = more sore)
+  stress_level: number // 1-10 (higher = more stressed)
+  mood?: string // 'excellent', 'good', 'okay', 'poor', 'bad'
   notes?: string
   created_at: string
 }
@@ -128,7 +129,7 @@ interface TrainingLoad {
   player_id: string
   date: string
   session_type?: string
-  duration_minutes?: number
+  duration?: number // minutes
   load_score: number
   rpe?: number // Rate of Perceived Exertion 1-10
   notes?: string
@@ -610,25 +611,6 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                     const avgSoreness = wellnessLogs.reduce((sum, l) => sum + l.muscle_soreness, 0) / wellnessLogs.length
                     const avgStress = wellnessLogs.reduce((sum, l) => sum + l.stress_level, 0) / wellnessLogs.length
 
-                    // Calculate trend (compare last 7 days to previous 7 days)
-                    const recentLogs = wellnessLogs.slice(0, 7)
-                    const olderLogs = wellnessLogs.slice(7, 14)
-
-                    const getOverallScore = (logs: WellnessLog[]) => {
-                      if (logs.length === 0) return 0
-                      return logs.reduce((sum, l) => {
-                        // Sleep and energy are good when high, soreness and stress are good when low
-                        return sum + l.sleep_quality + l.energy_level + (6 - l.muscle_soreness) + (6 - l.stress_level)
-                      }, 0) / logs.length / 4 // Average of 4 metrics, normalized to 1-5
-                    }
-
-                    const recentScore = getOverallScore(recentLogs)
-                    const olderScore = getOverallScore(olderLogs)
-                    const trend = olderLogs.length > 0 ? recentScore - olderScore : 0
-
-                    const TrendIcon = trend > 0.2 ? TrendingUp : trend < -0.2 ? TrendingDown : Minus
-                    const trendColor = trend > 0.2 ? 'text-green-600' : trend < -0.2 ? 'text-red-600' : 'text-gray-500'
-
                     return (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-indigo-50 p-4 rounded-lg">
@@ -637,7 +619,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             <span className="text-xs font-medium">Sleep</span>
                           </div>
                           <div className="text-2xl font-bold text-indigo-700">{avgSleep.toFixed(1)}</div>
-                          <div className="text-xs text-indigo-500">out of 5</div>
+                          <div className="text-xs text-indigo-500">out of 10</div>
                         </div>
                         <div className="bg-amber-50 p-4 rounded-lg">
                           <div className="flex items-center gap-2 text-amber-600 mb-2">
@@ -645,7 +627,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             <span className="text-xs font-medium">Energy</span>
                           </div>
                           <div className="text-2xl font-bold text-amber-700">{avgEnergy.toFixed(1)}</div>
-                          <div className="text-xs text-amber-500">out of 5</div>
+                          <div className="text-xs text-amber-500">out of 10</div>
                         </div>
                         <div className="bg-red-50 p-4 rounded-lg">
                           <div className="flex items-center gap-2 text-red-600 mb-2">
@@ -653,7 +635,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             <span className="text-xs font-medium">Soreness</span>
                           </div>
                           <div className="text-2xl font-bold text-red-700">{avgSoreness.toFixed(1)}</div>
-                          <div className="text-xs text-red-500">{avgSoreness <= 2 ? 'Low' : avgSoreness <= 3.5 ? 'Moderate' : 'High'}</div>
+                          <div className="text-xs text-red-500">{avgSoreness <= 3 ? 'Low' : avgSoreness <= 6 ? 'Moderate' : 'High'}</div>
                         </div>
                         <div className="bg-purple-50 p-4 rounded-lg">
                           <div className="flex items-center gap-2 text-purple-600 mb-2">
@@ -661,7 +643,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             <span className="text-xs font-medium">Stress</span>
                           </div>
                           <div className="text-2xl font-bold text-purple-700">{avgStress.toFixed(1)}</div>
-                          <div className="text-xs text-purple-500">{avgStress <= 2 ? 'Low' : avgStress <= 3.5 ? 'Moderate' : 'High'}</div>
+                          <div className="text-xs text-purple-500">{avgStress <= 3 ? 'Low' : avgStress <= 6 ? 'Moderate' : 'High'}</div>
                         </div>
                       </div>
                     )
@@ -671,14 +653,15 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-medium text-gray-700">Weekly Trend</span>
-                      {wellnessLogs.length >= 7 && (() => {
-                        const recentLogs = wellnessLogs.slice(0, 7)
-                        const olderLogs = wellnessLogs.slice(7, 14)
+                      {wellnessLogs.length >= 2 && (() => {
+                        const recentLogs = wellnessLogs.slice(0, Math.ceil(wellnessLogs.length / 2))
+                        const olderLogs = wellnessLogs.slice(Math.ceil(wellnessLogs.length / 2))
 
                         const getOverallScore = (logs: WellnessLog[]) => {
                           if (logs.length === 0) return 0
                           return logs.reduce((sum, l) => {
-                            return sum + l.sleep_quality + l.energy_level + (6 - l.muscle_soreness) + (6 - l.stress_level)
+                            // Sleep and energy are good when high (scale 1-10), soreness and stress are good when low
+                            return sum + l.sleep_quality + l.energy_level + (11 - l.muscle_soreness) + (11 - l.stress_level)
                           }, 0) / logs.length / 4
                         }
 
@@ -686,10 +669,10 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                         const olderScore = getOverallScore(olderLogs)
                         const trend = olderLogs.length > 0 ? recentScore - olderScore : 0
 
-                        const TrendIcon = trend > 0.2 ? TrendingUp : trend < -0.2 ? TrendingDown : Minus
-                        const trendColor = trend > 0.2 ? 'text-green-600' : trend < -0.2 ? 'text-red-600' : 'text-gray-500'
-                        const trendBg = trend > 0.2 ? 'bg-green-100' : trend < -0.2 ? 'bg-red-100' : 'bg-gray-100'
-                        const trendText = trend > 0.2 ? 'Improving' : trend < -0.2 ? 'Declining' : 'Stable'
+                        const TrendIcon = trend > 0.5 ? TrendingUp : trend < -0.5 ? TrendingDown : Minus
+                        const trendBg = trend > 0.5 ? 'bg-green-100' : trend < -0.5 ? 'bg-red-100' : 'bg-gray-100'
+                        const trendColor = trend > 0.5 ? 'text-green-600' : trend < -0.5 ? 'text-red-600' : 'text-gray-500'
+                        const trendText = trend > 0.5 ? 'Improving' : trend < -0.5 ? 'Declining' : 'Stable'
 
                         return (
                           <div className={`flex items-center gap-1 px-2 py-1 rounded ${trendBg} ${trendColor}`}>
@@ -713,34 +696,34 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             <div className="flex items-center gap-4">
                               <span title="Sleep Quality" className="flex items-center gap-1">
                                 <Moon className="w-3 h-3 text-indigo-500" />
-                                <span className={log.sleep_quality >= 4 ? 'text-green-600' : log.sleep_quality >= 3 ? 'text-amber-600' : 'text-red-600'}>
+                                <span className={log.sleep_quality >= 7 ? 'text-green-600' : log.sleep_quality >= 5 ? 'text-amber-600' : 'text-red-600'}>
                                   {log.sleep_quality}
                                 </span>
                               </span>
                               <span title="Energy Level" className="flex items-center gap-1">
                                 <Battery className="w-3 h-3 text-amber-500" />
-                                <span className={log.energy_level >= 4 ? 'text-green-600' : log.energy_level >= 3 ? 'text-amber-600' : 'text-red-600'}>
+                                <span className={log.energy_level >= 7 ? 'text-green-600' : log.energy_level >= 5 ? 'text-amber-600' : 'text-red-600'}>
                                   {log.energy_level}
                                 </span>
                               </span>
                               <span title="Muscle Soreness" className="flex items-center gap-1">
                                 <Activity className="w-3 h-3 text-red-500" />
-                                <span className={log.muscle_soreness <= 2 ? 'text-green-600' : log.muscle_soreness <= 3 ? 'text-amber-600' : 'text-red-600'}>
+                                <span className={log.muscle_soreness <= 3 ? 'text-green-600' : log.muscle_soreness <= 6 ? 'text-amber-600' : 'text-red-600'}>
                                   {log.muscle_soreness}
                                 </span>
                               </span>
                               <span title="Stress Level" className="flex items-center gap-1">
                                 <Brain className="w-3 h-3 text-purple-500" />
-                                <span className={log.stress_level <= 2 ? 'text-green-600' : log.stress_level <= 3 ? 'text-amber-600' : 'text-red-600'}>
+                                <span className={log.stress_level <= 3 ? 'text-green-600' : log.stress_level <= 6 ? 'text-amber-600' : 'text-red-600'}>
                                   {log.stress_level}
                                 </span>
                               </span>
                             </div>
                           </div>
-                          {log.notes && (
-                            <span className="text-xs text-gray-400 truncate max-w-32" title={log.notes}>
-                              {log.notes}
-                            </span>
+                          {log.mood && (
+                            <Badge variant={log.mood === 'excellent' || log.mood === 'good' ? 'success' : log.mood === 'okay' ? 'warning' : 'danger'} className="text-xs">
+                              {log.mood}
+                            </Badge>
                           )}
                         </div>
                       ))}
@@ -773,7 +756,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                     const totalSessions = trainingLoads.length
                     const totalLoad = trainingLoads.reduce((sum, t) => sum + t.load_score, 0)
                     const avgLoad = totalLoad / totalSessions
-                    const totalMinutes = trainingLoads.reduce((sum, t) => sum + (t.duration_minutes || 0), 0)
+                    const totalMinutes = trainingLoads.reduce((sum, t) => sum + (t.duration || 0), 0)
                     const avgRpe = trainingLoads.filter(t => t.rpe).reduce((sum, t) => sum + (t.rpe || 0), 0) /
                                    (trainingLoads.filter(t => t.rpe).length || 1)
 
@@ -876,9 +859,9 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             )}
                           </div>
                           <div className="flex items-center gap-4">
-                            {load.duration_minutes && (
+                            {load.duration && (
                               <span className="text-gray-600 text-xs">
-                                {load.duration_minutes} min
+                                {load.duration} min
                               </span>
                             )}
                             <span className="font-medium text-gray-900">
