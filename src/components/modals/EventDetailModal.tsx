@@ -139,6 +139,89 @@ async function supabaseDeleteByEventId(table: string, eventId: string): Promise<
   }
 }
 
+// Delete all events in a recurring series (parent + all children)
+async function supabaseDeleteRecurringSeries(parentEventId: string): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    // Delete all child events first
+    const childResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?parent_event_id=eq.${parentEventId}`, {
+      method: 'DELETE',
+      headers,
+    })
+    if (!childResponse.ok) {
+      const errorData = await childResponse.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${childResponse.status}`)
+    }
+
+    // Delete the parent event
+    const parentResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${parentEventId}`, {
+      method: 'DELETE',
+      headers,
+    })
+    if (!parentResponse.ok) {
+      const errorData = await parentResponse.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${parentResponse.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
+// Update all events in a recurring series (parent + all children)
+async function supabaseUpdateRecurringSeries(
+  parentEventId: string,
+  data: Record<string, unknown>
+): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    // Update parent event (but preserve date/start_time/end_time)
+    const { date, start_time, end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
+
+    const parentResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${parentEventId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(seriesData),
+    })
+    if (!parentResponse.ok) {
+      const errorData = await parentResponse.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${parentResponse.status}`)
+    }
+
+    // Update all child events (but preserve their individual dates)
+    const childResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?parent_event_id=eq.${parentEventId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(seriesData),
+    })
+    if (!childResponse.ok) {
+      const errorData = await childResponse.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${childResponse.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
 async function supabaseBulkInsert(table: string, data: Record<string, unknown>[]): Promise<{ error: Error | null }> {
   const token = getAuthToken()
   const headers: Record<string, string> = {
@@ -210,11 +293,17 @@ export function EventDetailModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showSeriesOptions, setShowSeriesOptions] = useState<'edit' | 'delete' | null>(null)
+  const [editMode, setEditMode] = useState<'single' | 'series'>('single')
 
   // Check if this is a synthetic event (medical, trial, prospect)
   const isMedicalEvent = event.id.startsWith('medical-')
   const isTrialEvent = event.id.startsWith('trial-') || event.id.startsWith('prospect-')
   const isReadOnly = isMedicalEvent || isTrialEvent
+
+  // Check if event is part of a recurring series
+  const isPartOfSeries = event.is_recurring || !!event.parent_event_id
+  const parentEventId = event.parent_event_id || (event.is_recurring ? event.id : null)
 
   // Helper to parse time from either ISO format or time-only string
   const parseTime = (timeStr: string | undefined): string => {
@@ -237,7 +326,7 @@ export function EventDetailModal({
     selectedPlayers: event.attendees?.map((a) => a.player_id) || [],
   })
 
-  const handleSave = async () => {
+  const handleSave = async (mode: 'single' | 'series' = 'single') => {
     setError('')
     setLoading(true)
 
@@ -249,8 +338,7 @@ export function EventDetailModal({
         ? `${formData.date}T23:59:59`
         : `${formData.date}T${formData.end_time}:00`
 
-      // Update event
-      const { error: updateError } = await supabaseUpdate('events', event.id, {
+      const updateData = {
         title: formData.title,
         date: formData.date,
         start_time: startDateTime,
@@ -259,14 +347,21 @@ export function EventDetailModal({
         location: formData.location || null,
         description: formData.description || null,
         all_day: formData.all_day,
-      })
+      }
 
-      if (updateError) throw updateError
+      if (mode === 'series' && parentEventId) {
+        // Update all events in the series (title, type, location, description, all_day)
+        const { error: updateError } = await supabaseUpdateRecurringSeries(parentEventId, updateData)
+        if (updateError) throw updateError
+      } else {
+        // Update single event
+        const { error: updateError } = await supabaseUpdate('events', event.id, updateData)
+        if (updateError) throw updateError
+      }
 
-      // Update attendees - first delete existing
+      // Update attendees for this specific event only
       await supabaseDeleteByEventId('event_attendees', event.id)
 
-      // Then insert new attendees
       if (formData.selectedPlayers.length > 0) {
         const attendees = formData.selectedPlayers.map((playerId) => ({
           event_id: event.id,
@@ -278,6 +373,7 @@ export function EventDetailModal({
       }
 
       setIsEditing(false)
+      setShowSeriesOptions(null)
       onUpdate()
       onClose()
     } catch (err) {
@@ -287,13 +383,21 @@ export function EventDetailModal({
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (mode: 'single' | 'series' = 'single') => {
     setLoading(true)
     try {
-      const { error } = await supabaseDelete('events', event.id)
+      if (mode === 'series' && parentEventId) {
+        // Delete all events in the series
+        const { error } = await supabaseDeleteRecurringSeries(parentEventId)
+        if (error) throw error
+      } else {
+        // Delete single event
+        const { error } = await supabaseDelete('events', event.id)
+        if (error) throw error
+      }
 
-      if (error) throw error
-
+      setShowDeleteConfirm(false)
+      setShowSeriesOptions(null)
       onDelete()
       onClose()
     } catch (err) {
@@ -324,14 +428,30 @@ export function EventDetailModal({
         </div>
         {!isReadOnly && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (isPartOfSeries) {
+                  setShowSeriesOptions('edit')
+                } else {
+                  setIsEditing(true)
+                }
+              }}
+            >
               <Edit2 className="w-4 h-4 mr-1" />
               Edit
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={() => {
+                if (isPartOfSeries) {
+                  setShowSeriesOptions('delete')
+                } else {
+                  setShowDeleteConfirm(true)
+                }
+              }}
               className="text-red-600 hover:bg-red-50"
             >
               <Trash2 className="w-4 h-4" />
@@ -349,6 +469,67 @@ export function EventDetailModal({
       {isTrialEvent && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
           To edit this trial, go to <strong>Operations → Trials</strong> or the player&apos;s profile
+        </div>
+      )}
+
+      {isPartOfSeries && (
+        <div className="p-2 bg-purple-50 border border-purple-200 rounded-lg text-purple-700 text-xs flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>This event is part of a recurring series</span>
+        </div>
+      )}
+
+      {/* Series Options Dialog */}
+      {showSeriesOptions && (
+        <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-sm text-gray-800 mb-3 font-medium">
+            {showSeriesOptions === 'edit' ? 'Edit recurring event' : 'Delete recurring event'}
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (showSeriesOptions === 'edit') {
+                  setEditMode('single')
+                  setIsEditing(true)
+                } else {
+                  setShowDeleteConfirm(true)
+                }
+                setShowSeriesOptions(null)
+              }}
+              className="justify-start"
+            >
+              {showSeriesOptions === 'edit' ? 'Edit this event only' : 'Delete this event only'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (showSeriesOptions === 'edit') {
+                  setEditMode('series')
+                  setIsEditing(true)
+                } else {
+                  handleDelete('series')
+                }
+                setShowSeriesOptions(null)
+              }}
+              className={`justify-start ${showSeriesOptions === 'delete' ? 'text-red-600 hover:bg-red-50' : ''}`}
+              disabled={loading}
+            >
+              {loading ? 'Processing...' : showSeriesOptions === 'edit' ? 'Edit all events in series' : 'Delete all events in series'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSeriesOptions(null)}
+              className="justify-start text-gray-500"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
 
@@ -407,7 +588,7 @@ export function EventDetailModal({
             <Button
               variant="danger"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => handleDelete('single')}
               disabled={loading}
             >
               {loading ? 'Deleting...' : 'Delete Event'}
@@ -430,13 +611,19 @@ export function EventDetailModal({
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        handleSave()
+        handleSave(editMode)
       }}
       className="space-y-4"
     >
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
+        </div>
+      )}
+
+      {editMode === 'series' && (
+        <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-purple-700 text-sm">
+          <strong>Editing all events in series.</strong> Changes to title, type, location, and description will apply to all events. Date and time changes will only apply to this event.
         </div>
       )}
 
@@ -545,14 +732,17 @@ export function EventDetailModal({
         <Button
           type="button"
           variant="outline"
-          onClick={() => setIsEditing(false)}
+          onClick={() => {
+            setIsEditing(false)
+            setEditMode('single')
+          }}
         >
           <X className="w-4 h-4 mr-1" />
           Cancel
         </Button>
         <Button type="submit" disabled={loading}>
           <Save className="w-4 h-4 mr-1" />
-          {loading ? 'Saving...' : 'Save Changes'}
+          {loading ? 'Saving...' : editMode === 'series' ? 'Save All' : 'Save Changes'}
         </Button>
       </div>
     </form>

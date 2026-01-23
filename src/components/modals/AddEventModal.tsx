@@ -266,7 +266,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
           formData.recurrence_days
         )
 
-        if (instances.length > 0) {
+        if (instances.length > 0 && insertedEvent) {
           const recurringEvents = instances.map((date) => {
             const instanceStart = formData.all_day
               ? createBerlinTimestamp(date, '00:00')
@@ -280,6 +280,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
               start_time: instanceStart,
               end_time: instanceEnd,
               is_recurring: false, // Instances are not recurring themselves
+              parent_event_id: insertedEvent.id, // Link to parent event
             }
           })
 
