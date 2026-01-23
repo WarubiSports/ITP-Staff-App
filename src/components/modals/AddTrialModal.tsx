@@ -114,26 +114,37 @@ async function createTrialCalendarEvents(
 async function deleteTrialCalendarEvents(trialId: string) {
   const supabase = createClient()
 
-  // Find events with this trial ID in description
-  const { data: events } = await supabase
-    .from('events')
-    .select('id')
-    .like('description', `[TRIAL:${trialId}]%`)
-
-  if (events && events.length > 0) {
-    const eventIds = events.map(e => e.id)
-
-    // Delete attendees first (foreign key constraint)
-    await supabase
-      .from('event_attendees')
-      .delete()
-      .in('event_id', eventIds)
-
-    // Delete events
-    await supabase
+  try {
+    // Find events with this trial ID in description
+    const { data: events, error: findError } = await supabase
       .from('events')
-      .delete()
-      .in('id', eventIds)
+      .select('id')
+      .like('description', `[TRIAL:${trialId}]%`)
+
+    if (findError) {
+      console.warn('[deleteTrialCalendarEvents] Error finding events:', findError)
+      return // Don't block trial deletion if event cleanup fails
+    }
+
+    if (events && events.length > 0) {
+      const eventIds = events.map(e => e.id)
+      console.log('[deleteTrialCalendarEvents] Deleting', eventIds.length, 'calendar events')
+
+      // Delete attendees first (foreign key constraint)
+      await supabase
+        .from('event_attendees')
+        .delete()
+        .in('event_id', eventIds)
+
+      // Delete events
+      await supabase
+        .from('events')
+        .delete()
+        .in('id', eventIds)
+    }
+  } catch (err) {
+    console.warn('[deleteTrialCalendarEvents] Error:', err)
+    // Don't throw - let trial deletion proceed even if event cleanup fails
   }
 }
 
@@ -292,13 +303,23 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
     try {
       const supabase = createClient()
 
+      console.log('[DeleteTrial] Starting delete for trial:', editTrial.id)
+
       // Delete associated calendar events first
       await deleteTrialCalendarEvents(editTrial.id)
+      console.log('[DeleteTrial] Calendar events deleted')
 
-      const { error: deleteError } = await supabase
+      const { error: deleteError, data: deletedRows } = await supabase
         .from('player_trials')
         .delete()
         .eq('id', editTrial.id)
+        .select()
+
+      console.log('[DeleteTrial] Delete result:', { error: deleteError, deletedRows })
+
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error('Trial not found or already deleted')
+      }
 
       if (deleteError) throw deleteError
 
@@ -306,6 +327,7 @@ export function AddTrialModal({ isOpen, onClose, onSuccess, players, editTrial }
       onSuccess()
       onClose()
     } catch (err) {
+      console.error('[DeleteTrial] Error:', err)
       setError(err instanceof Error ? err.message : 'Failed to delete trial')
     } finally {
       setDeleting(false)
