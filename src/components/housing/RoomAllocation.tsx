@@ -22,6 +22,11 @@ import { DroppableRoom } from './DroppableRoom'
 import { UnassignedPool } from './UnassignedPool'
 import type { Room, WhereaboutsDetails, TrialProspect } from '@/types'
 
+interface HouseInfo {
+  id: string
+  name: string
+}
+
 interface Player {
   id: string
   player_id: string
@@ -47,11 +52,12 @@ interface DraggableItem {
 interface RoomAllocationProps {
   players: Player[]
   rooms: Room[]
+  houses: HouseInfo[]
   trialProspects?: TrialProspect[]
   onUpdate: () => void
 }
 
-export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }: RoomAllocationProps) {
+export function RoomAllocation({ players, rooms, houses, trialProspects = [], onUpdate }: RoomAllocationProps) {
   const [activeItem, setActiveItem] = useState<DraggableItem | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
 
@@ -64,7 +70,6 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
   )
 
   const unassignedPlayers = players.filter((p) => !p.room_id)
-  const houses = ['Widdersdorf 1', 'Widdersdorf 2', 'Widdersdorf 3']
 
   // Get trialists who want academy housing and aren't assigned to a room yet
   const unassignedTrialists = trialProspects.filter(p =>
@@ -296,8 +301,8 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
 
           {/* Houses and Rooms */}
           <div className="lg:col-span-3 space-y-4">
-            {houses.map((houseName) => {
-              const houseRooms = rooms.filter((r) => r.house_id === houseName)
+            {houses.map((house) => {
+              const houseRooms = rooms.filter((r) => r.house_id === house.id)
               const houseCapacity = houseRooms.reduce((sum, r) => sum + r.capacity, 0)
               const housePlayerCount = players.filter(
                 (p) => houseRooms.some((r) => r.id === p.room_id)
@@ -308,12 +313,12 @@ export function RoomAllocation({ players, rooms, trialProspects = [], onUpdate }
               const houseOccupancy = housePlayerCount + houseTrialistCount
 
               return (
-                <Card key={houseName}>
+                <Card key={house.id}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
                         <Home className="w-5 h-5 text-gray-400" />
-                        {houseName}
+                        {house.name}
                       </CardTitle>
                       <Badge
                         variant={houseOccupancy >= houseCapacity ? 'warning' : 'success'}

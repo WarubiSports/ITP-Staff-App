@@ -616,6 +616,7 @@ export function OperationsContent({
         <RoomAllocation
           players={players}
           rooms={rooms}
+          houses={houses}
           trialProspects={trialProspects}
           onUpdate={handleRefresh}
         />
