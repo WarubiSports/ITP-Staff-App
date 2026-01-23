@@ -37,13 +37,17 @@ export default async function PlayerDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  // Calculate date 90 days ago for attendance stats
+  // Calculate date ranges for data fetching
   const ninetyDaysAgo = new Date()
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
   const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0]
 
-  // Fetch houses, rooms, documents, attendance, and archived trials in parallel
-  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }, { data: archivedTrials }] = await Promise.all([
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
+
+  // Fetch houses, rooms, documents, attendance, archived trials, wellness logs, and training loads in parallel
+  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }, { data: archivedTrials }, { data: wellnessLogs }, { data: trainingLoads }] = await Promise.all([
     supabase.from('houses').select('id, name, address').order('name'),
     supabase.from('rooms').select('id, name, house_id, capacity, floor').order('name'),
     supabase
@@ -63,6 +67,18 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .eq('player_id', player.id)
       .eq('archived', true)
       .order('trial_start_date', { ascending: false }),
+    supabase
+      .from('wellness_logs')
+      .select('*')
+      .eq('player_id', player.id)
+      .gte('date', thirtyDaysAgoStr)
+      .order('date', { ascending: false }),
+    supabase
+      .from('training_loads')
+      .select('*')
+      .eq('player_id', player.id)
+      .gte('date', thirtyDaysAgoStr)
+      .order('date', { ascending: false }),
   ])
 
   // Find assigned room if player has room_id
@@ -84,6 +100,8 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         documents={documents || []}
         attendance={attendance || []}
         archivedTrials={archivedTrials || []}
+        wellnessLogs={wellnessLogs || []}
+        trainingLoads={trainingLoads || []}
       />
     </AppLayout>
   )
