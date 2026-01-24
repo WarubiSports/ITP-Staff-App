@@ -55,17 +55,26 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
 
-  // Filter prospects
-  const filteredProspects = prospects.filter((prospect) => {
-    const matchesSearch =
-      `${prospect.first_name} ${prospect.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-      prospect.current_club?.toLowerCase().includes(search.toLowerCase()) ||
-      prospect.nationality?.toLowerCase().includes(search.toLowerCase())
+  // Filter and sort prospects chronologically by trial start date
+  const filteredProspects = prospects
+    .filter((prospect) => {
+      const matchesSearch =
+        `${prospect.first_name} ${prospect.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
+        prospect.current_club?.toLowerCase().includes(search.toLowerCase()) ||
+        prospect.nationality?.toLowerCase().includes(search.toLowerCase())
 
-    const matchesStatus = statusFilter === 'all' || prospect.status === statusFilter
+      const matchesStatus = statusFilter === 'all' || prospect.status === statusFilter
 
-    return matchesSearch && matchesStatus
-  })
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      // Sort by trial_start_date chronologically (earliest first)
+      // Prospects without trial dates go to the end
+      if (!a.trial_start_date && !b.trial_start_date) return 0
+      if (!a.trial_start_date) return 1
+      if (!b.trial_start_date) return -1
+      return new Date(a.trial_start_date).getTime() - new Date(b.trial_start_date).getTime()
+    })
 
   // Count by status
   const statusCounts = {
