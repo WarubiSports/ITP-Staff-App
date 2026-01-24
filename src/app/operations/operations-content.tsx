@@ -198,6 +198,15 @@ export function OperationsContent({
   const [localArchivedTrials, setLocalArchivedTrials] = useState(archivedTrials)
   const [showArchivedTrials, setShowArchivedTrials] = useState(false)
 
+  // Sync local trials when props change (e.g., after router.refresh())
+  useEffect(() => {
+    setLocalTrials(trials)
+  }, [trials])
+
+  useEffect(() => {
+    setLocalArchivedTrials(archivedTrials)
+  }, [archivedTrials])
+
   // Modal states
   const [showWellPassModal, setShowWellPassModal] = useState(false)
   const [showMedicalModal, setShowMedicalModal] = useState(false)
