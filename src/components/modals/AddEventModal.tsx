@@ -202,11 +202,23 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     setLoading(true)
 
     try {
-      // Construct full timestamps from date + time
-      // Store as naive timestamps (no timezone offset) so they display exactly as entered
-      // All events are assumed to be in Europe/Berlin timezone (Cologne training facility)
+      // Calculate Berlin timezone offset (handles DST automatically)
+      // CET = +01:00 (winter), CEST = +02:00 (summer)
+      const getBerlinOffset = (dateStr: string) => {
+        const date = new Date(dateStr + 'T12:00:00Z')
+        const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }))
+        const berlinDate = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
+        const offsetMinutes = (berlinDate.getTime() - utcDate.getTime()) / 60000
+        const offsetHours = Math.floor(offsetMinutes / 60)
+        const sign = offsetHours >= 0 ? '+' : '-'
+        return `${sign}${String(Math.abs(offsetHours)).padStart(2, '0')}:00`
+      }
+
+      // Construct full timestamps with Berlin timezone offset
+      // PostgreSQL will convert to UTC for storage, preserving the intended local time
       const createTimestamp = (date: string, time: string) => {
-        return `${date}T${time}:00`
+        const offset = getBerlinOffset(date)
+        return `${date}T${time}:00${offset}`
       }
 
       const startDateTime = formData.all_day
