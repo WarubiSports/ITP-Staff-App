@@ -177,6 +177,103 @@ async function supabaseDeleteRecurringSeries(parentEventId: string): Promise<{ e
   }
 }
 
+// Delete all events in an orphaned recurring series (events that share the same title, type, and recurrence_rule but have no parent link)
+async function supabaseDeleteOrphanedSeries(event: { title: string; type: string; recurrence_rule?: string | null; start_time?: string }): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Prefer': 'return=representation, count=exact', // Return deleted rows and count
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  console.log('[DELETE SERIES] Starting orphaned series delete')
+  console.log('[DELETE SERIES] Event:', { title: event.title, type: event.type, recurrence_rule: event.recurrence_rule })
+  console.log('[DELETE SERIES] Has auth token:', !!token)
+
+  try {
+    // Build query to match series events by title, type, recurrence_rule
+    let url = `${SUPABASE_URL}/rest/v1/events?title=eq.${encodeURIComponent(event.title)}&type=eq.${encodeURIComponent(event.type)}`
+    if (event.recurrence_rule) {
+      url += `&recurrence_rule=eq.${encodeURIComponent(event.recurrence_rule)}`
+    }
+
+    console.log('[DELETE SERIES] URL:', url)
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers,
+    })
+
+    console.log('[DELETE SERIES] Response status:', response.status)
+    console.log('[DELETE SERIES] Response headers:')
+    response.headers.forEach((value, key) => {
+      console.log(`  ${key}: ${value}`)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.log('[DELETE SERIES] Error response:', errorData)
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    // With 'return=representation', we get the deleted rows
+    const deletedRows = await response.json().catch(() => [])
+    console.log('[DELETE SERIES] Deleted rows count:', Array.isArray(deletedRows) ? deletedRows.length : 'N/A')
+    if (Array.isArray(deletedRows) && deletedRows.length > 0) {
+      console.log('[DELETE SERIES] First deleted row:', deletedRows[0])
+    }
+
+    return { error: null }
+  } catch (err) {
+    console.error('[DELETE SERIES] Error:', err)
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
+// Update all events in an orphaned recurring series
+async function supabaseUpdateOrphanedSeries(
+  event: { title: string; type: string; recurrence_rule?: string | null },
+  data: Record<string, unknown>
+): Promise<{ error: Error | null }> {
+  const token = getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  try {
+    // Remove date/time fields from series update (each event keeps its own date/time)
+    const { date, start_time, end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
+
+    // Build query to match series events
+    let url = `${SUPABASE_URL}/rest/v1/events?title=eq.${encodeURIComponent(event.title)}&type=eq.${encodeURIComponent(event.type)}`
+    if (event.recurrence_rule) {
+      url += `&recurrence_rule=eq.${encodeURIComponent(event.recurrence_rule)}`
+    }
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(seriesData),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    return { error: null }
+  } catch (err) {
+    return { error: err instanceof Error ? err : new Error(String(err)) }
+  }
+}
+
 // Update all events in a recurring series (parent + all children)
 async function supabaseUpdateRecurringSeries(
   parentEventId: string,
@@ -302,8 +399,10 @@ export function EventDetailModal({
   const isReadOnly = isMedicalEvent || isTrialEvent
 
   // Check if event is part of a recurring series
-  const isPartOfSeries = event.is_recurring || !!event.parent_event_id
+  // Include events with recurrence_rule but missing parent_event_id (orphaned series)
+  const isPartOfSeries = event.is_recurring || !!event.parent_event_id || !!event.recurrence_rule
   const parentEventId = event.parent_event_id || (event.is_recurring ? event.id : null)
+  const isOrphanedSeries = !!event.recurrence_rule && !event.parent_event_id && !event.is_recurring
 
   // Helper to parse time from either ISO format or time-only string
   const parseTime = (timeStr: string | undefined): string => {
@@ -349,10 +448,19 @@ export function EventDetailModal({
         all_day: formData.all_day,
       }
 
-      if (mode === 'series' && parentEventId) {
-        // Update all events in the series (title, type, location, description, all_day)
-        const { error: updateError } = await supabaseUpdateRecurringSeries(parentEventId, updateData)
-        if (updateError) throw updateError
+      if (mode === 'series') {
+        if (parentEventId) {
+          // Update all events in the series via parent link
+          const { error: updateError } = await supabaseUpdateRecurringSeries(parentEventId, updateData)
+          if (updateError) throw updateError
+        } else if (isOrphanedSeries) {
+          // Update orphaned series by matching title, type, and recurrence_rule
+          const { error: updateError } = await supabaseUpdateOrphanedSeries(
+            { title: event.title, type: event.type, recurrence_rule: event.recurrence_rule },
+            updateData
+          )
+          if (updateError) throw updateError
+        }
       } else {
         // Update single event
         const { error: updateError } = await supabaseUpdate('events', event.id, updateData)
@@ -384,23 +492,47 @@ export function EventDetailModal({
   }
 
   const handleDelete = async (mode: 'single' | 'series' = 'single') => {
+    console.log('[handleDelete] Called with mode:', mode)
+    console.log('[handleDelete] Event:', { id: event.id, title: event.title, type: event.type, recurrence_rule: event.recurrence_rule, is_recurring: event.is_recurring, parent_event_id: event.parent_event_id })
+    console.log('[handleDelete] isPartOfSeries:', isPartOfSeries)
+    console.log('[handleDelete] parentEventId:', parentEventId)
+    console.log('[handleDelete] isOrphanedSeries:', isOrphanedSeries)
+
     setLoading(true)
     try {
-      if (mode === 'series' && parentEventId) {
-        // Delete all events in the series
-        const { error } = await supabaseDeleteRecurringSeries(parentEventId)
-        if (error) throw error
+      if (mode === 'series') {
+        if (parentEventId) {
+          console.log('[handleDelete] Using supabaseDeleteRecurringSeries with parentEventId:', parentEventId)
+          // Delete all events in the series via parent link
+          const { error } = await supabaseDeleteRecurringSeries(parentEventId)
+          if (error) throw error
+        } else if (isOrphanedSeries) {
+          console.log('[handleDelete] Using supabaseDeleteOrphanedSeries')
+          // Delete orphaned series by matching title, type, and recurrence_rule
+          const { error } = await supabaseDeleteOrphanedSeries({
+            title: event.title,
+            type: event.type,
+            recurrence_rule: event.recurrence_rule,
+            start_time: event.start_time,
+          })
+          if (error) throw error
+        } else {
+          console.log('[handleDelete] WARNING: mode=series but no valid delete method!')
+        }
       } else {
+        console.log('[handleDelete] Using supabaseDelete for single event')
         // Delete single event
         const { error } = await supabaseDelete('events', event.id)
         if (error) throw error
       }
 
+      console.log('[handleDelete] Delete successful, closing modal')
       setShowDeleteConfirm(false)
       setShowSeriesOptions(null)
       onDelete()
       onClose()
     } catch (err) {
+      console.error('[handleDelete] Error:', err)
       setError(err instanceof Error ? err.message : 'Failed to delete event')
     } finally {
       setLoading(false)
@@ -492,6 +624,8 @@ export function EventDetailModal({
               variant="outline"
               size="sm"
               onClick={() => {
+                console.log('[CLICK] "Delete/Edit this event only" button clicked')
+                console.log('[CLICK] showSeriesOptions:', showSeriesOptions)
                 if (showSeriesOptions === 'edit') {
                   setEditMode('single')
                   setIsEditing(true)
@@ -507,14 +641,18 @@ export function EventDetailModal({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
+              onClick={async () => {
+                console.log('[CLICK] "Delete/Edit all events in series" button clicked')
+                console.log('[CLICK] showSeriesOptions:', showSeriesOptions)
                 if (showSeriesOptions === 'edit') {
                   setEditMode('series')
                   setIsEditing(true)
+                  setShowSeriesOptions(null)
                 } else {
-                  handleDelete('series')
+                  // Don't clear showSeriesOptions until delete completes
+                  await handleDelete('series')
+                  setShowSeriesOptions(null)
                 }
-                setShowSeriesOptions(null)
               }}
               className={`justify-start ${showSeriesOptions === 'delete' ? 'text-red-600 hover:bg-red-50' : ''}`}
               disabled={loading}

@@ -203,29 +203,18 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
 
     try {
       // Construct full timestamps from date + time
-      // Events are always in Europe/Berlin timezone (Cologne training facility)
-      // We explicitly set the Berlin offset to ensure correct storage regardless of user's browser timezone
-      const getBerlinOffset = (dateStr: string) => {
-        const date = new Date(dateStr + 'T12:00:00Z')
-        const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }))
-        const berlinDate = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
-        const offsetMinutes = (berlinDate.getTime() - utcDate.getTime()) / 60000
-        const offsetHours = Math.floor(offsetMinutes / 60)
-        const sign = offsetHours >= 0 ? '+' : '-'
-        return `${sign}${String(Math.abs(offsetHours)).padStart(2, '0')}:00`
-      }
-
-      const createBerlinTimestamp = (date: string, time: string) => {
-        const offset = getBerlinOffset(date)
-        return `${date}T${time}:00${offset}`
+      // Store as naive timestamps (no timezone offset) so they display exactly as entered
+      // All events are assumed to be in Europe/Berlin timezone (Cologne training facility)
+      const createTimestamp = (date: string, time: string) => {
+        return `${date}T${time}:00`
       }
 
       const startDateTime = formData.all_day
-        ? createBerlinTimestamp(formData.date, '00:00')
-        : createBerlinTimestamp(formData.date, formData.start_time)
+        ? createTimestamp(formData.date, '00:00')
+        : createTimestamp(formData.date, formData.start_time)
       const endDateTime = formData.all_day
-        ? createBerlinTimestamp(formData.date, '23:59')
-        : createBerlinTimestamp(formData.date, formData.end_time)
+        ? createTimestamp(formData.date, '23:59')
+        : createTimestamp(formData.date, formData.end_time)
 
       const eventData = {
         title: formData.title,
@@ -269,11 +258,11 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
         if (instances.length > 0 && insertedEvent) {
           const recurringEvents = instances.map((date) => {
             const instanceStart = formData.all_day
-              ? createBerlinTimestamp(date, '00:00')
-              : createBerlinTimestamp(date, formData.start_time)
+              ? createTimestamp(date, '00:00')
+              : createTimestamp(date, formData.start_time)
             const instanceEnd = formData.all_day
-              ? createBerlinTimestamp(date, '23:59')
-              : createBerlinTimestamp(date, formData.end_time)
+              ? createTimestamp(date, '23:59')
+              : createTimestamp(date, formData.end_time)
             return {
               ...eventData,
               date,
