@@ -16,23 +16,30 @@ export function formatDate(date: string | Date): string {
 export function formatTime(time: string): string {
   if (!time) return ''
 
-  // Handle ISO timestamp format (e.g., "2026-01-16T08:40:00")
-  let timeStr = time
-  if (time.includes('T')) {
-    timeStr = time.split('T')[1]?.slice(0, 5) || ''
+  // Handle simple time strings like "14:30" or "14:30:00"
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
+    const [hours, minutes] = time.split(':')
+    const hour = parseInt(hours, 10)
+    if (isNaN(hour)) return ''
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const displayHour = hour % 12 || 12
+    return `${displayHour}:${minutes} ${ampm}`
   }
 
-  if (!timeStr || !timeStr.includes(':')) return ''
+  // Handle ISO timestamps - convert to Berlin timezone
+  try {
+    const date = new Date(time)
+    if (isNaN(date.getTime())) return ''
 
-  const [hours, minutes] = timeStr.split(':')
-  if (!hours || !minutes) return ''
-
-  const hour = parseInt(hours, 10)
-  if (isNaN(hour)) return ''
-
-  const ampm = hour >= 12 ? 'PM' : 'AM'
-  const displayHour = hour % 12 || 12
-  return `${displayHour}:${minutes} ${ampm}`
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Europe/Berlin'
+    })
+  } catch {
+    return ''
+  }
 }
 
 export function getInitials(name: string): string {
