@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { OperationsContent } from './operations-content'
+import type { Pickup } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,15 +114,8 @@ export default async function OperationsPage() {
     `)
     .order('created_at', { ascending: false })
 
-  // Fetch pickups with player and staff info
-  const { data: pickups } = await supabase
-    .from('pickups')
-    .select(`
-      *,
-      player:players(id, first_name, last_name),
-      assigned_staff:staff_profiles(id, full_name, email)
-    `)
-    .order('arrival_date', { ascending: true })
+  // Pickups feature disabled - table doesn't exist yet
+  const pickups: Pickup[] = []
 
   // Fetch staff profiles for pickup assignment dropdown
   const { data: staffProfiles } = await supabase
@@ -161,7 +155,7 @@ export default async function OperationsPage() {
         houses={houses || []}
         playerDocuments={playerDocuments}
         chores={chores || []}
-        pickups={pickups || []}
+        pickups={pickups}
         staffProfiles={staffProfiles || []}
         currentUserId={user.id}
       />

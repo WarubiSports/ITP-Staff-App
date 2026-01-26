@@ -831,9 +831,27 @@ export function EventDetailModal({
 
       {/* Player Selection */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Assign Players
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Assign Players
+          </label>
+          {players.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const allSelected = players.every(p => formData.selectedPlayers.includes(p.id))
+                if (allSelected) {
+                  setFormData({ ...formData, selectedPlayers: [] })
+                } else {
+                  setFormData({ ...formData, selectedPlayers: players.map(p => p.id) })
+                }
+              }}
+              className="text-xs text-red-600 hover:text-red-700 font-medium"
+            >
+              {players.every(p => formData.selectedPlayers.includes(p.id)) ? 'Deselect All' : 'Select All'}
+            </button>
+          )}
+        </div>
         <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
           {players.length === 0 ? (
             <p className="text-sm text-gray-500 py-2 text-center">No active players</p>

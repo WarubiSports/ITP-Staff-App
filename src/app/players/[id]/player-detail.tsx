@@ -1049,7 +1049,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                   <>
                     <div>
                       <p className="text-sm text-gray-500">Assigned House</p>
-                      <p className="font-medium">{assignedRoom.house_id}</p>
+                      <p className="font-medium">{houses.find(h => h.id === assignedRoom.house_id)?.name || 'Unknown'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Room</p>
