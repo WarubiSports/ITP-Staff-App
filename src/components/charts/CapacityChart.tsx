@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, Component, ReactNode } from 'react'
 import {
   AreaChart,
   Area,
@@ -32,6 +32,10 @@ interface MonthData {
 
 export function CapacityChart({ players }: Props) {
   const data = useMemo(() => {
+    // Guard against invalid players data
+    if (!players || !Array.isArray(players)) {
+      return []
+    }
     const now = new Date()
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
@@ -79,6 +83,11 @@ export function CapacityChart({ players }: Props) {
 
     return months
   }, [players])
+
+  // Return null if no data
+  if (data.length === 0) {
+    return null
+  }
 
   const currentCount = data[0]?.count || 0
   const endCount = data[data.length - 1]?.count || 0
@@ -130,7 +139,7 @@ export function CapacityChart({ players }: Props) {
               />
               <Tooltip
                 content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload && payload.length && payload[0]?.payload) {
                     const d = payload[0].payload as MonthData
                     return (
                       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
@@ -186,5 +195,38 @@ export function CapacityChart({ players }: Props) {
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// Error boundary to prevent chart crashes from breaking the page
+class ChartErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card>
+          <CardContent className="py-8 text-center text-gray-500">
+            <p>Unable to load capacity chart</p>
+          </CardContent>
+        </Card>
+      )
+    }
+    return this.props.children
+  }
+}
+
+export function CapacityChartWithBoundary(props: Props) {
+  return (
+    <ChartErrorBoundary>
+      <CapacityChart {...props} />
+    </ChartErrorBoundary>
   )
 }

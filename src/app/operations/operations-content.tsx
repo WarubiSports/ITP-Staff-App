@@ -50,7 +50,8 @@ import {
 } from '@/components/modals'
 import { RoomAllocation } from '@/components/housing'
 import { VisaDocumentTracking } from '@/components/visa'
-import { CapacityChart } from '@/components/charts/CapacityChart'
+// CapacityChart temporarily disabled due to recharts rendering issue
+// import { CapacityChartWithBoundary as CapacityChart } from '@/components/charts/CapacityChart'
 import type { VisaApplicationStatus, VisaDocumentChecklist } from '@/types'
 
 // Category ordering and labels for grocery items
@@ -577,7 +578,8 @@ export function OperationsContent({
   return (
     <div className="space-y-6">
       {/* Capacity Overview */}
-      <CapacityChart players={players} />
+      {/* CapacityChart temporarily disabled due to recharts rendering issue */}
+      {/* <CapacityChart players={players} /> */}
 
       {/* Tabs */}
       <Card>

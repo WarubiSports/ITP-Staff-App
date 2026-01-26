@@ -481,8 +481,8 @@ export function VisaDocumentTracking({ players, playerDocuments = {}, onUpdate }
                           </div>
 
                           {/* Visa Status */}
-                          <Badge variant={appStatusConfig[visaStatus].color}>
-                            {appStatusConfig[visaStatus].label}
+                          <Badge variant={appStatusConfig[visaStatus]?.color || 'default'}>
+                            {appStatusConfig[visaStatus]?.label || visaStatus}
                           </Badge>
 
                           {/* Deadline */}
@@ -555,7 +555,7 @@ export function VisaDocumentTracking({ players, playerDocuments = {}, onUpdate }
                         <h4 className="font-medium text-gray-900 mb-3">Document Checklist</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                           {(Object.entries(docs) as [keyof VisaDocumentChecklist, VisaDocumentStatus][]).map(([docKey, status]) => {
-                            const config = statusConfig[status]
+                            const config = statusConfig[status] || statusConfig.pending
                             const StatusIcon = config.icon
                             const labels = documentLabels[docKey]
                             const isUpdating = updatingDoc === `${player.id}-${docKey}`
