@@ -86,7 +86,25 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
       return { error: 'Update did not affect any rows' }
     }
 
-    console.log('Update successful for:', result[0]?.first_name)
+    // Verify the update persisted by re-reading
+    const { data: verifyData, error: verifyError } = await supabaseAdmin
+      .from('players')
+      .select('id, email')
+      .eq('id', playerId)
+      .single()
+
+    if (verifyError) {
+      console.error('Verification error:', verifyError)
+    } else {
+      console.log('Verified email after update:', verifyData?.email)
+      // Check if email matches what we tried to save
+      if (data.email && verifyData?.email !== data.email) {
+        console.error('EMAIL MISMATCH! Sent:', data.email, 'Got:', verifyData?.email)
+        return { error: 'Email update did not persist. There may be a database trigger overwriting changes.' }
+      }
+    }
+
+    console.log('Update successful for:', result[0]?.first_name, 'email:', result[0]?.email)
     return { success: true }
   } catch (err) {
     console.error('Update player exception:', err)

@@ -237,8 +237,11 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
         throw new Error(result.error)
       }
 
+      // Show success message
+      showToast('Player saved successfully', 'success')
       setEditing(false)
-      router.refresh()
+      // Force a full page refresh to ensure we get fresh data
+      window.location.reload()
     } catch (err) {
       console.error('Save error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to save changes'
