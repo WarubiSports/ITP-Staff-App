@@ -123,16 +123,20 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess, ed
   // View uploaded scan
   const handleViewScan = async () => {
     if (!uploadedFile) return
+    // Open window synchronously to avoid popup blocker
+    const newWindow = window.open('about:blank', '_blank')
     try {
       const { url, error } = await getDocumentUrlAction(uploadedFile.path)
       if (error) {
+        newWindow?.close()
         setError('Failed to open document')
         return
       }
-      if (url) {
-        window.open(url, '_blank')
+      if (url && newWindow) {
+        newWindow.location.href = url
       }
     } catch {
+      newWindow?.close()
       setError('Failed to open document')
     }
   }
@@ -149,13 +153,48 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess, ed
 
     try {
       const supabase = createClient()
+      // Handle European number format (comma as decimal separator)
+      const amountStr = formData.amount.replace(',', '.')
+      const amount = parseFloat(amountStr)
+
+      if (isNaN(amount)) {
+        setError('Invalid amount format')
+        setLoading(false)
+        return
+      }
+
+      // Validate required fields
+      if (!formData.player_id) {
+        setError('Please select a player')
+        setLoading(false)
+        return
+      }
+
+      if (!formData.invoice_number.trim()) {
+        setError('Invoice number is required')
+        setLoading(false)
+        return
+      }
+
+      if (!formData.provider_name.trim()) {
+        setError('Provider name is required')
+        setLoading(false)
+        return
+      }
+
+      if (!formData.service_description.trim()) {
+        setError('Service description is required')
+        setLoading(false)
+        return
+      }
+
       const dataToSave = {
         player_id: formData.player_id,
         invoice_number: formData.invoice_number,
         invoice_date: formData.invoice_date,
         provider_name: formData.provider_name,
         service_description: formData.service_description,
-        amount: parseFloat(formData.amount),
+        amount,
         status: formData.status,
         submission_date: formData.submission_date || null,
         approval_date: formData.approval_date || null,
@@ -172,13 +211,19 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess, ed
           .update(dataToSave)
           .eq('id', editClaim.id)
 
-        if (updateError) throw updateError
+        if (updateError) {
+          console.error('Update error:', updateError)
+          throw new Error(updateError.message || 'Failed to update claim')
+        }
       } else {
         const { error: insertError } = await supabase
           .from('insurance_claims')
           .insert(dataToSave)
 
-        if (insertError) throw insertError
+        if (insertError) {
+          console.error('Insert error:', insertError)
+          throw new Error(insertError.message || 'Failed to add claim')
+        }
       }
 
       setFormData(initialFormData)
@@ -186,7 +231,8 @@ export function AddInsuranceClaimModal({ isOpen, onClose, players, onSuccess, ed
       onSuccess()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${isEditMode ? 'update' : 'add'} claim`)
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }

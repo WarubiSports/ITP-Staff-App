@@ -115,7 +115,7 @@ interface WellnessLog {
   player_id: string
   date: string
   sleep_hours?: number
-  sleep_quality: number // 1-10 scale
+  sleep_quality: number // 1-5 scale
   energy_level: number // 1-10 scale
   muscle_soreness: number // 1-10 (higher = more sore)
   stress_level: number // 1-10 (higher = more stressed)
@@ -619,7 +619,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                             <span className="text-xs font-medium">Sleep</span>
                           </div>
                           <div className="text-2xl font-bold text-indigo-700">{avgSleep.toFixed(1)}</div>
-                          <div className="text-xs text-indigo-500">out of 10</div>
+                          <div className="text-xs text-indigo-500">out of 5</div>
                         </div>
                         <div className="bg-amber-50 p-4 rounded-lg">
                           <div className="flex items-center gap-2 text-amber-600 mb-2">
@@ -660,8 +660,9 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                         const getOverallScore = (logs: WellnessLog[]) => {
                           if (logs.length === 0) return 0
                           return logs.reduce((sum, l) => {
-                            // Sleep and energy are good when high (scale 1-10), soreness and stress are good when low
-                            return sum + l.sleep_quality + l.energy_level + (11 - l.muscle_soreness) + (11 - l.stress_level)
+                            // Sleep is 1-5 scale (multiply by 2 to normalize to 1-10), energy is 1-10
+                            // Soreness and stress are good when low (invert them)
+                            return sum + (l.sleep_quality * 2) + l.energy_level + (11 - l.muscle_soreness) + (11 - l.stress_level)
                           }, 0) / logs.length / 4
                         }
 
@@ -694,9 +695,9 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                           <div className="flex items-center gap-3">
                             <span className="text-gray-500 w-20">{formatDate(log.date)}</span>
                             <div className="flex items-center gap-4">
-                              <span title="Sleep Quality" className="flex items-center gap-1">
+                              <span title="Sleep Quality (1-5)" className="flex items-center gap-1">
                                 <Moon className="w-3 h-3 text-indigo-500" />
-                                <span className={log.sleep_quality >= 7 ? 'text-green-600' : log.sleep_quality >= 5 ? 'text-amber-600' : 'text-red-600'}>
+                                <span className={log.sleep_quality >= 4 ? 'text-green-600' : log.sleep_quality >= 3 ? 'text-amber-600' : 'text-red-600'}>
                                   {log.sleep_quality}
                                 </span>
                               </span>
@@ -1049,7 +1050,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                   <>
                     <div>
                       <p className="text-sm text-gray-500">Assigned House</p>
-                      <p className="font-medium">{houses.find(h => h.id === assignedRoom.house_id)?.name || 'Unknown'}</p>
+                      <p className="font-medium">{assignedRoom.house_id || 'Unknown'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Room</p>

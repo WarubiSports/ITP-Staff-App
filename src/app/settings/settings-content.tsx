@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Mail, Key, ExternalLink, LogOut, Bug, CheckCircle, Clock, AlertCircle, Copy, Sparkles, Image, ExternalLink as LinkIcon } from 'lucide-react'
+import { User, Mail, Key, ExternalLink, LogOut, Bug, CheckCircle, Clock, AlertCircle, Copy, Sparkles, Image, ExternalLink as LinkIcon, RotateCcw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -266,14 +266,26 @@ Please investigate this issue ${pageContext} and implement a fix.${report.screen
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Resolved ({closedReports.length})</h4>
                     <div className="space-y-2">
-                      {closedReports.slice(0, 5).map((report) => (
+                      {closedReports.map((report) => (
                         <div key={report.id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <CheckCircle className="w-4 h-4 text-green-600" />
                               <p className="text-sm text-gray-700">{report.title}</p>
                             </div>
-                            <span className="text-xs text-gray-500">{formatDate(report.created_at)}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">{formatDate(report.created_at)}</span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateReportStatus(report.id, 'open')}
+                                disabled={updatingId === report.id}
+                                title="Reopen bug"
+                                className="text-amber-600 hover:text-amber-700 hover:border-amber-300"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}

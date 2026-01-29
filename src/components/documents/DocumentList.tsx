@@ -54,16 +54,20 @@ export function DocumentList({ documents, onRefresh }: DocumentListProps) {
 
   const handleDownload = async (doc: PlayerDocument) => {
     setLoading(doc.id)
+    // Open window synchronously to avoid popup blocker
+    const newWindow = window.open('about:blank', '_blank')
     try {
       const { url, error } = await getDocumentUrlAction(doc.file_path)
       if (error) {
+        newWindow?.close()
         console.error('Download error:', error)
         return
       }
-      if (url) {
-        window.open(url, '_blank')
+      if (url && newWindow) {
+        newWindow.location.href = url
       }
     } catch (err) {
+      newWindow?.close()
       console.error('Download error:', err)
     } finally {
       setLoading(null)
