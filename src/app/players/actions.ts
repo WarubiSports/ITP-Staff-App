@@ -50,10 +50,10 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
   }
 
   try {
-    // First verify the player exists
+    // First verify the player exists and get their user_id for auth sync
     const { data: existingPlayer, error: fetchError } = await supabaseAdmin
       .from('players')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, email, user_id')
       .eq('id', playerId)
       .single()
 
@@ -67,6 +67,24 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
     }
 
     console.log('Found player:', existingPlayer.first_name, existingPlayer.last_name)
+
+    // If email is being changed and player has a linked auth user, update auth user's email
+    const newEmail = data.email || undefined
+    const emailChanged = newEmail && newEmail !== existingPlayer.email
+    if (emailChanged && existingPlayer.user_id) {
+      console.log('Updating auth user email from', existingPlayer.email, 'to', newEmail)
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+        existingPlayer.user_id,
+        { email: newEmail }
+      )
+      if (authError) {
+        console.error('Auth user email update error:', authError)
+        // Don't fail the whole update, just log the error
+        // The player record will still be updated
+      } else {
+        console.log('Auth user email updated successfully')
+      }
+    }
 
     const { data: result, error: updateError } = await supabaseAdmin
       .from('players')
