@@ -38,6 +38,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Camera,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -66,6 +67,7 @@ interface Player {
   nationality?: string
   date_of_birth?: string
   jersey_number?: number
+  photo_url?: string
   insurance_expiry?: string
   insurance_provider?: string
   insurance_number?: string
@@ -161,8 +163,70 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
   const [showWhereaboutsModal, setShowWhereaboutsModal] = useState(false)
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [localArchivedTrials, setLocalArchivedTrials] = useState(archivedTrials)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   const isDemo = player.first_name === 'Demo' && player.last_name === 'Player'
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select an image file', 'error')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image must be less than 5MB', 'error')
+      return
+    }
+
+    setUploadingPhoto(true)
+    try {
+      const supabase = createClient()
+
+      // Generate unique filename
+      const timestamp = Date.now()
+      const ext = file.name.split('.').pop()
+      const filePath = `profile-photos/${player.id}/${timestamp}.${ext}`
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filePath)
+
+      const photoUrl = urlData.publicUrl
+
+      // Update player record with new photo URL
+      const { error: updateError } = await supabase
+        .from('players')
+        .update({ photo_url: photoUrl, updated_at: new Date().toISOString() })
+        .eq('id', player.id)
+
+      if (updateError) throw updateError
+
+      // Update local state
+      setPlayer(prev => ({ ...prev, photo_url: photoUrl }))
+      showToast('Profile photo updated', 'success')
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      showToast('Failed to upload photo', 'error')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
 
   const handleUnarchiveTrial = async (trialId: string) => {
     try {
@@ -326,7 +390,30 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-6">
-                <Avatar name={`${player.first_name} ${player.last_name}`} size="xl" />
+                <div className="relative group">
+                  <Avatar
+                    name={`${player.first_name} ${player.last_name}`}
+                    src={player.photo_url}
+                    size="xl"
+                  />
+                  <label
+                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
+                    title="Change photo"
+                  >
+                    {uploadingPhoto ? (
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    ) : (
+                      <Camera className="w-6 h-6 text-white" />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                    />
+                  </label>
+                </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">
                     {player.first_name} {player.last_name}
