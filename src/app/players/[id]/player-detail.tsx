@@ -138,6 +138,24 @@ interface TrainingLoad {
   created_at: string
 }
 
+interface CollegeTarget {
+  id: string
+  player_id: string
+  college_name: string
+  division?: string
+  conference?: string
+  location?: string
+  interest_level: 'high' | 'medium' | 'low'
+  status: 'researching' | 'in_contact' | 'offer_received' | 'signed' | 'declined' | 'contacted' | 'interested' | 'applied' | 'offered' | 'committed' | 'rejected'
+  scholarship_amount?: number
+  contact_name?: string
+  contact_email?: string
+  last_contact?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
 interface PlayerDetailProps {
   player: Player
   houses: House[]
@@ -148,9 +166,10 @@ interface PlayerDetailProps {
   archivedTrials: PlayerTrial[]
   wellnessLogs: WellnessLog[]
   trainingLoads: TrainingLoad[]
+  collegeTargets: CollegeTarget[]
 }
 
-export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads }: PlayerDetailProps) {
+export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads, collegeTargets }: PlayerDetailProps) {
   const router = useRouter()
   const { showToast } = useToast()
 
@@ -673,6 +692,115 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                   documents={documents}
                   onRefresh={() => router.refresh()}
                 />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* College Pathway / Recruitment Opportunities */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5" />
+                College Pathway
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {collegeTargets.length === 0 ? (
+                <p className="text-gray-500 text-sm">No recruitment opportunities added yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary stats */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="bg-blue-50 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-blue-700">{collegeTargets.length}</div>
+                      <div className="text-xs text-blue-600">Total</div>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-green-700">
+                        {collegeTargets.filter(t => t.status === 'offer_received' || t.status === 'offered').length}
+                      </div>
+                      <div className="text-xs text-green-600">Offers</div>
+                    </div>
+                    <div className="bg-amber-50 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-amber-700">
+                        {collegeTargets.filter(t => t.status === 'in_contact' || t.status === 'contacted' || t.status === 'interested').length}
+                      </div>
+                      <div className="text-xs text-amber-600">In Contact</div>
+                    </div>
+                    <div className="bg-purple-50 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-purple-700">
+                        {collegeTargets.filter(t => t.status === 'signed' || t.status === 'committed').length}
+                      </div>
+                      <div className="text-xs text-purple-600">Committed</div>
+                    </div>
+                  </div>
+
+                  {/* College list */}
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {collegeTargets.map((target) => {
+                      const statusColors: Record<string, { bg: string; text: string; label: string }> = {
+                        researching: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Researching' },
+                        in_contact: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'In Contact' },
+                        contacted: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Contacted' },
+                        interested: { bg: 'bg-cyan-100', text: 'text-cyan-700', label: 'Interested' },
+                        applied: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Applied' },
+                        offer_received: { bg: 'bg-green-100', text: 'text-green-700', label: 'Offer Received' },
+                        offered: { bg: 'bg-green-100', text: 'text-green-700', label: 'Offered' },
+                        signed: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Signed' },
+                        committed: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Committed' },
+                        declined: { bg: 'bg-red-100', text: 'text-red-700', label: 'Declined' },
+                        rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected' },
+                      }
+                      const statusStyle = statusColors[target.status] || statusColors.researching
+
+                      const interestColors: Record<string, string> = {
+                        high: 'text-green-600',
+                        medium: 'text-amber-600',
+                        low: 'text-gray-500',
+                      }
+
+                      return (
+                        <div key={target.id} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h4 className="font-medium text-gray-900">{target.college_name}</h4>
+                              <div className="flex items-center gap-2 text-sm text-gray-500">
+                                {target.division && <span>{target.division}</span>}
+                                {target.conference && <span>• {target.conference}</span>}
+                                {target.location && <span>• {target.location}</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-medium ${interestColors[target.interest_level]}`}>
+                                {target.interest_level.charAt(0).toUpperCase() + target.interest_level.slice(1)} Interest
+                              </span>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}>
+                                {statusStyle.label}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Additional details */}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                            {target.scholarship_amount && (
+                              <span>Scholarship: ${target.scholarship_amount.toLocaleString()}</span>
+                            )}
+                            {target.contact_name && (
+                              <span>Contact: {target.contact_name}</span>
+                            )}
+                            {target.last_contact && (
+                              <span>Last Contact: {formatDate(target.last_contact)}</span>
+                            )}
+                          </div>
+
+                          {target.notes && (
+                            <p className="mt-2 text-sm text-gray-600 bg-white p-2 rounded">{target.notes}</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
