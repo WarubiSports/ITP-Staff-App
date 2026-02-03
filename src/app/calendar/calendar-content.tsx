@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarEvent, Player, PlayerTrial, TrialProspect, MedicalAppointment } from '@/types'
+import { CompliancePanel } from '@/components/calendar/CompliancePanel'
 import { Button } from '@/components/ui/button'
 import { CalendarGrid } from '@/components/calendar/CalendarGrid'
 import { WeekView } from '@/components/calendar/WeekView'
@@ -29,12 +30,27 @@ interface MedicalAppointmentWithPlayer extends MedicalAppointment {
   player?: { id: string; first_name: string; last_name: string }
 }
 
+interface WellnessLog {
+  id: string
+  player_id: string
+  date: string
+}
+
+interface TrainingLoad {
+  id: string
+  player_id: string
+  date: string
+  mobility_completed?: boolean
+}
+
 interface CalendarContentProps {
   events: CalendarEvent[]
   players: Pick<Player, 'id' | 'first_name' | 'last_name' | 'player_id'>[]
   playerTrials?: PlayerTrialWithPlayer[]
   trialProspects?: TrialProspect[]
   medicalAppointments?: MedicalAppointmentWithPlayer[]
+  wellnessLogs?: WellnessLog[]
+  trainingLoads?: TrainingLoad[]
 }
 
 // Helper to parse date string (handles both "YYYY-MM-DD" and ISO formats)
@@ -174,7 +190,9 @@ export function CalendarContent({
   players,
   playerTrials = [],
   trialProspects = [],
-  medicalAppointments = []
+  medicalAppointments = [],
+  wellnessLogs = [],
+  trainingLoads = [],
 }: CalendarContentProps) {
   const router = useRouter()
 
@@ -374,6 +392,18 @@ export function CalendarContent({
           />
         )}
       </div>
+
+      {/* Compliance Panel */}
+      <CompliancePanel
+        date={(() => {
+          const d = viewMode === 'day' ? currentDate : (selectedDate || currentDate)
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        })()}
+        events={events}
+        players={players}
+        wellnessLogs={wellnessLogs}
+        trainingLoads={trainingLoads}
+      />
 
       {/* Add Event Modal */}
       <AddEventModal
