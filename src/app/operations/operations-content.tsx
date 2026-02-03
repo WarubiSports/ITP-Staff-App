@@ -226,6 +226,8 @@ export function OperationsContent({
   const [showPickupModal, setShowPickupModal] = useState(false)
   const [selectedPickup, setSelectedPickup] = useState<Pickup | null>(null)
   const [editingChore, setEditingChore] = useState<Chore | null>(null)
+  const [editAllRecurring, setEditAllRecurring] = useState(false)
+  const [showDeleteRecurringConfirm, setShowDeleteRecurringConfirm] = useState<Chore | null>(null)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [approvalChore, setApprovalChore] = useState<Chore | null>(null)
   const [approvalPhoto, setApprovalPhoto] = useState<string | null>(null)
@@ -454,26 +456,57 @@ export function OperationsContent({
     if (!editingChore) return
     setChoreSubmitting(true)
 
-    try {
-      const { data, error } = await supabase
-        .from('chores')
-        .update({
-          title: newChore.title,
-          description: newChore.description || null,
-          priority: newChore.priority,
-          house_id: newChore.house_id,
-          assigned_to: newChore.assigned_to || null,
-          deadline: newChore.deadline || null,
-          requires_photo: newChore.requires_photo,
-        })
-        .eq('id', editingChore.id)
-        .select(`*, house:houses(id, name), assigned_player:players(id, first_name, last_name)`)
-        .single()
+    const updatePayload = {
+      title: newChore.title,
+      description: newChore.description || null,
+      priority: newChore.priority,
+      house_id: newChore.house_id,
+      assigned_to: newChore.assigned_to || null,
+      requires_photo: newChore.requires_photo,
+    }
 
-      if (error) throw error
-      setChores(chores.map((c) => (c.id === data.id ? data : c)))
-      showToast('Chore updated successfully')
+    try {
+      if (editAllRecurring && editingChore.recurring_group_id) {
+        // Update all pending chores in the recurring group
+        const { error } = await supabase
+          .from('chores')
+          .update(updatePayload)
+          .eq('recurring_group_id', editingChore.recurring_group_id)
+          .eq('status', 'pending')
+
+        if (error) throw error
+
+        // Refetch to get updated joined data
+        const { data: updated, error: fetchError } = await supabase
+          .from('chores')
+          .select(`*, house:houses(id, name), assigned_player:players(id, first_name, last_name)`)
+          .eq('recurring_group_id', editingChore.recurring_group_id)
+          .eq('status', 'pending')
+
+        if (fetchError) throw fetchError
+
+        const updatedIds = new Set((updated || []).map((c: Chore) => c.id))
+        setChores(chores.map((c) => {
+          const match = (updated || []).find((u: Chore) => u.id === c.id)
+          return match || c
+        }))
+        showToast(`Updated ${updated?.length || 0} recurring chores`)
+      } else {
+        // Update single chore (include deadline for single edit)
+        const { data, error } = await supabase
+          .from('chores')
+          .update({ ...updatePayload, deadline: newChore.deadline || null })
+          .eq('id', editingChore.id)
+          .select(`*, house:houses(id, name), assigned_player:players(id, first_name, last_name)`)
+          .single()
+
+        if (error) throw error
+        setChores(chores.map((c) => (c.id === data.id ? data : c)))
+        showToast('Chore updated successfully')
+      }
+
       setEditingChore(null)
+      setEditAllRecurring(false)
       resetChoreForm()
     } catch (error) {
       console.error('Error updating chore:', error)
@@ -491,6 +524,22 @@ export function OperationsContent({
     } else {
       showToast('Failed to delete chore', 'error')
     }
+  }
+
+  const deleteRecurringGroup = async (groupId: string) => {
+    const { error } = await supabase
+      .from('chores')
+      .delete()
+      .eq('recurring_group_id', groupId)
+      .eq('status', 'pending')
+
+    if (!error) {
+      setChores(chores.filter((c) => !(c.recurring_group_id === groupId && c.status === 'pending')))
+      showToast('All recurring chores deleted')
+    } else {
+      showToast('Failed to delete recurring chores', 'error')
+    }
+    setShowDeleteRecurringConfirm(null)
   }
 
   const openChoreApprovalModal = async (chore: Chore) => {
@@ -548,6 +597,7 @@ export function OperationsContent({
 
   const openEditChoreModal = (chore: Chore) => {
     setEditingChore(chore)
+    setEditAllRecurring(false)
     setNewChore({
       title: chore.title,
       description: chore.description || '',
@@ -1843,6 +1893,23 @@ export function OperationsContent({
                     </label>
                   </div>
 
+                  {/* Apply to all recurring (only when editing a recurring chore) */}
+                  {editingChore && editingChore.recurring_group_id && (
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="edit_all_recurring"
+                        checked={editAllRecurring}
+                        onChange={(e) => setEditAllRecurring(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="edit_all_recurring" className="text-sm text-blue-700 flex items-center gap-1.5">
+                        <Repeat className="w-3.5 h-3.5" />
+                        Apply changes to all pending recurring chores in this group
+                      </label>
+                    </div>
+                  )}
+
                   {/* Recurrence (only for new chores) */}
                   {!editingChore && (
                     <div className="border-t pt-4 mt-4">
@@ -1946,7 +2013,11 @@ export function OperationsContent({
                                   <button onClick={() => openEditChoreModal(chore)} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded" title="Edit">
                                     <Edit2 className="w-4 h-4" />
                                   </button>
-                                  <button onClick={() => deleteChore(chore.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded" title="Delete">
+                                  <button
+                                    onClick={() => chore.recurring_group_id ? setShowDeleteRecurringConfirm(chore) : deleteChore(chore.id)}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                                    title="Delete"
+                                  >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                 </>
@@ -2043,6 +2114,43 @@ export function OperationsContent({
                         Approve
                       </Button>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Delete Recurring Confirmation */}
+          {showDeleteRecurringConfirm && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <Card className="w-full max-w-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg">Delete Recurring Chore</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    &ldquo;{showDeleteRecurringConfirm.title}&rdquo; is part of a recurring group. What would you like to delete?
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        deleteChore(showDeleteRecurringConfirm.id)
+                        setShowDeleteRecurringConfirm(null)
+                      }}
+                    >
+                      Delete this one only
+                    </Button>
+                    <Button
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      onClick={() => deleteRecurringGroup(showDeleteRecurringConfirm.recurring_group_id!)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete all pending in group
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowDeleteRecurringConfirm(null)}>
+                      Cancel
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
