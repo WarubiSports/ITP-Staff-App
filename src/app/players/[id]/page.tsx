@@ -46,8 +46,8 @@ export default async function PlayerDetailPage({ params }: PageProps) {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
 
-  // Fetch houses, rooms, documents, attendance, archived trials, wellness logs, training loads, and college targets in parallel
-  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }, { data: archivedTrials }, { data: wellnessLogs }, { data: trainingLoads }, { data: collegeTargets }] = await Promise.all([
+  // Fetch houses, rooms, documents, attendance, archived trials, wellness logs, training loads, college targets, and focus notes in parallel
+  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }, { data: archivedTrials }, { data: wellnessLogs }, { data: trainingLoads }, { data: collegeTargets }, { data: focusNotes }] = await Promise.all([
     supabase.from('houses').select('id, name, address').order('name'),
     supabase.from('rooms').select('id, name, house_id, capacity, floor').order('name'),
     supabase
@@ -85,6 +85,11 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .eq('player_id', player.id)
       .order('interest_level', { ascending: true })
       .order('status', { ascending: true }),
+    supabase
+      .from('player_focus_notes')
+      .select('*')
+      .eq('player_id', player.id)
+      .order('session_date', { ascending: false }),
   ])
 
   // Find assigned room if player has room_id
@@ -109,6 +114,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         wellnessLogs={wellnessLogs || []}
         trainingLoads={trainingLoads || []}
         collegeTargets={collegeTargets || []}
+        focusNotes={focusNotes || []}
       />
     </AppLayout>
   )

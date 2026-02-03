@@ -270,6 +270,7 @@ export type CalendarEventType =
   // Training
   | 'team_training'
   | 'individual_training'
+  | 'video_session'
   | 'gym'
   | 'recovery'
   // Competition
@@ -586,6 +587,21 @@ export interface ChorePhoto {
   photo_data: string // Base64 or URL
   submitted_at: string
   submitted_by?: string
+}
+
+// Player focus notes - development session tracking
+export interface PlayerFocusNote {
+  id: string
+  player_id: string
+  session_type: 'video_session' | 'meeting' | 'training' | 'match_debrief' | 'other'
+  session_date: string
+  topics?: string
+  focus_points: string[]
+  internal_comments?: string
+  visible_to_player: boolean
+  created_by?: string
+  created_at: string
+  updated_at: string
 }
 
 // Player pickup tracking (airport/train station arrivals)
