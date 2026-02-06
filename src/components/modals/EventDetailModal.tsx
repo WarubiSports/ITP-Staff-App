@@ -91,33 +91,6 @@ async function supabaseUpdate(table: string, id: string, data: Record<string, un
   }
 }
 
-async function supabaseDelete(table: string, id: string): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-      method: 'DELETE',
-      headers,
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${response.status}`)
-    }
-
-    return { error: null }
-  } catch (err) {
-    return { error: err instanceof Error ? err : new Error(String(err)) }
-  }
-}
-
 async function supabaseDeleteByEventId(table: string, eventId: string): Promise<{ error: Error | null }> {
   const token = getAuthToken()
   const headers: Record<string, string> = {
@@ -141,100 +114,6 @@ async function supabaseDeleteByEventId(table: string, eventId: string): Promise<
 
     return { error: null }
   } catch (err) {
-    return { error: err instanceof Error ? err : new Error(String(err)) }
-  }
-}
-
-// Delete all events in a recurring series (parent + all children)
-async function supabaseDeleteRecurringSeries(parentEventId: string): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  try {
-    // Delete all child events first
-    const childResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?parent_event_id=eq.${parentEventId}`, {
-      method: 'DELETE',
-      headers,
-    })
-    if (!childResponse.ok) {
-      const errorData = await childResponse.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${childResponse.status}`)
-    }
-
-    // Delete the parent event
-    const parentResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${parentEventId}`, {
-      method: 'DELETE',
-      headers,
-    })
-    if (!parentResponse.ok) {
-      const errorData = await parentResponse.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${parentResponse.status}`)
-    }
-
-    return { error: null }
-  } catch (err) {
-    return { error: err instanceof Error ? err : new Error(String(err)) }
-  }
-}
-
-// Delete all events in an orphaned recurring series (events that share the same title, type, and recurrence_rule but have no parent link)
-async function supabaseDeleteOrphanedSeries(event: { title: string; type: string; recurrence_rule?: string | null; start_time?: string }): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-    'Prefer': 'return=representation, count=exact', // Return deleted rows and count
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  console.log('[DELETE SERIES] Starting orphaned series delete')
-  console.log('[DELETE SERIES] Event:', { title: event.title, type: event.type, recurrence_rule: event.recurrence_rule })
-  console.log('[DELETE SERIES] Has auth token:', !!token)
-
-  try {
-    // Build query to match series events by title, type, recurrence_rule
-    let url = `${SUPABASE_URL}/rest/v1/events?title=eq.${encodeURIComponent(event.title)}&type=eq.${encodeURIComponent(event.type)}`
-    if (event.recurrence_rule) {
-      url += `&recurrence_rule=eq.${encodeURIComponent(event.recurrence_rule)}`
-    }
-
-    console.log('[DELETE SERIES] URL:', url)
-
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers,
-    })
-
-    console.log('[DELETE SERIES] Response status:', response.status)
-    console.log('[DELETE SERIES] Response headers:')
-    response.headers.forEach((value, key) => {
-      console.log(`  ${key}: ${value}`)
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.log('[DELETE SERIES] Error response:', errorData)
-      throw new Error(errorData.message || `HTTP ${response.status}`)
-    }
-
-    // With 'return=representation', we get the deleted rows
-    const deletedRows = await response.json().catch(() => [])
-    console.log('[DELETE SERIES] Deleted rows count:', Array.isArray(deletedRows) ? deletedRows.length : 'N/A')
-    if (Array.isArray(deletedRows) && deletedRows.length > 0) {
-      console.log('[DELETE SERIES] First deleted row:', deletedRows[0])
-    }
-
-    return { error: null }
-  } catch (err) {
-    console.error('[DELETE SERIES] Error:', err)
     return { error: err instanceof Error ? err : new Error(String(err)) }
   }
 }
