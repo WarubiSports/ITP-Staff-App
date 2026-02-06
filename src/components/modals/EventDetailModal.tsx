@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CalendarEvent, CalendarEventType, Player } from '@/types'
 import { formatTime, formatDate } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import {
   Calendar,
   Clock,
@@ -364,6 +365,7 @@ interface EventDetailModalProps {
 const eventTypeOptions: { value: CalendarEventType; label: string }[] = [
   { value: 'team_training', label: 'Team Training' },
   { value: 'individual_training', label: 'Individual Training' },
+  { value: 'video_session', label: 'Video Session' },
   { value: 'gym', label: 'Gym Session' },
   { value: 'recovery', label: 'Recovery' },
   { value: 'match', label: 'Match' },
@@ -497,41 +499,47 @@ export function EventDetailModal({
   }
 
   const handleDelete = async (mode: 'single' | 'series' = 'single') => {
-    console.log('[handleDelete] Called with mode:', mode)
-    console.log('[handleDelete] Event:', { id: event.id, title: event.title, type: event.type, recurrence_rule: event.recurrence_rule, is_recurring: event.is_recurring, parent_event_id: event.parent_event_id })
-    console.log('[handleDelete] isPartOfSeries:', isPartOfSeries)
-    console.log('[handleDelete] parentEventId:', parentEventId)
-    console.log('[handleDelete] isOrphanedSeries:', isOrphanedSeries)
-
     setLoading(true)
+    setError('')
+    const supabase = createClient()
+
     try {
       if (mode === 'series') {
         if (parentEventId) {
-          console.log('[handleDelete] Using supabaseDeleteRecurringSeries with parentEventId:', parentEventId)
-          // Delete all events in the series via parent link
-          const { error } = await supabaseDeleteRecurringSeries(parentEventId)
-          if (error) throw error
+          // Delete all child events first, then the parent
+          const { error: childError } = await supabase
+            .from('events')
+            .delete()
+            .eq('parent_event_id', parentEventId)
+          if (childError) throw childError
+
+          const { error: parentError } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', parentEventId)
+          if (parentError) throw parentError
         } else if (isOrphanedSeries) {
-          console.log('[handleDelete] Using supabaseDeleteOrphanedSeries')
           // Delete orphaned series by matching title, type, and recurrence_rule
-          const { error } = await supabaseDeleteOrphanedSeries({
-            title: event.title,
-            type: event.type,
-            recurrence_rule: event.recurrence_rule,
-            start_time: event.start_time,
-          })
+          let query = supabase
+            .from('events')
+            .delete()
+            .eq('title', event.title)
+            .eq('type', event.type)
+          if (event.recurrence_rule) {
+            query = query.eq('recurrence_rule', event.recurrence_rule)
+          }
+          const { error } = await query
           if (error) throw error
-        } else {
-          console.log('[handleDelete] WARNING: mode=series but no valid delete method!')
         }
       } else {
-        console.log('[handleDelete] Using supabaseDelete for single event')
         // Delete single event
-        const { error } = await supabaseDelete('events', event.id)
+        const { error } = await supabase
+          .from('events')
+          .delete()
+          .eq('id', event.id)
         if (error) throw error
       }
 
-      console.log('[handleDelete] Delete successful, closing modal')
       setShowDeleteConfirm(false)
       setShowSeriesOptions(null)
       onDelete()
@@ -718,6 +726,13 @@ export function EventDetailModal({
       {event.description && (
         <div className="pt-3 border-t">
           <p className="text-sm text-gray-600">{event.description}</p>
+        </div>
+      )}
+
+      {/* Error display for view mode */}
+      {error && !isEditing && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
         </div>
       )}
 
