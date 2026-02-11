@@ -199,7 +199,25 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
             }
           })
 
-          await supabase.from('events').insert(recurringEvents)
+          const { data: insertedChildren } = await supabase
+            .from('events')
+            .insert(recurringEvents)
+            .select('id')
+
+          // Create attendees for child events too
+          if (formData.selectedPlayers.length > 0 && insertedChildren && insertedChildren.length > 0) {
+            const childAttendees = insertedChildren.flatMap((child) =>
+              formData.selectedPlayers.map((playerId) => ({
+                event_id: child.id,
+                player_id: playerId,
+                status: 'pending',
+              }))
+            )
+            const { error: childAttendeesError } = await supabase
+              .from('event_attendees')
+              .insert(childAttendees)
+            if (childAttendeesError) console.error('Failed to add child attendees:', childAttendeesError)
+          }
         }
       }
 

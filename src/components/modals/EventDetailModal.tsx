@@ -291,12 +291,26 @@ export function EventDetailModal({
   const isOrphanedSeries = !!event.recurrence_rule && !event.parent_event_id && !event.is_recurring
 
   // Helper to parse time from either ISO format or time-only string
+  // Converts ISO timestamps to Berlin local time for the form
   const parseTime = (timeStr: string | undefined): string => {
     if (!timeStr) return '09:00'
-    if (timeStr.includes('T')) {
-      return timeStr.split('T')[1]?.slice(0, 5) || '09:00'
+    // Simple time strings like "14:30" or "14:30:00"
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+      return timeStr.slice(0, 5)
     }
-    return timeStr.slice(0, 5)
+    // ISO timestamps — convert to Berlin time
+    try {
+      const date = new Date(timeStr)
+      if (isNaN(date.getTime())) return '09:00'
+      return date.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Europe/Berlin'
+      })
+    } catch {
+      return '09:00'
+    }
   }
 
   const [formData, setFormData] = useState({
@@ -316,12 +330,28 @@ export function EventDetailModal({
     setLoading(true)
 
     try {
+      // Calculate Berlin timezone offset (handles DST automatically)
+      const getBerlinOffset = (dateStr: string) => {
+        const date = new Date(dateStr + 'T12:00:00Z')
+        const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }))
+        const berlinDate = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
+        const offsetMinutes = (berlinDate.getTime() - utcDate.getTime()) / 60000
+        const offsetHours = Math.floor(offsetMinutes / 60)
+        const sign = offsetHours >= 0 ? '+' : '-'
+        return `${sign}${String(Math.abs(offsetHours)).padStart(2, '0')}:00`
+      }
+
+      const createTimestamp = (date: string, time: string) => {
+        const offset = getBerlinOffset(date)
+        return `${date}T${time}:00${offset}`
+      }
+
       const startDateTime = formData.all_day
-        ? `${formData.date}T00:00:00`
-        : `${formData.date}T${formData.start_time}:00`
+        ? createTimestamp(formData.date, '00:00')
+        : createTimestamp(formData.date, formData.start_time)
       const endDateTime = formData.all_day
-        ? `${formData.date}T23:59:59`
-        : `${formData.date}T${formData.end_time}:00`
+        ? createTimestamp(formData.date, '23:59')
+        : createTimestamp(formData.date, formData.end_time)
 
       const updateData = {
         title: formData.title,
@@ -336,7 +366,7 @@ export function EventDetailModal({
 
       if (mode === 'series') {
         if (parentEventId) {
-          // Update all events in the series via parent link
+          // Update shared fields for all events in the series
           const { error: updateError } = await supabaseUpdateRecurringSeries(parentEventId, updateData)
           if (updateError) throw updateError
         } else if (isOrphanedSeries) {
@@ -347,23 +377,62 @@ export function EventDetailModal({
           )
           if (updateError) throw updateError
         }
+        // Also update this specific event's date/time (series update strips these)
+        const { error: timeError } = await supabaseUpdate('events', event.id, {
+          date: formData.date,
+          start_time: startDateTime,
+          end_time: endDateTime,
+        })
+        if (timeError) throw timeError
       } else {
         // Update single event
         const { error: updateError } = await supabaseUpdate('events', event.id, updateData)
         if (updateError) throw updateError
       }
 
-      // Update attendees for this specific event only
-      await supabaseDeleteByEventId('event_attendees', event.id)
+      if (mode === 'series' && parentEventId) {
+        // Update attendees for ALL events in the series
+        const supabase = createClient()
 
-      if (formData.selectedPlayers.length > 0) {
-        const attendees = formData.selectedPlayers.map((playerId) => ({
-          event_id: event.id,
-          player_id: playerId,
-          status: 'pending',
-        }))
-        const { error: attendeesError } = await supabaseBulkInsert('event_attendees', attendees)
-        if (attendeesError) throw attendeesError
+        // Get all event IDs in the series (parent + children)
+        const { data: seriesEvents } = await supabase
+          .from('events')
+          .select('id')
+          .or(`id.eq.${parentEventId},parent_event_id.eq.${parentEventId}`)
+
+        if (seriesEvents && seriesEvents.length > 0) {
+          // Delete existing attendees for all series events
+          const seriesIds = seriesEvents.map((e) => e.id)
+          for (const id of seriesIds) {
+            await supabaseDeleteByEventId('event_attendees', id)
+          }
+
+          // Insert new attendees for all series events
+          if (formData.selectedPlayers.length > 0) {
+            const allAttendees = seriesIds.flatMap((eventId) =>
+              formData.selectedPlayers.map((playerId) => ({
+                event_id: eventId,
+                player_id: playerId,
+                status: 'pending',
+              }))
+            )
+            const { error: attendeesError } = await supabaseBulkInsert('event_attendees', allAttendees)
+            if (attendeesError) throw attendeesError
+          }
+        }
+      } else {
+        // Update attendees for this specific event only
+        await supabaseDeleteByEventId('event_attendees', event.id)
+
+        if (formData.selectedPlayers.length > 0) {
+          const attendees = formData.selectedPlayers.map((playerId) => ({
+            event_id: event.id,
+            player_id: playerId,
+            status: 'pending',
+          }))
+          const { error: attendeesError } = await supabaseBulkInsert('event_attendees', attendees)
+          if (attendeesError) throw attendeesError
+        }
       }
 
       setIsEditing(false)

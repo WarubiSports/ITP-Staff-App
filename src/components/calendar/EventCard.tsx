@@ -17,6 +17,7 @@ const eventTypeColors: Record<CalendarEventType, { bg: string; text: string; bor
   // Training - Blue
   team_training: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
   individual_training: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
+  video_session: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
   gym: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
   recovery: { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-l-cyan-500' },
   training: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-l-blue-500' },
@@ -58,6 +59,7 @@ const getEventTypeLabel = (type: CalendarEventType) => {
   const labels: Record<CalendarEventType, string> = {
     team_training: 'Team Training',
     individual_training: 'Individual Training',
+    video_session: 'Video Session',
     gym: 'Gym',
     recovery: 'Recovery',
     training: 'Training',
