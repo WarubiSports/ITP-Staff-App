@@ -366,9 +366,31 @@ export function EventDetailModal({
 
       if (mode === 'series') {
         if (parentEventId) {
-          // Update shared fields for all events in the series
+          // Update shared fields (title, type, location, etc.) for all events
           const { error: updateError } = await supabaseUpdateRecurringSeries(parentEventId, updateData)
           if (updateError) throw updateError
+
+          // Update time for all events in the series (each keeps its own date)
+          const supabase = createClient()
+          const { data: seriesEvents } = await supabase
+            .from('events')
+            .select('id, date')
+            .or(`id.eq.${parentEventId},parent_event_id.eq.${parentEventId}`)
+
+          if (seriesEvents) {
+            for (const ev of seriesEvents) {
+              const evStart = formData.all_day
+                ? createTimestamp(ev.date, '00:00')
+                : createTimestamp(ev.date, formData.start_time)
+              const evEnd = formData.all_day
+                ? createTimestamp(ev.date, '23:59')
+                : createTimestamp(ev.date, formData.end_time)
+              await supabaseUpdate('events', ev.id, {
+                start_time: evStart,
+                end_time: evEnd,
+              })
+            }
+          }
         } else if (isOrphanedSeries) {
           // Update orphaned series by matching title, type, and recurrence_rule
           const { error: updateError } = await supabaseUpdateOrphanedSeries(
@@ -377,13 +399,6 @@ export function EventDetailModal({
           )
           if (updateError) throw updateError
         }
-        // Also update this specific event's date/time (series update strips these)
-        const { error: timeError } = await supabaseUpdate('events', event.id, {
-          date: formData.date,
-          start_time: startDateTime,
-          end_time: endDateTime,
-        })
-        if (timeError) throw timeError
       } else {
         // Update single event
         const { error: updateError } = await supabaseUpdate('events', event.id, updateData)
