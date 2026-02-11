@@ -405,22 +405,25 @@ export function EventDetailModal({
         if (updateError) throw updateError
       }
 
-      if (mode === 'series' && parentEventId) {
-        // Update attendees for ALL events in the series
-        const supabase = createClient()
+      // Update attendees using Supabase client (handles auth/RLS correctly)
+      const attendeeClient = createClient()
 
+      if (mode === 'series' && parentEventId) {
         // Get all event IDs in the series (parent + children)
-        const { data: seriesEvents } = await supabase
+        const { data: seriesEvents } = await attendeeClient
           .from('events')
           .select('id')
           .or(`id.eq.${parentEventId},parent_event_id.eq.${parentEventId}`)
 
         if (seriesEvents && seriesEvents.length > 0) {
-          // Delete existing attendees for all series events
           const seriesIds = seriesEvents.map((e) => e.id)
-          for (const id of seriesIds) {
-            await supabaseDeleteByEventId('event_attendees', id)
-          }
+
+          // Delete existing attendees for all series events
+          const { error: delError } = await attendeeClient
+            .from('event_attendees')
+            .delete()
+            .in('event_id', seriesIds)
+          if (delError) throw delError
 
           // Insert new attendees for all series events
           if (formData.selectedPlayers.length > 0) {
@@ -431,21 +434,30 @@ export function EventDetailModal({
                 status: 'pending',
               }))
             )
-            const { error: attendeesError } = await supabaseBulkInsert('event_attendees', allAttendees)
+            const { error: attendeesError } = await attendeeClient
+              .from('event_attendees')
+              .insert(allAttendees)
             if (attendeesError) throw attendeesError
           }
         }
       } else {
-        // Update attendees for this specific event only
-        await supabaseDeleteByEventId('event_attendees', event.id)
+        // Delete existing attendees for this event
+        const { error: delError } = await attendeeClient
+          .from('event_attendees')
+          .delete()
+          .eq('event_id', event.id)
+        if (delError) throw delError
 
+        // Insert new attendees
         if (formData.selectedPlayers.length > 0) {
           const attendees = formData.selectedPlayers.map((playerId) => ({
             event_id: event.id,
             player_id: playerId,
             status: 'pending',
           }))
-          const { error: attendeesError } = await supabaseBulkInsert('event_attendees', attendees)
+          const { error: attendeesError } = await attendeeClient
+            .from('event_attendees')
+            .insert(attendees)
           if (attendeesError) throw attendeesError
         }
       }
