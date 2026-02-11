@@ -1641,12 +1641,13 @@ export function OperationsContent({
                 </CardContent>
               </Card>
 
-              {/* Orders by House - Consolidated Items View */}
+              {/* Orders by House - Consolidated Items View (only pending/approved) */}
               <h3 className="text-md font-medium text-gray-700">Orders by House</h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Unassigned orders first if any */}
                 {(() => {
-                  const unassignedOrders = groceryOrders.filter(o => !o.player?.house_id)
+                  const activeOrders = groceryOrders.filter(o => o.status === 'pending' || o.status === 'approved')
+                  const unassignedOrders = activeOrders.filter(o => !o.player?.house_id)
                   if (unassignedOrders.length === 0) return null
                   const unassignedTotal = unassignedOrders.reduce((sum, o) => sum + o.total_amount, 0)
                   const unassignedItems = getConsolidatedItemsForHouse(unassignedOrders)
@@ -1716,7 +1717,8 @@ export function OperationsContent({
 
                 {/* Houses */}
                 {houses.map(house => {
-                  const houseOrders = groceryOrders.filter(o => o.player?.house_id === house.id)
+                  const activeHouseOrders = groceryOrders.filter(o => (o.status === 'pending' || o.status === 'approved') && o.player?.house_id === house.id)
+                  const houseOrders = activeHouseOrders
                   const housePlayers = localPlayers.filter(p => p.house_id === house.id)
                   const totalSpent = houseOrders.reduce((sum, o) => sum + o.total_amount, 0)
                   const houseItems = getConsolidatedItemsForHouse(houseOrders)
