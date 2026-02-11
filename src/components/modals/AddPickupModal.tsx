@@ -98,6 +98,15 @@ export function AddPickupModal({
     }
   }, [editPickup, isOpen])
 
+  const createTimestamp = (date: string, time: string): string => {
+    const testDate = new Date(`${date}T00:00:00`)
+    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Berlin', timeZoneName: 'short' })
+    const parts = formatter.formatToParts(testDate)
+    const tzName = parts.find(p => p.type === 'timeZoneName')?.value || ''
+    const offset = tzName.includes('GMT+2') || tzName === 'CEST' ? '+02:00' : '+01:00'
+    return `${date}T${time}:00${offset}`
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -109,6 +118,11 @@ export function AddPickupModal({
       // Get player name for calendar event title
       const player = players.find(p => p.id === formData.player_id)
       const playerName = player ? `${player.first_name} ${player.last_name}` : 'Player'
+
+      // Build proper timestamp for start_time (events.start_time is timestamptz)
+      const startTimestamp = formData.arrival_time && formData.arrival_date
+        ? createTimestamp(formData.arrival_date, formData.arrival_time)
+        : null
 
       const pickupData = {
         player_id: formData.player_id,
@@ -141,7 +155,7 @@ export function AddPickupModal({
             title: `Pickup: ${playerName}`,
             description: `${formData.location_name}${formData.flight_train_number ? ` - ${formData.flight_train_number}` : ''}`,
             date: formData.arrival_date,
-            start_time: formData.arrival_time || null,
+            start_time: startTimestamp,
             location: formData.location_name,
           }
           await supabase
@@ -155,7 +169,7 @@ export function AddPickupModal({
           title: `Pickup: ${playerName}`,
           description: `${formData.location_name}${formData.flight_train_number ? ` - ${formData.flight_train_number}` : ''}`,
           date: formData.arrival_date,
-          start_time: formData.arrival_time || null,
+          start_time: startTimestamp,
           type: 'airport_pickup',
           location: formData.location_name,
           all_day: !formData.arrival_time,
