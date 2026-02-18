@@ -28,7 +28,7 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
     topics: '',
     focus_points: [''] as string[],
     internal_comments: '',
-    visible_to_player: false,
+    visible_to_player: true,
   })
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
         topics: '',
         focus_points: [''],
         internal_comments: '',
-        visible_to_player: false,
+        visible_to_player: true,
       })
     }
   }, [editNote, isOpen])
