@@ -604,6 +604,28 @@ export interface PlayerFocusNote {
   updated_at: string
 }
 
+// Physical testing results
+export interface PhysicalTest {
+  id: string
+  player_id: string
+  test_date: string
+  sprint_5m?: number
+  sprint_10m?: number
+  sprint_20m?: number
+  sprint_30m?: number
+  cmj?: number
+  squat_jump?: number
+  yo_yo_level?: string
+  yo_yo_distance?: number
+  agility_505?: number
+  body_weight?: number
+  height_cm?: number
+  notes?: string
+  recorded_by?: string
+  created_at: string
+  updated_at: string
+}
+
 // Player pickup tracking (airport/train station arrivals)
 export interface Pickup {
   id: string

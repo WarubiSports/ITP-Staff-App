@@ -43,6 +43,8 @@ import {
   EyeOff,
   Plus,
   Target,
+  Zap,
+  Timer,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -57,7 +59,7 @@ import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
 import { DocumentUpload } from '@/components/documents/DocumentUpload'
 import { DocumentList } from '@/components/documents/DocumentList'
-import type { WhereaboutsDetails, PlayerDocument, PlayerTrial, PlayerFocusNote } from '@/types'
+import type { WhereaboutsDetails, PlayerDocument, PlayerTrial, PlayerFocusNote, PhysicalTest } from '@/types'
 
 interface Player {
   id: string
@@ -172,9 +174,10 @@ interface PlayerDetailProps {
   trainingLoads: TrainingLoad[]
   collegeTargets: CollegeTarget[]
   focusNotes: PlayerFocusNote[]
+  physicalTests: PhysicalTest[]
 }
 
-export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads, collegeTargets, focusNotes }: PlayerDetailProps) {
+export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads, collegeTargets, focusNotes, physicalTests }: PlayerDetailProps) {
   const router = useRouter()
   const { showToast } = useToast()
 
@@ -191,6 +194,24 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
   const [showFocusNoteModal, setShowFocusNoteModal] = useState(false)
   const [editingFocusNote, setEditingFocusNote] = useState<PlayerFocusNote | null>(null)
   const [localFocusNotes, setLocalFocusNotes] = useState(focusNotes)
+  const [localPhysicalTests, setLocalPhysicalTests] = useState(physicalTests)
+  const [showAddTestForm, setShowAddTestForm] = useState(false)
+  const [savingTest, setSavingTest] = useState(false)
+  const [newTest, setNewTest] = useState({
+    test_date: new Date().toISOString().split('T')[0],
+    sprint_5m: '',
+    sprint_10m: '',
+    sprint_20m: '',
+    sprint_30m: '',
+    cmj: '',
+    squat_jump: '',
+    yo_yo_level: '',
+    yo_yo_distance: '',
+    agility_505: '',
+    body_weight: '',
+    height_cm: '',
+    notes: '',
+  })
 
   const isDemo = player.first_name === 'Demo' && player.last_name === 'Player'
 
@@ -270,6 +291,70 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
     } catch (err) {
       console.error('Failed to unarchive trial:', err)
       showToast('Failed to restore trial', 'error')
+    }
+  }
+
+  const handleAddPhysicalTest = async () => {
+    setSavingTest(true)
+    try {
+      const supabase = createClient()
+      const payload: Record<string, unknown> = {
+        player_id: player.id,
+        test_date: newTest.test_date,
+      }
+      if (newTest.sprint_5m) payload.sprint_5m = parseFloat(newTest.sprint_5m)
+      if (newTest.sprint_10m) payload.sprint_10m = parseFloat(newTest.sprint_10m)
+      if (newTest.sprint_20m) payload.sprint_20m = parseFloat(newTest.sprint_20m)
+      if (newTest.sprint_30m) payload.sprint_30m = parseFloat(newTest.sprint_30m)
+      if (newTest.cmj) payload.cmj = parseFloat(newTest.cmj)
+      if (newTest.squat_jump) payload.squat_jump = parseFloat(newTest.squat_jump)
+      if (newTest.yo_yo_level) payload.yo_yo_level = newTest.yo_yo_level
+      if (newTest.yo_yo_distance) payload.yo_yo_distance = parseInt(newTest.yo_yo_distance)
+      if (newTest.agility_505) payload.agility_505 = parseFloat(newTest.agility_505)
+      if (newTest.body_weight) payload.body_weight = parseFloat(newTest.body_weight)
+      if (newTest.height_cm) payload.height_cm = parseFloat(newTest.height_cm)
+      if (newTest.notes) payload.notes = newTest.notes
+
+      const { data, error: insertError } = await supabase
+        .from('physical_tests')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (insertError) throw insertError
+
+      setLocalPhysicalTests(prev => [data, ...prev])
+      setShowAddTestForm(false)
+      setNewTest({
+        test_date: new Date().toISOString().split('T')[0],
+        sprint_5m: '', sprint_10m: '', sprint_20m: '', sprint_30m: '',
+        cmj: '', squat_jump: '', yo_yo_level: '', yo_yo_distance: '',
+        agility_505: '', body_weight: '', height_cm: '', notes: '',
+      })
+      showToast('Physical test added', 'success')
+    } catch (err) {
+      console.error('Failed to add physical test:', err)
+      showToast('Failed to add physical test', 'error')
+    } finally {
+      setSavingTest(false)
+    }
+  }
+
+  const handleDeletePhysicalTest = async (testId: string) => {
+    try {
+      const supabase = createClient()
+      const { error: deleteError } = await supabase
+        .from('physical_tests')
+        .delete()
+        .eq('id', testId)
+
+      if (deleteError) throw deleteError
+
+      setLocalPhysicalTests(prev => prev.filter(t => t.id !== testId))
+      showToast('Test result deleted', 'success')
+    } catch (err) {
+      console.error('Failed to delete physical test:', err)
+      showToast('Failed to delete test result', 'error')
     }
   }
 
@@ -705,6 +790,252 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                       </div>
                     )
                   })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Physical Testing */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  Physical Testing
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddTestForm(!showAddTestForm)}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Test
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Add Test Form */}
+              {showAddTestForm && (
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">New Test Results</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                    <Input
+                      label="Test Date"
+                      type="date"
+                      value={newTest.test_date}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, test_date: e.target.value }))}
+                    />
+                    <Input
+                      label="5m Sprint (s)"
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 1.05"
+                      value={newTest.sprint_5m}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, sprint_5m: e.target.value }))}
+                    />
+                    <Input
+                      label="10m Sprint (s)"
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 1.82"
+                      value={newTest.sprint_10m}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, sprint_10m: e.target.value }))}
+                    />
+                    <Input
+                      label="20m Sprint (s)"
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 3.10"
+                      value={newTest.sprint_20m}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, sprint_20m: e.target.value }))}
+                    />
+                    <Input
+                      label="30m Sprint (s)"
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 4.25"
+                      value={newTest.sprint_30m}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, sprint_30m: e.target.value }))}
+                    />
+                    <Input
+                      label="CMJ (cm)"
+                      type="number"
+                      step="0.1"
+                      placeholder="e.g. 38.5"
+                      value={newTest.cmj}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, cmj: e.target.value }))}
+                    />
+                    <Input
+                      label="Squat Jump (cm)"
+                      type="number"
+                      step="0.1"
+                      placeholder="e.g. 35.2"
+                      value={newTest.squat_jump}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, squat_jump: e.target.value }))}
+                    />
+                    <Input
+                      label="Yo-Yo Level"
+                      placeholder="e.g. 18.3"
+                      value={newTest.yo_yo_level}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, yo_yo_level: e.target.value }))}
+                    />
+                    <Input
+                      label="Yo-Yo Distance (m)"
+                      type="number"
+                      placeholder="e.g. 1720"
+                      value={newTest.yo_yo_distance}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, yo_yo_distance: e.target.value }))}
+                    />
+                    <Input
+                      label="505 Agility (s)"
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 2.35"
+                      value={newTest.agility_505}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, agility_505: e.target.value }))}
+                    />
+                    <Input
+                      label="Body Weight (kg)"
+                      type="number"
+                      step="0.1"
+                      placeholder="e.g. 72.5"
+                      value={newTest.body_weight}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, body_weight: e.target.value }))}
+                    />
+                    <Input
+                      label="Height (cm)"
+                      type="number"
+                      step="0.1"
+                      placeholder="e.g. 178.0"
+                      value={newTest.height_cm}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, height_cm: e.target.value }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                      rows={2}
+                      value={newTest.notes}
+                      onChange={(e) => setNewTest(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Optional notes about this test session..."
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => setShowAddTestForm(false)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleAddPhysicalTest} disabled={savingTest}>
+                      {savingTest ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-1" />
+                      )}
+                      Save Test
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {localPhysicalTests.length === 0 ? (
+                <div className="py-6 text-center text-gray-400">
+                  <Zap className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No physical test results</p>
+                  <p className="text-xs mt-1">Add test results to track performance over time</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Latest Test Summary */}
+                  {(() => {
+                    const latest = localPhysicalTests[0]
+                    const previous = localPhysicalTests.length > 1 ? localPhysicalTests[1] : null
+
+                    const metrics: { key: keyof PhysicalTest; label: string; unit: string; icon: typeof Timer; color: string; lowerIsBetter?: boolean }[] = [
+                      { key: 'sprint_10m', label: '10m Sprint', unit: 's', icon: Timer, color: 'blue', lowerIsBetter: true },
+                      { key: 'sprint_30m', label: '30m Sprint', unit: 's', icon: Timer, color: 'indigo', lowerIsBetter: true },
+                      { key: 'cmj', label: 'CMJ', unit: 'cm', icon: TrendingUp, color: 'green' },
+                      { key: 'yo_yo_distance', label: 'Yo-Yo', unit: 'm', icon: Activity, color: 'orange' },
+                    ]
+
+                    const displayMetrics = metrics.filter(m => latest[m.key] != null)
+
+                    if (displayMetrics.length === 0) return null
+
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium text-gray-700">Latest Results</h4>
+                          <span className="text-xs text-gray-500">{formatDate(latest.test_date)}</span>
+                        </div>
+                        <div className={`grid grid-cols-2 ${displayMetrics.length > 2 ? 'md:grid-cols-4' : ''} gap-3`}>
+                          {displayMetrics.map(({ key, label, unit, color, lowerIsBetter }) => {
+                            const value = latest[key] as number
+                            const prevValue = previous ? (previous[key] as number | undefined) : undefined
+                            const improved = prevValue != null
+                              ? lowerIsBetter ? value < prevValue : value > prevValue
+                              : null
+
+                            return (
+                              <div key={key} className={`bg-${color}-50 p-3 rounded-lg`}>
+                                <div className="text-xs font-medium text-gray-600 mb-1">{label}</div>
+                                <div className="flex items-end gap-1">
+                                  <span className={`text-xl font-bold text-${color}-700`}>{value}</span>
+                                  <span className="text-xs text-gray-500 mb-0.5">{unit}</span>
+                                </div>
+                                {improved !== null && (
+                                  <div className={`flex items-center gap-0.5 mt-1 text-xs ${improved ? 'text-green-600' : 'text-red-500'}`}>
+                                    {improved ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                    <span>vs {prevValue}{unit}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Test History */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Test History</h4>
+                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                      {localPhysicalTests.map((test) => {
+                        const results: string[] = []
+                        if (test.sprint_5m) results.push(`5m: ${test.sprint_5m}s`)
+                        if (test.sprint_10m) results.push(`10m: ${test.sprint_10m}s`)
+                        if (test.sprint_20m) results.push(`20m: ${test.sprint_20m}s`)
+                        if (test.sprint_30m) results.push(`30m: ${test.sprint_30m}s`)
+                        if (test.cmj) results.push(`CMJ: ${test.cmj}cm`)
+                        if (test.squat_jump) results.push(`SJ: ${test.squat_jump}cm`)
+                        if (test.yo_yo_distance) results.push(`Yo-Yo: ${test.yo_yo_distance}m`)
+                        else if (test.yo_yo_level) results.push(`Yo-Yo: Lv ${test.yo_yo_level}`)
+                        if (test.agility_505) results.push(`505: ${test.agility_505}s`)
+                        if (test.body_weight) results.push(`${test.body_weight}kg`)
+
+                        return (
+                          <div
+                            key={test.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm hover:bg-gray-100 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-gray-500 w-20 flex-shrink-0">{formatDate(test.test_date)}</span>
+                              <span className="text-gray-700 truncate">
+                                {results.join(' · ') || 'No metrics recorded'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDeletePhysicalTest(test.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                              title="Delete test result"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>

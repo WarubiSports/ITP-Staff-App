@@ -47,7 +47,18 @@ export default async function PlayerDetailPage({ params }: PageProps) {
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
 
   // Fetch houses, rooms, documents, attendance, archived trials, wellness logs, training loads, college targets, focus notes, and physical tests in parallel
-  const [{ data: houses }, { data: rooms }, { data: documents }, { data: attendance }, { data: archivedTrials }, { data: wellnessLogs }, { data: trainingLoads }, { data: collegeTargets }, { data: focusNotes }] = await Promise.all([
+  const [
+    { data: houses },
+    { data: rooms },
+    { data: documents },
+    { data: attendance },
+    { data: archivedTrials },
+    { data: wellnessLogs },
+    { data: trainingLoads },
+    { data: collegeTargets },
+    { data: focusNotes },
+    { data: physicalTests },
+  ] = await Promise.all([
     supabase.from('houses').select('id, name, address').order('name'),
     supabase.from('rooms').select('id, name, house_id, capacity, floor').order('name'),
     supabase
@@ -90,13 +101,12 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .select('*')
       .eq('player_id', player.id)
       .order('session_date', { ascending: false }),
+    supabase
+      .from('physical_tests')
+      .select('*')
+      .eq('player_id', player.id)
+      .order('test_date', { ascending: false }),
   ])
-
-  const { data: physicalTests } = await supabase
-    .from('physical_tests')
-    .select('*')
-    .eq('player_id', player.id)
-    .order('test_date', { ascending: false })
 
   // Find assigned room if player has room_id
   const assignedRoom = player.room_id
