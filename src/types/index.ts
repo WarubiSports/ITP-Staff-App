@@ -609,17 +609,32 @@ export interface PhysicalTest {
   id: string
   player_id: string
   test_date: string
+  // Body composition
+  height_cm?: number
+  body_weight?: number
+  body_fat_pct?: number
+  muscle_rate?: number
+  bmi?: number
+  // Strength & power
+  broad_jump?: number
+  // Endurance
+  endurance_30_15_ift?: number
+  // Sprint tests
   sprint_5m?: number
   sprint_10m?: number
-  sprint_20m?: number
   sprint_30m?: number
+  sprint_40_yards?: number
+  // Technical tests
+  passing_accuracy?: number
+  dribbling_time?: number
+  // Legacy (kept for DB compatibility)
+  sprint_20m?: number
   cmj?: number
   squat_jump?: number
   yo_yo_level?: string
   yo_yo_distance?: number
   agility_505?: number
-  body_weight?: number
-  height_cm?: number
+  // Metadata
   notes?: string
   recorded_by?: string
   created_at: string
