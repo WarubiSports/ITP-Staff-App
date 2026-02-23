@@ -21,6 +21,12 @@ import {
   FileText,
   Ruler,
   Globe,
+  Plane,
+  Shirt,
+  ClipboardCheck,
+  ExternalLink,
+  Copy,
+  UserCheck,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -32,6 +38,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { TrialProspect } from '@/types'
 import Link from 'next/link'
+import { getOnboardingDocumentUrl, convertProspectToPlayer } from '@/app/prospects/actions'
 
 interface ProspectDetailProps {
   prospect: TrialProspect
@@ -46,6 +53,7 @@ const statusConfig: Record<string, { color: string; bg: string; label: string; i
   accepted: { color: 'text-green-600', bg: 'bg-green-100', label: 'Accepted', icon: CheckCircle },
   rejected: { color: 'text-red-600', bg: 'bg-red-100', label: 'Rejected', icon: XCircle },
   withdrawn: { color: 'text-gray-500', bg: 'bg-gray-100', label: 'Withdrawn', icon: XCircle },
+  placed: { color: 'text-emerald-600', bg: 'bg-emerald-100', label: 'Placed', icon: UserCheck },
 }
 
 const statusOptions = [
@@ -57,6 +65,7 @@ const statusOptions = [
   { value: 'accepted', label: 'Accepted' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'placed', label: 'Placed - Converted to Player' },
 ]
 
 const positionOptions = [
@@ -505,6 +514,9 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
               />
             </CardContent>
           </Card>
+
+          {/* Onboarding */}
+          <OnboardingCard prospect={prospect} />
         </div>
 
         {/* Sidebar */}
@@ -610,6 +622,9 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                 <Save className="w-4 h-4 mr-2" />
                 {loading ? 'Saving...' : 'Save Changes'}
               </Button>
+              {prospect.status === 'accepted' && (
+                <ConvertToPlayerButton prospect={prospect} />
+              )}
               <Button
                 variant="outline"
                 className="w-full text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -624,5 +639,277 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+function OnboardingCard({ prospect }: { prospect: TrialProspect }) {
+  const [docUrls, setDocUrls] = useState<Record<string, string>>({})
+  const [loadingDoc, setLoadingDoc] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const onboardingLink = `https://itp-trial-onboarding.vercel.app/${prospect.id}/onboarding`
+
+  const handleViewDoc = async (filePath: string, label: string) => {
+    if (docUrls[label]) {
+      window.open(docUrls[label], '_blank')
+      return
+    }
+    setLoadingDoc(label)
+    const { url, error } = await getOnboardingDocumentUrl(filePath)
+    setLoadingDoc(null)
+    if (url) {
+      setDocUrls(prev => ({ ...prev, [label]: url }))
+      window.open(url, '_blank')
+    }
+  }
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(onboardingLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const isCompleted = !!prospect.onboarding_completed_at
+  const step = prospect.onboarding_step || 0
+  const isUnder18 = prospect.is_under_18
+  const totalSteps = isUnder18 ? 5 : 4
+
+  const airportLabels: Record<string, string> = {
+    CGN: 'Cologne/Bonn',
+    DUS: 'Düsseldorf',
+    FRA: 'Frankfurt',
+  }
+
+  const docItems = [
+    { label: 'Passport', path: prospect.passport_file_path },
+    { label: 'Parent 1 Passport', path: prospect.parent1_passport_file_path },
+    { label: 'Parent 2 Passport', path: prospect.parent2_passport_file_path },
+    { label: 'Vollmacht', path: prospect.vollmacht_file_path },
+    { label: 'Wellpass Consent', path: prospect.wellpass_consent_file_path },
+  ].filter(d => d.path)
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardCheck className="w-5 h-5" />
+            Onboarding
+          </CardTitle>
+          {isCompleted ? (
+            <Badge variant="success">Complete</Badge>
+          ) : step > 0 ? (
+            <Badge variant="warning">In Progress {step}/{totalSteps}</Badge>
+          ) : (
+            <Badge variant="default">Not Started</Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Onboarding Link */}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleCopyLink}>
+            <Copy className="w-3.5 h-3.5 mr-1.5" />
+            {copied ? 'Copied!' : 'Copy Onboarding Link'}
+          </Button>
+          <a href={onboardingLink} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+              Open
+            </Button>
+          </a>
+        </div>
+
+        {/* Travel Info */}
+        {(prospect.arrival_date || prospect.flight_number || prospect.whatsapp_number) && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Travel</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {prospect.arrival_date && (
+                <div>
+                  <span className="text-gray-500">Arrival: </span>
+                  <span className="font-medium">
+                    {new Date(prospect.arrival_date).toLocaleDateString('de-DE')}
+                    {prospect.arrival_time && ` at ${prospect.arrival_time}`}
+                  </span>
+                </div>
+              )}
+              {prospect.flight_number && (
+                <div>
+                  <span className="text-gray-500">Flight: </span>
+                  <span className="font-medium">{prospect.flight_number}</span>
+                </div>
+              )}
+              {prospect.arrival_airport && (
+                <div>
+                  <span className="text-gray-500">Airport: </span>
+                  <span className="font-medium">{airportLabels[prospect.arrival_airport] || prospect.arrival_airport}</span>
+                </div>
+              )}
+              {prospect.needs_pickup !== undefined && (
+                <div>
+                  <span className="text-gray-500">Pick-up: </span>
+                  <span className="font-medium">{prospect.needs_pickup ? 'Yes' : 'No'}</span>
+                </div>
+              )}
+              {prospect.whatsapp_number && (
+                <div>
+                  <span className="text-gray-500">WhatsApp: </span>
+                  <span className="font-medium">{prospect.whatsapp_number}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Equipment & Schengen */}
+        {(prospect.equipment_size || prospect.schengen_last_180_days !== undefined) && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Equipment & Visa</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {prospect.equipment_size && (
+                <div>
+                  <span className="text-gray-500">Size: </span>
+                  <span className="font-medium">{prospect.equipment_size}</span>
+                </div>
+              )}
+              {prospect.schengen_last_180_days !== undefined && prospect.schengen_last_180_days !== null && (
+                <div>
+                  <span className="text-gray-500">Schengen 180d: </span>
+                  <span className="font-medium">{prospect.schengen_last_180_days ? 'Yes' : 'No'}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Documents */}
+        {docItems.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-500 uppercase">Documents</p>
+            <div className="space-y-1.5">
+              {docItems.map((doc) => (
+                <div key={doc.label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                    <span>{doc.label}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewDoc(doc.path!, doc.label)}
+                    disabled={loadingDoc === doc.label}
+                  >
+                    {loadingDoc === doc.label ? 'Loading...' : 'View'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ConvertToPlayerButton({ prospect }: { prospect: TrialProspect }) {
+  const router = useRouter()
+  const [showModal, setShowModal] = useState(false)
+  const [converting, setConverting] = useState(false)
+  const [convertError, setConvertError] = useState('')
+
+  const handleConvert = async () => {
+    setConverting(true)
+    setConvertError('')
+
+    const result = await convertProspectToPlayer(prospect.id)
+
+    if (result.success && result.playerId) {
+      if (result.error) {
+        // Partial success — show warning before navigating
+        alert(result.error)
+      }
+      setShowModal(false)
+      router.push(`/players/${result.playerId}`)
+    } else {
+      setConvertError(result.error || 'Conversion failed')
+      setConverting(false)
+    }
+  }
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        className="w-full text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 border-emerald-200"
+        onClick={() => setShowModal(true)}
+      >
+        <UserCheck className="w-4 h-4 mr-2" />
+        Convert to Player
+      </Button>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Convert to Player</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              This will create a new player account for{' '}
+              <strong>{prospect.first_name} {prospect.last_name}</strong>:
+            </p>
+            <ul className="mt-3 space-y-1.5 text-sm text-gray-600">
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                Create Player App login ({prospect.email || 'no email'})
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                Copy profile data (name, DOB, position, nationality)
+              </li>
+              {prospect.passport_file_path && (
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                  Copy uploaded documents
+                </li>
+              )}
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                Set prospect status to &quot;Placed&quot;
+              </li>
+            </ul>
+
+            {!prospect.email && (
+              <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">
+                Email is required for Player App login. Please add an email address first.
+              </div>
+            )}
+
+            {convertError && (
+              <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {convertError}
+              </div>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowModal(false)}
+                disabled={converting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleConvert}
+                disabled={converting || !prospect.email}
+              >
+                {converting ? 'Converting...' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

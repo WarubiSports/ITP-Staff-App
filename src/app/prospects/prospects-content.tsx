@@ -15,6 +15,9 @@ import {
   XCircle,
   AlertCircle,
   FileText,
+  ClipboardCheck,
+  Copy,
+  UserCheck,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -37,6 +40,7 @@ const statusConfig: Record<string, { color: string; bg: string; label: string; i
   accepted: { color: 'text-green-600', bg: 'bg-green-100', label: 'Accepted', icon: CheckCircle },
   rejected: { color: 'text-red-600', bg: 'bg-red-100', label: 'Rejected', icon: XCircle },
   withdrawn: { color: 'text-gray-500', bg: 'bg-gray-100', label: 'Withdrawn', icon: XCircle },
+  placed: { color: 'text-emerald-600', bg: 'bg-emerald-100', label: 'Placed', icon: UserCheck },
 }
 
 function calculateAge(dateOfBirth: string): number {
@@ -87,11 +91,12 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
     accepted: prospects.filter((p) => p.status === 'accepted').length,
     rejected: prospects.filter((p) => p.status === 'rejected').length,
     withdrawn: prospects.filter((p) => p.status === 'withdrawn').length,
+    placed: prospects.filter((p) => p.status === 'placed').length,
   }
 
   // Active statuses for quick filters
   const activeStatuses = ['inquiry', 'scheduled', 'in_progress', 'evaluation', 'decision_pending']
-  const completedStatuses = ['accepted', 'rejected', 'withdrawn']
+  const completedStatuses = ['accepted', 'rejected', 'withdrawn', 'placed']
 
   return (
     <div className="space-y-6">
@@ -228,13 +233,36 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                   )}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-100">
+                {/* Onboarding Status */}
+                {(prospect.status === 'accepted' || prospect.status === 'placed') && (
+                  <div className="mt-3">
+                    <OnboardingBadge prospect={prospect} />
+                  </div>
+                )}
+
+                <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
                   <Link href={`/prospects/${prospect.id}`}>
                     <Button variant="primary" size="sm" className="w-full">
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
                     </Button>
                   </Link>
+                  {(prospect.status === 'accepted' || prospect.status === 'placed') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        navigator.clipboard.writeText(
+                          `https://itp-trial-onboarding.vercel.app/${prospect.id}/onboarding`
+                        )
+                      }}
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy Onboarding Link
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -260,6 +288,33 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => window.location.reload()}
       />
+    </div>
+  )
+}
+
+function OnboardingBadge({ prospect }: { prospect: TrialProspect }) {
+  if (prospect.onboarding_completed_at) {
+    return (
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+        <ClipboardCheck className="w-3 h-3" />
+        Onboarding Complete
+      </div>
+    )
+  }
+  if (prospect.onboarding_step && prospect.onboarding_step > 0) {
+    const isUnder18 = prospect.is_under_18
+    const total = isUnder18 ? 5 : 4
+    return (
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+        <ClipboardCheck className="w-3 h-3" />
+        In Progress {prospect.onboarding_step}/{total}
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 text-xs font-medium">
+      <ClipboardCheck className="w-3 h-3" />
+      Not Started
     </div>
   )
 }

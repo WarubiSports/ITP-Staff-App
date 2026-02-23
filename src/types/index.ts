@@ -436,7 +436,7 @@ export interface TrialProspect {
   accommodation_address?: string
   accommodation_notes?: string
   // Status
-  status: 'inquiry' | 'scheduled' | 'in_progress' | 'evaluation' | 'decision_pending' | 'accepted' | 'rejected' | 'withdrawn'
+  status: 'inquiry' | 'scheduled' | 'in_progress' | 'evaluation' | 'decision_pending' | 'accepted' | 'rejected' | 'withdrawn' | 'placed'
   // Evaluation
   technical_rating?: number
   tactical_rating?: number
@@ -448,6 +448,23 @@ export interface TrialProspect {
   // Decision
   decision_date?: string
   decision_notes?: string
+  // Onboarding
+  equipment_size?: string
+  arrival_date?: string
+  arrival_time?: string
+  flight_number?: string
+  arrival_airport?: string
+  needs_pickup?: boolean
+  whatsapp_number?: string
+  schengen_last_180_days?: boolean
+  is_under_18?: boolean
+  passport_file_path?: string
+  parent1_passport_file_path?: string
+  parent2_passport_file_path?: string
+  vollmacht_file_path?: string
+  wellpass_consent_file_path?: string
+  onboarding_step?: number
+  onboarding_completed_at?: string
   // Metadata
   created_by?: string
   created_at: string
