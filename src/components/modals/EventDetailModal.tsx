@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,212 +20,50 @@ import {
   Save,
 } from 'lucide-react'
 
-// Direct fetch helper to bypass Supabase SSR client issues
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-function getAuthToken(): string | null {
-  if (typeof window === 'undefined') return null
-
-  // Supabase SSR stores auth in cookies, not localStorage
-  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0]
-  const cookieName = `sb-${projectRef}-auth-token`
-
-  // Get all cookies and find the auth token parts
-  const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-    const trimmed = cookie.trim()
-    const eqIndex = trimmed.indexOf('=')
-    if (eqIndex > 0) {
-      const key = trimmed.substring(0, eqIndex)
-      const value = trimmed.substring(eqIndex + 1)
-      acc[key] = value
-    }
-    return acc
-  }, {} as Record<string, string>)
-
-  // Supabase splits large tokens across multiple cookies (.0, .1, etc.)
-  let base64Token = ''
-  let i = 0
-  while (cookies[`${cookieName}.${i}`]) {
-    base64Token += cookies[`${cookieName}.${i}`]
-    i++
-  }
-
-  if (!base64Token) return null
-
-  try {
-    // Decode base64 and parse JSON
-    const decoded = atob(base64Token.replace('base64-', ''))
-    const parsed = JSON.parse(decoded)
-    return parsed.access_token || null
-  } catch {
-    return null
-  }
-}
-
+// Helper functions using the Supabase client (handles auth/RLS correctly)
 async function supabaseUpdate(table: string, id: string, data: Record<string, unknown>): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
   try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${response.status}`)
-    }
-
+    const supabase = createClient()
+    const { error } = await supabase.from(table).update(data).eq('id', id)
+    if (error) throw error
     return { error: null }
   } catch (err) {
     return { error: err instanceof Error ? err : new Error(String(err)) }
   }
 }
 
-async function supabaseDeleteByEventId(table: string, eventId: string): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?event_id=eq.${eventId}`, {
-      method: 'DELETE',
-      headers,
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${response.status}`)
-    }
-
-    return { error: null }
-  } catch (err) {
-    return { error: err instanceof Error ? err : new Error(String(err)) }
-  }
-}
-
-// Update all events in an orphaned recurring series
 async function supabaseUpdateOrphanedSeries(
   event: { title: string; type: string; recurrence_rule?: string | null },
   data: Record<string, unknown>
 ): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
   try {
-    // Remove date/time fields from series update (each event keeps its own date/time)
     const { date, start_time, end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
-
-    // Build query to match series events
-    let url = `${SUPABASE_URL}/rest/v1/events?title=eq.${encodeURIComponent(event.title)}&type=eq.${encodeURIComponent(event.type)}`
+    const supabase = createClient()
+    let query = supabase.from('events').update(seriesData).eq('title', event.title).eq('type', event.type)
     if (event.recurrence_rule) {
-      url += `&recurrence_rule=eq.${encodeURIComponent(event.recurrence_rule)}`
+      query = query.eq('recurrence_rule', event.recurrence_rule)
     }
-
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(seriesData),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${response.status}`)
-    }
-
+    const { error } = await query
+    if (error) throw error
     return { error: null }
   } catch (err) {
     return { error: err instanceof Error ? err : new Error(String(err)) }
   }
 }
 
-// Update all events in a recurring series (parent + all children)
 async function supabaseUpdateRecurringSeries(
   parentEventId: string,
   data: Record<string, unknown>
 ): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
   try {
-    // Update parent event (but preserve date/start_time/end_time)
     const { date, start_time, end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
-
-    const parentResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${parentEventId}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(seriesData),
-    })
-    if (!parentResponse.ok) {
-      const errorData = await parentResponse.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${parentResponse.status}`)
-    }
-
-    // Update all child events (but preserve their individual dates)
-    const childResponse = await fetch(`${SUPABASE_URL}/rest/v1/events?parent_event_id=eq.${parentEventId}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(seriesData),
-    })
-    if (!childResponse.ok) {
-      const errorData = await childResponse.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${childResponse.status}`)
-    }
-
-    return { error: null }
-  } catch (err) {
-    return { error: err instanceof Error ? err : new Error(String(err)) }
-  }
-}
-
-async function supabaseBulkInsert(table: string, data: Record<string, unknown>[]): Promise<{ error: Error | null }> {
-  const token = getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP ${response.status}`)
-    }
-
+    const supabase = createClient()
+    // Update parent
+    const { error: parentError } = await supabase.from('events').update(seriesData).eq('id', parentEventId)
+    if (parentError) throw parentError
+    // Update children
+    const { error: childError } = await supabase.from('events').update(seriesData).eq('parent_event_id', parentEventId)
+    if (childError) throw childError
     return { error: null }
   } catch (err) {
     return { error: err instanceof Error ? err : new Error(String(err)) }
@@ -324,6 +162,23 @@ export function EventDetailModal({
     all_day: event.all_day,
     selectedPlayers: event.attendees?.map((a) => a.player_id) || [],
   })
+
+  // Re-sync form data when a different event is opened
+  useEffect(() => {
+    setFormData({
+      title: event.title,
+      date: event.date,
+      start_time: parseTime(event.start_time),
+      end_time: parseTime(event.end_time) || '10:00',
+      type: event.type,
+      location: event.location || '',
+      description: event.description || '',
+      all_day: event.all_day,
+      selectedPlayers: event.attendees?.map((a) => a.player_id) || [],
+    })
+    setIsEditing(false)
+    setError('')
+  }, [event.id])
 
   const handleSave = async (mode: 'single' | 'series' = 'single') => {
     setError('')
