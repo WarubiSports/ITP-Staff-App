@@ -84,7 +84,8 @@ export default async function OperationsPage() {
     .select('id, name')
     .order('name')
 
-  // Fetch grocery orders with player info and item details
+  // Fetch grocery orders with player info and item details (upcoming only)
+  const today = new Date().toISOString().split('T')[0]
   const { data: groceryOrders } = await supabase
     .from('grocery_orders')
     .select(`
@@ -95,6 +96,7 @@ export default async function OperationsPage() {
         item:grocery_items(id, name, category)
       )
     `)
+    .gte('delivery_date', today)
     .order('delivery_date', { ascending: true })
 
   // Fetch player documents (identity category for visa docs)
