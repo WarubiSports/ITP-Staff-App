@@ -233,8 +233,8 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                   )}
                 </div>
 
-                {/* Onboarding Status */}
-                {(prospect.status === 'accepted' || prospect.status === 'placed') && (
+                {/* Onboarding Status - only for confirmed trial prospects */}
+                {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'].includes(prospect.status)) && (
                   <div className="mt-3">
                     <OnboardingBadge prospect={prospect} />
                   </div>
@@ -247,7 +247,7 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                       View Details
                     </Button>
                   </Link>
-                  {(prospect.status === 'accepted' || prospect.status === 'placed') && (
+                  {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'].includes(prospect.status)) && (
                     <Button
                       variant="outline"
                       size="sm"
