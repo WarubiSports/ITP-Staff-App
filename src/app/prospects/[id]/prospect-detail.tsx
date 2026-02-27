@@ -515,8 +515,10 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
             </CardContent>
           </Card>
 
-          {/* Onboarding */}
-          <OnboardingCard prospect={prospect} />
+          {/* Onboarding - only for committed players */}
+          {(['accepted', 'placed'].includes(prospect.status) || prospect.onboarding_completed_at) && (
+            <OnboardingCard prospect={prospect} />
+          )}
         </div>
 
         {/* Sidebar */}

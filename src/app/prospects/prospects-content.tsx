@@ -247,7 +247,7 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                       View Details
                     </Button>
                   </Link>
-                  {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'].includes(prospect.status)) && (
+                  {(['accepted', 'placed'].includes(prospect.status)) && (
                     <Button
                       variant="outline"
                       size="sm"
