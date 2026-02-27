@@ -519,6 +519,12 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
           {(['accepted', 'placed'].includes(prospect.status) || prospect.onboarding_completed_at) && (
             <OnboardingCard prospect={prospect} />
           )}
+
+          {/* Travel Info - for trial players who submitted travel via info page */}
+          {!(['accepted', 'placed'].includes(prospect.status)) && !prospect.onboarding_completed_at &&
+            (prospect.arrival_date || prospect.flight_number || prospect.whatsapp_number) && (
+            <TravelInfoCard prospect={prospect} />
+          )}
         </div>
 
         {/* Sidebar */}
@@ -624,6 +630,34 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                 <Save className="w-4 h-4 mr-2" />
                 {loading ? 'Saving...' : 'Save Changes'}
               </Button>
+              {(['scheduled', 'in_progress', 'evaluation', 'decision_pending'].includes(prospect.status)) && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `https://itp-trial-onboarding.vercel.app/${prospect.id}`
+                    )
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Trial Link
+                </Button>
+              )}
+              {(['accepted', 'placed'].includes(prospect.status)) && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `https://itp-trial-onboarding.vercel.app/${prospect.id}/onboarding`
+                    )
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Onboarding Link
+                </Button>
+              )}
               {prospect.status === 'accepted' && (
                 <ConvertToPlayerButton prospect={prospect} />
               )}
@@ -679,7 +713,7 @@ function OnboardingCard({ prospect }: { prospect: TrialProspect }) {
   const airportLabels: Record<string, string> = {
     CGN: 'Cologne/Bonn',
     DUS: 'Düsseldorf',
-    FRA: 'Frankfurt',
+    KLN_HBF: 'Köln Hbf (Train)',
   }
 
   const docItems = [
@@ -913,5 +947,61 @@ function ConvertToPlayerButton({ prospect }: { prospect: TrialProspect }) {
         </div>
       )}
     </>
+  )
+}
+
+function TravelInfoCard({ prospect }: { prospect: TrialProspect }) {
+  const airportLabels: Record<string, string> = {
+    CGN: 'Cologne/Bonn',
+    DUS: 'Düsseldorf',
+    KLN_HBF: 'Köln Hbf (Train)',
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Plane className="w-5 h-5" />
+          Travel Details
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          {prospect.arrival_date && (
+            <div>
+              <span className="text-gray-500">Arrival: </span>
+              <span className="font-medium">
+                {new Date(prospect.arrival_date).toLocaleDateString('de-DE')}
+                {prospect.arrival_time && ` at ${prospect.arrival_time}`}
+              </span>
+            </div>
+          )}
+          {prospect.flight_number && (
+            <div>
+              <span className="text-gray-500">Flight/Train: </span>
+              <span className="font-medium">{prospect.flight_number}</span>
+            </div>
+          )}
+          {prospect.arrival_airport && (
+            <div>
+              <span className="text-gray-500">Arrival Point: </span>
+              <span className="font-medium">{airportLabels[prospect.arrival_airport] || prospect.arrival_airport}</span>
+            </div>
+          )}
+          {prospect.needs_pickup !== undefined && prospect.needs_pickup !== null && (
+            <div>
+              <span className="text-gray-500">Pick-up: </span>
+              <span className="font-medium">{prospect.needs_pickup ? 'Yes' : 'No'}</span>
+            </div>
+          )}
+          {prospect.whatsapp_number && (
+            <div>
+              <span className="text-gray-500">WhatsApp: </span>
+              <span className="font-medium">{prospect.whatsapp_number}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

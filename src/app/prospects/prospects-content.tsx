@@ -247,6 +247,22 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                       View Details
                     </Button>
                   </Link>
+                  {(['scheduled', 'in_progress', 'evaluation', 'decision_pending'].includes(prospect.status)) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        navigator.clipboard.writeText(
+                          `https://itp-trial-onboarding.vercel.app/${prospect.id}`
+                        )
+                      }}
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy Trial Link
+                    </Button>
+                  )}
                   {(['accepted', 'placed'].includes(prospect.status)) && (
                     <Button
                       variant="outline"
