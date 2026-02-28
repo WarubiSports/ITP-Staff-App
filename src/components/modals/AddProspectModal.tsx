@@ -77,7 +77,7 @@ export function AddProspectModal({ isOpen, onClose, onSuccess }: AddProspectModa
 
     if (!formData.first_name.trim()) errors.first_name = 'First name is required'
     if (!formData.last_name.trim()) errors.last_name = 'Last name is required'
-    if (!formData.date_of_birth) errors.date_of_birth = 'Date of birth is required'
+    if (!formData.date_of_birth && formData.status !== 'accepted') errors.date_of_birth = 'Date of birth is required'
     if (!formData.position) errors.position = 'Position is required'
     if (!formData.nationality.trim()) errors.nationality = 'Nationality is required'
 
@@ -93,7 +93,7 @@ export function AddProspectModal({ isOpen, onClose, onSuccess }: AddProspectModa
       }
     }
 
-    // Age validation - must be between 10 and 25
+    // Age validation - must be between 10 and 25 (skip if committed without DOB)
     if (formData.date_of_birth) {
       const age = Math.floor((Date.now() - new Date(formData.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       if (age < 10 || age > 25) {
@@ -123,7 +123,7 @@ export function AddProspectModal({ isOpen, onClose, onSuccess }: AddProspectModa
         .insert({
           first_name: formData.first_name,
           last_name: formData.last_name,
-          date_of_birth: formData.date_of_birth,
+          date_of_birth: formData.date_of_birth || null,
           position: formData.position,
           nationality: formData.nationality,
           current_club: formData.current_club || null,
@@ -229,7 +229,7 @@ export function AddProspectModal({ isOpen, onClose, onSuccess }: AddProspectModa
           </div>
           <div className="grid grid-cols-3 gap-4">
             <Input
-              label="Date of Birth *"
+              label={formData.status === 'accepted' ? 'Date of Birth' : 'Date of Birth *'}
               type="date"
               value={formData.date_of_birth}
               onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
