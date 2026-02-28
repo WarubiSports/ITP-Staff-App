@@ -188,9 +188,25 @@ export function AddProspectModal({ isOpen, onClose, onSuccess }: AddProspectModa
           </div>
         )}
 
-        <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-          Add a player who is trying out FOR the ITP program.
-        </div>
+        {/* Committed toggle */}
+        <label className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+          <input
+            type="checkbox"
+            checked={formData.status === 'accepted'}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setFormData({ ...formData, status: 'accepted', trial_start_date: '', trial_end_date: '' })
+              } else {
+                setFormData({ ...formData, status: 'inquiry' })
+              }
+            }}
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <div>
+            <span className="font-medium text-gray-900">Committed (No Trial)</span>
+            <p className="text-xs text-gray-500">Player is joining directly — skip trial, go straight to onboarding</p>
+          </div>
+        </label>
 
         {/* Basic Info */}
         <div className="bg-gray-50 p-4 rounded-lg space-y-4">
@@ -326,48 +342,50 @@ export function AddProspectModal({ isOpen, onClose, onSuccess }: AddProspectModa
           />
         </div>
 
-        {/* Trial Details */}
-        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-          <h3 className="font-medium text-gray-900">Trial Details</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <Input
-              label="Trial Start Date"
-              type="date"
-              value={formData.trial_start_date}
-              onChange={(e) => setFormData({ ...formData, trial_start_date: e.target.value })}
-            />
-            <Input
-              label="Trial End Date"
-              type="date"
-              value={formData.trial_end_date}
-              onChange={(e) => setFormData({ ...formData, trial_end_date: e.target.value })}
-              error={fieldErrors.trial_end_date}
-            />
-            <Select
-              label="Status *"
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              options={statusOptions}
-              required
-            />
+        {/* Trial Details - hidden when committed */}
+        {formData.status !== 'accepted' && (
+          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <h3 className="font-medium text-gray-900">Trial Details</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <Input
+                label="Trial Start Date"
+                type="date"
+                value={formData.trial_start_date}
+                onChange={(e) => setFormData({ ...formData, trial_start_date: e.target.value })}
+              />
+              <Input
+                label="Trial End Date"
+                type="date"
+                value={formData.trial_end_date}
+                onChange={(e) => setFormData({ ...formData, trial_end_date: e.target.value })}
+                error={fieldErrors.trial_end_date}
+              />
+              <Select
+                label="Status *"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                options={statusOptions}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Textarea
+                label="Accommodation Details"
+                value={formData.accommodation_details}
+                onChange={(e) => setFormData({ ...formData, accommodation_details: e.target.value })}
+                rows={2}
+                placeholder="Where they will stay..."
+              />
+              <Textarea
+                label="Travel Arrangements"
+                value={formData.travel_arrangements}
+                onChange={(e) => setFormData({ ...formData, travel_arrangements: e.target.value })}
+                rows={2}
+                placeholder="Flight details, pickup, etc."
+              />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Textarea
-              label="Accommodation Details"
-              value={formData.accommodation_details}
-              onChange={(e) => setFormData({ ...formData, accommodation_details: e.target.value })}
-              rows={2}
-              placeholder="Where they will stay..."
-            />
-            <Textarea
-              label="Travel Arrangements"
-              value={formData.travel_arrangements}
-              onChange={(e) => setFormData({ ...formData, travel_arrangements: e.target.value })}
-              rows={2}
-              placeholder="Flight details, pickup, etc."
-            />
-          </div>
-        </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-4 border-t">
           <Button type="button" variant="outline" onClick={onClose}>
