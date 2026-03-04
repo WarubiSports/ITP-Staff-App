@@ -114,7 +114,7 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
           parent1_email: prospect.parent_contact || null,
           height_cm: prospect.height_cm || null,
           video_url: prospect.video_url || null,
-          status: 'pending',
+          status: 'active',
           notes: `Converted from trial prospect. Trial: ${prospect.trial_start_date || 'N/A'} - ${prospect.trial_end_date || 'N/A'}`,
         })
         .select('id')

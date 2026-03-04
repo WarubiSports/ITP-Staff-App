@@ -909,7 +909,7 @@ function ConvertToPlayerButton({ prospect }: { prospect: TrialProspect }) {
               )}
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                Set prospect status to &quot;Placed&quot;
+                Add to active roster
               </li>
             </ul>
 
