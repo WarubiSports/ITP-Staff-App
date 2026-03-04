@@ -30,6 +30,7 @@ export default async function DashboardPage() {
     { data: todayEvents },
     { data: todayMedical },
     { data: activeTrials },
+    { data: completedOnboarding },
   ] = await Promise.all([
     // Players with whereabouts
     supabase
@@ -62,6 +63,13 @@ export default async function DashboardPage() {
       .select('*, players!inner(first_name, last_name)')
       .in('status', ['scheduled', 'ongoing'])
       .order('trial_start_date'),
+    // Prospects who completed onboarding but haven't been converted yet
+    supabase
+      .from('trial_prospects')
+      .select('id, first_name, last_name, status, onboarding_completed_at')
+      .not('onboarding_completed_at', 'is', null)
+      .not('status', 'eq', 'placed')
+      .order('onboarding_completed_at', { ascending: false }),
   ])
 
   // Filter tasks due today or overdue
@@ -98,6 +106,7 @@ export default async function DashboardPage() {
         todayEvents={todayEvents || []}
         todayMedical={todayMedical || []}
         activeTrials={activeTrials || []}
+        completedOnboarding={completedOnboarding || []}
         today={today}
         currentUserId={user.id}
       />

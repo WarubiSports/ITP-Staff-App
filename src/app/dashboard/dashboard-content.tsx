@@ -127,6 +127,14 @@ interface Trial {
   }
 }
 
+interface CompletedOnboarding {
+  id: string
+  first_name: string
+  last_name: string
+  status: string
+  onboarding_completed_at: string
+}
+
 interface DashboardContentProps {
   players: Player[]
   todayTasks: Task[]
@@ -134,6 +142,7 @@ interface DashboardContentProps {
   todayEvents: CalendarEvent[]
   todayMedical: MedicalAppointment[]
   activeTrials: Trial[]
+  completedOnboarding: CompletedOnboarding[]
   today: string
   currentUserId: string
 }
@@ -154,6 +163,7 @@ export function DashboardContent({
   todayEvents,
   todayMedical,
   activeTrials,
+  completedOnboarding,
   today,
   currentUserId,
 }: DashboardContentProps) {
@@ -299,6 +309,42 @@ export function DashboardContent({
           </CardContent>
         </Card>
       </div>
+
+      {/* Onboarding Completion Alerts */}
+      {completedOnboarding.length > 0 && (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-emerald-900">
+                  {completedOnboarding.length} prospect{completedOnboarding.length > 1 ? 's' : ''} completed onboarding
+                </h3>
+                <div className="mt-2 space-y-2">
+                  {completedOnboarding.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between">
+                      <div>
+                        <span className="font-medium text-emerald-800">{p.first_name} {p.last_name}</span>
+                        <span className="text-sm text-emerald-600 ml-2">
+                          {new Date(p.onboarding_completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <Link href={`/prospects/${p.id}`}>
+                        <Button variant="outline" size="sm" className="text-emerald-700 border-emerald-300 hover:bg-emerald-100">
+                          {p.status === 'accepted' ? 'Convert to Player' : 'Review'}
+                          <ArrowRight className="w-3 h-3 ml-1" />
+                        </Button>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Content: Schedule + Alerts/Tasks */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
