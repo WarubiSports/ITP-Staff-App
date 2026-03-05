@@ -277,10 +277,14 @@ export async function sendProspectEmail({
   to,
   subject,
   body,
+  prospectId,
+  emailType,
 }: {
   to: string
   subject: string
   body: string
+  prospectId?: string
+  emailType?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient()
@@ -291,7 +295,19 @@ export async function sendProspectEmail({
     }
 
     const html = wrapInBrandedHtml(body)
-    return await sendEmail({ to, subject, html })
+    const result = await sendEmail({ to, subject, html })
+
+    if (result.success && prospectId) {
+      await supabase
+        .from('trial_prospects')
+        .update({
+          last_email_sent_at: new Date().toISOString(),
+          last_email_type: emailType || 'unknown',
+        })
+        .eq('id', prospectId)
+    }
+
+    return result
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' }
   }

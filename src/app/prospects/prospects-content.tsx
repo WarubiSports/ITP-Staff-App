@@ -73,9 +73,11 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
   const [approveEndDate, setApproveEndDate] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState('')
   const [emailPreview, setEmailPreview] = useState<{
-    to: string; subject: string; body: string
+    to: string; subject: string; body: string; prospectId: string; emailType: string
   } | null>(null)
+  const [emailToast, setEmailToast] = useState('')
   const router = useRouter()
 
   const pendingRequests = prospects.filter(p => p.status === 'requested')
@@ -83,6 +85,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
   const handleApprove = async () => {
     if (!approveModal || !approveStartDate || !approveEndDate) return
     setActionLoading(true)
+    setActionError('')
     const supabase = createClient()
     const { error } = await supabase
       .from('trial_prospects')
@@ -93,10 +96,12 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       })
       .eq('id', approveModal.id)
     setActionLoading(false)
-    if (!error) {
-      const { subject, body } = trialApprovedTemplate(approveModal, approveStartDate, approveEndDate)
-      setEmailPreview({ to: approveModal.email || '', subject, body })
+    if (error) {
+      setActionError(`Failed to approve: ${error.message}`)
+      return
     }
+    const { subject, body } = trialApprovedTemplate(approveModal, approveStartDate, approveEndDate)
+    setEmailPreview({ to: approveModal.email || '', subject, body, prospectId: approveModal.id, emailType: 'trial_approved' })
     setApproveModal(null)
     router.refresh()
   }
@@ -104,6 +109,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
   const handleReject = async () => {
     if (!rejectModal) return
     setActionLoading(true)
+    setActionError('')
     const supabase = createClient()
     const { error } = await supabase
       .from('trial_prospects')
@@ -113,10 +119,12 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       })
       .eq('id', rejectModal.id)
     setActionLoading(false)
-    if (!error) {
-      const { subject, body } = prospectRejectedTemplate(rejectModal, rejectReason || undefined)
-      setEmailPreview({ to: rejectModal.email || '', subject, body })
+    if (error) {
+      setActionError(`Failed to reject: ${error.message}`)
+      return
     }
+    const { subject, body } = prospectRejectedTemplate(rejectModal, rejectReason || undefined)
+    setEmailPreview({ to: rejectModal.email || '', subject, body, prospectId: rejectModal.id, emailType: 'rejected' })
     setRejectModal(null)
     setRejectReason('')
     router.refresh()
@@ -164,6 +172,23 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {actionError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center justify-between">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-red-400 hover:text-red-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Email Sent Toast */}
+      {emailToast && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
+          {emailToast}
+        </div>
+      )}
+
       {/* Search and Filters */}
       <Card>
         <CardContent className="pt-6">
@@ -607,7 +632,13 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
           to={emailPreview.to}
           subject={emailPreview.subject}
           body={emailPreview.body}
+          prospectId={emailPreview.prospectId}
+          emailType={emailPreview.emailType}
           onClose={() => setEmailPreview(null)}
+          onSent={() => {
+            setEmailToast(`Email sent to ${emailPreview.to}`)
+            setTimeout(() => setEmailToast(''), 5000)
+          }}
         />
       )}
     </div>

@@ -104,7 +104,7 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [emailPreview, setEmailPreview] = useState<{
-    to: string; subject: string; body: string
+    to: string; subject: string; body: string; prospectId: string; emailType: string
   } | null>(null)
   const [formData, setFormData] = useState({
     first_name: prospect.first_name,
@@ -192,7 +192,7 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
           ...prospect,
           first_name: formData.first_name,
         })
-        setEmailPreview({ to: formData.email || '', subject, body })
+        setEmailPreview({ to: formData.email || '', subject, body, prospectId: prospect.id, emailType: 'accepted' })
       }
 
       setSuccess('Prospect updated successfully')
@@ -228,23 +228,27 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
 
   const handleSendEmail = () => {
     let template: { subject: string; body: string }
+    let emailType: string
     if (['scheduled', 'in_progress', 'evaluation', 'decision_pending'].includes(prospect.status)) {
       template = trialApprovedTemplate(
         { ...prospect, first_name: formData.first_name },
         prospect.trial_start_date || '',
         prospect.trial_end_date || ''
       )
+      emailType = 'trial_approved'
     } else if (['accepted', 'placed'].includes(prospect.status)) {
       template = prospectAcceptedTemplate({ ...prospect, first_name: formData.first_name })
+      emailType = 'accepted'
     } else if (prospect.status === 'rejected') {
       template = prospectRejectedTemplate(
         { ...prospect, first_name: formData.first_name },
         prospect.rejection_reason || undefined
       )
+      emailType = 'rejected'
     } else {
       return
     }
-    setEmailPreview({ to: formData.email || '', subject: template.subject, body: template.body })
+    setEmailPreview({ to: formData.email || '', subject: template.subject, body: template.body, prospectId: prospect.id, emailType })
   }
 
   const config = statusConfig[formData.status]
@@ -721,14 +725,25 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                 </Button>
               )}
               {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed', 'rejected'].includes(prospect.status)) && (
-                <Button
-                  variant="outline"
-                  className="w-full text-blue-600 hover:bg-blue-50 hover:text-blue-700 border-blue-200"
-                  onClick={handleSendEmail}
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Email
-                </Button>
+                <>
+                  {prospect.last_email_sent_at && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-600">
+                      <Mail className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        Last emailed {new Date(prospect.last_email_sent_at).toLocaleDateString('de-DE')}{' '}
+                        <span className="text-blue-400">({prospect.last_email_type?.replace(/_/g, ' ')})</span>
+                      </span>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full text-blue-600 hover:bg-blue-50 hover:text-blue-700 border-blue-200"
+                    onClick={handleSendEmail}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    {prospect.last_email_sent_at ? 'Send Another Email' : 'Send Email'}
+                  </Button>
+                </>
               )}
               {prospect.status === 'accepted' && (
                 <ConvertToPlayerButton prospect={prospect} />
@@ -753,7 +768,13 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
           to={emailPreview.to}
           subject={emailPreview.subject}
           body={emailPreview.body}
+          prospectId={emailPreview.prospectId}
+          emailType={emailPreview.emailType}
           onClose={() => setEmailPreview(null)}
+          onSent={() => {
+            setSuccess(`Email sent to ${emailPreview.to}`)
+            setTimeout(() => setSuccess(''), 5000)
+          }}
         />
       )}
     </div>

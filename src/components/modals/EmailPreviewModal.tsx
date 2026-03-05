@@ -10,6 +10,8 @@ interface EmailPreviewModalProps {
   to: string
   subject: string
   body: string
+  prospectId?: string
+  emailType?: string
   onClose: () => void
   onSent?: () => void
 }
@@ -18,6 +20,8 @@ export function EmailPreviewModal({
   to,
   subject: initialSubject,
   body: initialBody,
+  prospectId,
+  emailType,
   onClose,
   onSent,
 }: EmailPreviewModalProps) {
@@ -33,7 +37,7 @@ export function EmailPreviewModal({
     setSending(true)
     setError('')
 
-    const result = await sendProspectEmail({ to, subject, body })
+    const result = await sendProspectEmail({ to, subject, body, prospectId, emailType })
 
     if (result.success) {
       onSent?.()

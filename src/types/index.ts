@@ -472,6 +472,9 @@ export interface TrialProspect {
   scout_id?: string
   rejection_reason?: string
   scout?: { name: string; affiliation: string | null }
+  // Email tracking
+  last_email_sent_at?: string
+  last_email_type?: string
   // Metadata
   created_by?: string
   created_at: string
