@@ -45,6 +45,7 @@ interface ProspectDetailProps {
 }
 
 const statusConfig: Record<string, { color: string; bg: string; label: string; icon: typeof Clock }> = {
+  requested: { color: 'text-amber-600', bg: 'bg-amber-100', label: 'Pending Approval', icon: Clock },
   inquiry: { color: 'text-gray-600', bg: 'bg-gray-100', label: 'Inquiry', icon: FileText },
   scheduled: { color: 'text-blue-600', bg: 'bg-blue-100', label: 'Scheduled', icon: Calendar },
   in_progress: { color: 'text-purple-600', bg: 'bg-purple-100', label: 'In Progress', icon: Clock },
@@ -57,6 +58,7 @@ const statusConfig: Record<string, { color: string; bg: string; label: string; i
 }
 
 const statusOptions = [
+  { value: 'requested', label: 'Requested - Pending approval' },
   { value: 'inquiry', label: 'Inquiry - Initial contact' },
   { value: 'scheduled', label: 'Scheduled - Trial dates confirmed' },
   { value: 'in_progress', label: 'In Progress - Currently at trial' },
@@ -614,6 +616,31 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Scout Info & Approval Panel (for requested status) */}
+          {prospect.status === 'requested' && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="pt-6 space-y-3">
+                <h3 className="font-semibold text-amber-900 text-sm uppercase">Pending Approval</h3>
+                {prospect.scout && (
+                  <p className="text-sm text-gray-700">
+                    Scout: <span className="font-medium">{prospect.scout.name}</span>
+                    {prospect.scout.affiliation && <span className="text-gray-500"> ({prospect.scout.affiliation})</span>}
+                  </p>
+                )}
+                {prospect.requested_start_date && (
+                  <p className="text-sm text-gray-700">
+                    Requested: {new Date(prospect.requested_start_date).toLocaleDateString('de-DE')}
+                    {prospect.requested_end_date && ` – ${new Date(prospect.requested_end_date).toLocaleDateString('de-DE')}`}
+                    {prospect.dates_flexible && <span className="text-amber-600 ml-1">(flexible)</span>}
+                  </p>
+                )}
+                {!prospect.requested_start_date && prospect.dates_flexible && (
+                  <p className="text-sm text-amber-600">Dates flexible — scout didn&apos;t specify</p>
+                )}
               </CardContent>
             </Card>
           )}

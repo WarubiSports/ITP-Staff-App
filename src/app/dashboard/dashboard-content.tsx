@@ -143,6 +143,7 @@ interface DashboardContentProps {
   todayMedical: MedicalAppointment[]
   activeTrials: Trial[]
   completedOnboarding: CompletedOnboarding[]
+  pendingTrialRequests?: number
   today: string
   currentUserId: string
 }
@@ -164,6 +165,7 @@ export function DashboardContent({
   todayMedical,
   activeTrials,
   completedOnboarding,
+  pendingTrialRequests = 0,
   today,
   currentUserId,
 }: DashboardContentProps) {
@@ -341,6 +343,33 @@ export function DashboardContent({
                   ))}
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending Trial Requests */}
+      {pendingTrialRequests > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <ClipboardList className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-amber-900">
+                    {pendingTrialRequests} pending trial request{pendingTrialRequests !== 1 ? 's' : ''}
+                  </h3>
+                  <p className="text-sm text-amber-700">Scout-submitted requests awaiting approval</p>
+                </div>
+              </div>
+              <Link href="/prospects">
+                <Button variant="outline" size="sm" className="text-amber-700 border-amber-300 hover:bg-amber-100">
+                  Review
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

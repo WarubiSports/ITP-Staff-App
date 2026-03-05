@@ -16,11 +16,24 @@ export default async function ProspectsPage() {
     redirect('/login')
   }
 
-  // Fetch all prospects
-  const { data: prospects } = await supabase
-    .from('trial_prospects')
-    .select('*')
-    .order('created_at', { ascending: false })
+  // Fetch prospects with scout data, rooms, and players in parallel
+  const [
+    { data: prospects },
+    { data: rooms },
+    { data: players },
+  ] = await Promise.all([
+    supabase
+      .from('trial_prospects')
+      .select('*, scout:scouts!scout_id(name, affiliation)')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('rooms')
+      .select('id, capacity'),
+    supabase
+      .from('players')
+      .select('id, room_id')
+      .eq('status', 'active'),
+  ])
 
   return (
     <AppLayout
@@ -28,7 +41,11 @@ export default async function ProspectsPage() {
       subtitle="Players trying out for the ITP"
       user={user}
     >
-      <ProspectsContent prospects={prospects || []} />
+      <ProspectsContent
+        prospects={prospects || []}
+        rooms={rooms || []}
+        players={players || []}
+      />
     </AppLayout>
   )
 }

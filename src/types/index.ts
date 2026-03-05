@@ -428,6 +428,9 @@ export interface TrialProspect {
   // Trial logistics
   trial_start_date?: string
   trial_end_date?: string
+  requested_start_date?: string
+  requested_end_date?: string
+  dates_flexible?: boolean
   accommodation_details?: string
   travel_arrangements?: string
   // Housing for trialists
@@ -436,7 +439,7 @@ export interface TrialProspect {
   accommodation_address?: string
   accommodation_notes?: string
   // Status
-  status: 'inquiry' | 'scheduled' | 'in_progress' | 'evaluation' | 'decision_pending' | 'accepted' | 'rejected' | 'withdrawn' | 'placed'
+  status: 'requested' | 'inquiry' | 'scheduled' | 'in_progress' | 'evaluation' | 'decision_pending' | 'accepted' | 'rejected' | 'withdrawn' | 'placed'
   // Evaluation
   technical_rating?: number
   tactical_rating?: number
@@ -465,6 +468,10 @@ export interface TrialProspect {
   wellpass_consent_file_path?: string
   onboarding_step?: number
   onboarding_completed_at?: string
+  // Scout reference
+  scout_id?: string
+  rejection_reason?: string
+  scout?: { name: string; affiliation: string | null }
   // Metadata
   created_by?: string
   created_at: string
@@ -656,6 +663,32 @@ export interface PhysicalTest {
   recorded_by?: string
   created_at: string
   updated_at: string
+}
+
+// Placement outreach - tracking staff-to-organization conversations for placements
+export interface PlacementOutreach {
+  id: string
+  player_id: string
+  college_target_id?: string
+  organization_name: string
+  organization_type: 'college' | 'club' | 'agency'
+  division?: string
+  contact_name?: string
+  contact_role?: string
+  contact_email?: string
+  contact_phone?: string
+  contact_method?: 'email' | 'phone' | 'video' | 'in_person' | 'text'
+  subject?: string
+  summary?: string
+  direction: 'outbound' | 'inbound'
+  follow_up_date?: string
+  follow_up_notes?: string
+  outcome?: 'positive' | 'neutral' | 'negative' | 'no_response' | 'pending'
+  created_by?: string
+  created_at: string
+  updated_at: string
+  // Joined fields
+  player?: { id: string; first_name: string; last_name: string }
 }
 
 // Player pickup tracking (airport/train station arrivals)

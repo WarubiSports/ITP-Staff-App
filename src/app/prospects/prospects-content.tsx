@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Search,
   Users,
   UserPlus,
   Eye,
   Calendar,
-  MapPin,
   Star,
   Clock,
   CheckCircle,
@@ -18,20 +18,27 @@ import {
   ClipboardCheck,
   Copy,
   UserCheck,
+  BedDouble,
+  Check,
+  X,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { AddProspectModal } from '@/components/modals/AddProspectModal'
 import { TrialProspect } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import { calculateAvailability } from '@/lib/housing-availability'
 
 interface ProspectsContentProps {
   prospects: TrialProspect[]
+  rooms?: { id: string; capacity: number }[]
+  players?: { id: string; room_id?: string | null }[]
 }
 
 const statusConfig: Record<string, { color: string; bg: string; label: string; icon: typeof Clock }> = {
+  requested: { color: 'text-amber-600', bg: 'bg-amber-100', label: 'Pending', icon: Clock },
   inquiry: { color: 'text-gray-600', bg: 'bg-gray-100', label: 'Inquiry', icon: FileText },
   scheduled: { color: 'text-blue-600', bg: 'bg-blue-100', label: 'Scheduled', icon: Calendar },
   in_progress: { color: 'text-purple-600', bg: 'bg-purple-100', label: 'In Progress', icon: Clock },
@@ -54,10 +61,53 @@ function calculateAge(dateOfBirth: string): number {
   return age
 }
 
-export function ProspectsContent({ prospects }: ProspectsContentProps) {
+export function ProspectsContent({ prospects, rooms = [], players = [] }: ProspectsContentProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [approveModal, setApproveModal] = useState<TrialProspect | null>(null)
+  const [rejectModal, setRejectModal] = useState<TrialProspect | null>(null)
+  const [approveStartDate, setApproveStartDate] = useState('')
+  const [approveEndDate, setApproveEndDate] = useState('')
+  const [rejectReason, setRejectReason] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  const router = useRouter()
+
+  const pendingRequests = prospects.filter(p => p.status === 'requested')
+
+  const handleApprove = async () => {
+    if (!approveModal || !approveStartDate || !approveEndDate) return
+    setActionLoading(true)
+    const supabase = createClient()
+    await supabase
+      .from('trial_prospects')
+      .update({
+        status: 'scheduled',
+        trial_start_date: approveStartDate,
+        trial_end_date: approveEndDate,
+      })
+      .eq('id', approveModal.id)
+    setActionLoading(false)
+    setApproveModal(null)
+    router.refresh()
+  }
+
+  const handleReject = async () => {
+    if (!rejectModal) return
+    setActionLoading(true)
+    const supabase = createClient()
+    await supabase
+      .from('trial_prospects')
+      .update({
+        status: 'rejected',
+        rejection_reason: rejectReason || null,
+      })
+      .eq('id', rejectModal.id)
+    setActionLoading(false)
+    setRejectModal(null)
+    setRejectReason('')
+    router.refresh()
+  }
 
   // Filter and sort prospects chronologically by trial start date
   const filteredProspects = prospects
@@ -83,6 +133,7 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
   // Count by status
   const statusCounts = {
     all: prospects.length,
+    requested: prospects.filter((p) => p.status === 'requested').length,
     inquiry: prospects.filter((p) => p.status === 'inquiry').length,
     scheduled: prospects.filter((p) => p.status === 'scheduled').length,
     in_progress: prospects.filter((p) => p.status === 'in_progress').length,
@@ -95,7 +146,7 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
   }
 
   // Active statuses for quick filters
-  const activeStatuses = ['inquiry', 'scheduled', 'in_progress', 'evaluation', 'decision_pending']
+  const activeStatuses = ['requested', 'inquiry', 'scheduled', 'in_progress', 'evaluation', 'decision_pending']
   const completedStatuses = ['accepted', 'rejected', 'withdrawn', 'placed']
 
   return (
@@ -170,10 +221,89 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
         </CardContent>
       </Card>
 
+      {/* Pending Requests Banner */}
+      {pendingRequests.length > 0 && statusFilter === 'all' && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-amber-100">
+                <Clock className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-amber-900">
+                  {pendingRequests.length} Pending Trial Request{pendingRequests.length !== 1 ? 's' : ''}
+                </h3>
+                <p className="text-sm text-amber-700">Scout-submitted requests awaiting your approval</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {pendingRequests.map((p) => {
+                const availability = calculateAvailability(
+                  rooms,
+                  players,
+                  prospects,
+                  p.requested_start_date,
+                  p.requested_end_date
+                )
+                return (
+                  <div key={p.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-200">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">
+                        {p.first_name} {p.last_name}
+                        <span className="ml-2 text-xs text-gray-500">{p.position} · {p.nationality}</span>
+                      </p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                        {p.scout && (
+                          <span>Scout: {p.scout.name}{p.scout.affiliation ? ` (${p.scout.affiliation})` : ''}</span>
+                        )}
+                        {p.requested_start_date && p.requested_end_date ? (
+                          <span>
+                            {new Date(p.requested_start_date).toLocaleDateString('de-DE')} – {new Date(p.requested_end_date).toLocaleDateString('de-DE')}
+                            {p.dates_flexible && ' (flexible)'}
+                          </span>
+                        ) : (
+                          <span>Dates flexible</span>
+                        )}
+                        <span className={`flex items-center gap-1 ${availability.availableBeds > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <BedDouble className="w-3 h-3" />
+                          {availability.availableBeds} bed{availability.availableBeds !== 1 ? 's' : ''} available
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 ml-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-green-600 border-green-200 hover:bg-green-50"
+                        onClick={() => {
+                          setApproveModal(p)
+                          setApproveStartDate(p.requested_start_date || '')
+                          setApproveEndDate(p.requested_end_date || '')
+                        }}
+                      >
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => setRejectModal(p)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Prospects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredProspects.map((prospect) => {
-          const config = statusConfig[prospect.status]
+          const config = statusConfig[prospect.status] || statusConfig.inquiry
           const Icon = config.icon
           const age = calculateAge(prospect.date_of_birth)
 
@@ -214,6 +344,12 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                       <span className="font-medium">{prospect.current_club}</span>
                     </div>
                   )}
+                  {prospect.scout && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">Scout:</span>
+                      <span className="font-medium">{prospect.scout.name}{prospect.scout.affiliation ? ` (${prospect.scout.affiliation})` : ''}</span>
+                    </div>
+                  )}
                   {prospect.trial_start_date && (
                     <div className="flex items-center gap-2">
                       <Calendar className="w-3 h-3 text-gray-400" />
@@ -221,6 +357,17 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                       <span className="font-medium">
                         {new Date(prospect.trial_start_date).toLocaleDateString('de-DE')}
                         {prospect.trial_end_date && ` - ${new Date(prospect.trial_end_date).toLocaleDateString('de-DE')}`}
+                      </span>
+                    </div>
+                  )}
+                  {prospect.status === 'requested' && prospect.requested_start_date && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-3 h-3 text-amber-400" />
+                      <span className="text-gray-500">Requested:</span>
+                      <span className="font-medium text-amber-700">
+                        {new Date(prospect.requested_start_date).toLocaleDateString('de-DE')}
+                        {prospect.requested_end_date && ` - ${new Date(prospect.requested_end_date).toLocaleDateString('de-DE')}`}
+                        {prospect.dates_flexible && ' (flexible)'}
                       </span>
                     </div>
                   )}
@@ -247,6 +394,32 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
                       View Details
                     </Button>
                   </Link>
+                  {prospect.status === 'requested' && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-green-600 border-green-200 hover:bg-green-50"
+                        onClick={() => {
+                          setApproveModal(prospect)
+                          setApproveStartDate(prospect.requested_start_date || '')
+                          setApproveEndDate(prospect.requested_end_date || '')
+                        }}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => setRejectModal(prospect)}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
                   {(['scheduled', 'in_progress', 'evaluation', 'decision_pending'].includes(prospect.status)) && (
                     <Button
                       variant="outline"
@@ -304,6 +477,116 @@ export function ProspectsContent({ prospects }: ProspectsContentProps) {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => window.location.reload()}
       />
+
+      {/* Approve Modal */}
+      {approveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-1">Approve Trial Request</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {approveModal.first_name} {approveModal.last_name} — {approveModal.position}
+              {approveModal.scout && <span className="block mt-0.5">Referred by {approveModal.scout.name}</span>}
+            </p>
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trial Start Date</label>
+                <input
+                  type="date"
+                  value={approveStartDate}
+                  onChange={(e) => setApproveStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trial End Date</label>
+                <input
+                  type="date"
+                  value={approveEndDate}
+                  onChange={(e) => setApproveEndDate(e.target.value)}
+                  min={approveStartDate || undefined}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {rooms.length > 0 && (
+                <div className="p-3 rounded-lg bg-gray-50 text-sm">
+                  <div className="flex items-center gap-2">
+                    <BedDouble className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium">Housing Availability</span>
+                  </div>
+                  {(() => {
+                    const avail = calculateAvailability(rooms, players, prospects, approveStartDate, approveEndDate)
+                    return (
+                      <p className={`mt-1 ${avail.availableBeds > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {avail.availableBeds} of {avail.totalBeds} beds available
+                        <span className="text-gray-400 ml-1">
+                          ({avail.permanentOccupants} permanent + {avail.overlappingTrialists} trialists)
+                        </span>
+                      </p>
+                    )
+                  })()}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setApproveModal(null)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleApprove}
+                disabled={actionLoading || !approveStartDate || !approveEndDate}
+              >
+                {actionLoading ? 'Approving...' : 'Approve & Schedule'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-1">Reject Trial Request</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {rejectModal.first_name} {rejectModal.last_name} — {rejectModal.position}
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. No housing available, wrong age group..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[80px]"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setRejectModal(null); setRejectReason('') }}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1 bg-red-600 hover:bg-red-700"
+                onClick={handleReject}
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Rejecting...' : 'Reject Request'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
