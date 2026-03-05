@@ -27,6 +27,7 @@ import {
   ExternalLink,
   Copy,
   UserCheck,
+  Send,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -40,7 +41,7 @@ import { TrialProspect } from '@/types'
 import Link from 'next/link'
 import { getOnboardingDocumentUrl, convertProspectToPlayer } from '@/app/prospects/actions'
 import { EmailPreviewModal } from '@/components/modals/EmailPreviewModal'
-import { prospectAcceptedTemplate } from '@/lib/email-templates'
+import { trialApprovedTemplate, prospectAcceptedTemplate, prospectRejectedTemplate } from '@/lib/email-templates'
 
 interface ProspectDetailProps {
   prospect: TrialProspect
@@ -223,6 +224,27 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
       setError(err instanceof Error ? err.message : 'Failed to delete prospect')
       setDeleteLoading(false)
     }
+  }
+
+  const handleSendEmail = () => {
+    let template: { subject: string; body: string }
+    if (['scheduled', 'in_progress', 'evaluation', 'decision_pending'].includes(prospect.status)) {
+      template = trialApprovedTemplate(
+        { ...prospect, first_name: formData.first_name },
+        prospect.trial_start_date || '',
+        prospect.trial_end_date || ''
+      )
+    } else if (['accepted', 'placed'].includes(prospect.status)) {
+      template = prospectAcceptedTemplate({ ...prospect, first_name: formData.first_name })
+    } else if (prospect.status === 'rejected') {
+      template = prospectRejectedTemplate(
+        { ...prospect, first_name: formData.first_name },
+        prospect.rejection_reason || undefined
+      )
+    } else {
+      return
+    }
+    setEmailPreview({ to: formData.email || '', subject: template.subject, body: template.body })
   }
 
   const config = statusConfig[formData.status]
@@ -696,6 +718,16 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                 >
                   <Copy className="w-4 h-4 mr-2" />
                   Copy Onboarding Link
+                </Button>
+              )}
+              {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed', 'rejected'].includes(prospect.status)) && (
+                <Button
+                  variant="outline"
+                  className="w-full text-blue-600 hover:bg-blue-50 hover:text-blue-700 border-blue-200"
+                  onClick={handleSendEmail}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Email
                 </Button>
               )}
               {prospect.status === 'accepted' && (
