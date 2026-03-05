@@ -39,6 +39,8 @@ import { createClient } from '@/lib/supabase/client'
 import { TrialProspect } from '@/types'
 import Link from 'next/link'
 import { getOnboardingDocumentUrl, convertProspectToPlayer } from '@/app/prospects/actions'
+import { EmailPreviewModal } from '@/components/modals/EmailPreviewModal'
+import { prospectAcceptedTemplate } from '@/lib/email-templates'
 
 interface ProspectDetailProps {
   prospect: TrialProspect
@@ -100,6 +102,9 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [emailPreview, setEmailPreview] = useState<{
+    to: string; subject: string; body: string
+  } | null>(null)
   const [formData, setFormData] = useState({
     first_name: prospect.first_name,
     last_name: prospect.last_name,
@@ -180,6 +185,14 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
         .eq('id', prospect.id)
 
       if (updateError) throw updateError
+
+      if (formData.status === 'accepted' && prospect.status !== 'accepted') {
+        const { subject, body } = prospectAcceptedTemplate({
+          ...prospect,
+          first_name: formData.first_name,
+        })
+        setEmailPreview({ to: formData.email || '', subject, body })
+      }
 
       setSuccess('Prospect updated successfully')
       setTimeout(() => setSuccess(''), 3000)
@@ -701,6 +714,16 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
           </Card>
         </div>
       </div>
+
+      {/* Email Preview Modal */}
+      {emailPreview && (
+        <EmailPreviewModal
+          to={emailPreview.to}
+          subject={emailPreview.subject}
+          body={emailPreview.body}
+          onClose={() => setEmailPreview(null)}
+        />
+      )}
     </div>
   )
 }

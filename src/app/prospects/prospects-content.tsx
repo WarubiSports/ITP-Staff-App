@@ -27,9 +27,11 @@ import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { AddProspectModal } from '@/components/modals/AddProspectModal'
+import { EmailPreviewModal } from '@/components/modals/EmailPreviewModal'
 import { TrialProspect } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAvailability } from '@/lib/housing-availability'
+import { trialApprovedTemplate, prospectRejectedTemplate } from '@/lib/email-templates'
 
 interface ProspectsContentProps {
   prospects: TrialProspect[]
@@ -71,6 +73,9 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
   const [approveEndDate, setApproveEndDate] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [emailPreview, setEmailPreview] = useState<{
+    to: string; subject: string; body: string
+  } | null>(null)
   const router = useRouter()
 
   const pendingRequests = prospects.filter(p => p.status === 'requested')
@@ -79,7 +84,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
     if (!approveModal || !approveStartDate || !approveEndDate) return
     setActionLoading(true)
     const supabase = createClient()
-    await supabase
+    const { error } = await supabase
       .from('trial_prospects')
       .update({
         status: 'scheduled',
@@ -88,6 +93,10 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       })
       .eq('id', approveModal.id)
     setActionLoading(false)
+    if (!error) {
+      const { subject, body } = trialApprovedTemplate(approveModal, approveStartDate, approveEndDate)
+      setEmailPreview({ to: approveModal.email || '', subject, body })
+    }
     setApproveModal(null)
     router.refresh()
   }
@@ -96,7 +105,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
     if (!rejectModal) return
     setActionLoading(true)
     const supabase = createClient()
-    await supabase
+    const { error } = await supabase
       .from('trial_prospects')
       .update({
         status: 'rejected',
@@ -104,6 +113,10 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       })
       .eq('id', rejectModal.id)
     setActionLoading(false)
+    if (!error) {
+      const { subject, body } = prospectRejectedTemplate(rejectModal, rejectReason || undefined)
+      setEmailPreview({ to: rejectModal.email || '', subject, body })
+    }
     setRejectModal(null)
     setRejectReason('')
     router.refresh()
@@ -586,6 +599,16 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
             </div>
           </div>
         </div>
+      )}
+
+      {/* Email Preview Modal */}
+      {emailPreview && (
+        <EmailPreviewModal
+          to={emailPreview.to}
+          subject={emailPreview.subject}
+          body={emailPreview.body}
+          onClose={() => setEmailPreview(null)}
+        />
       )}
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { sendEmail, wrapInBrandedHtml } from '@/lib/email'
 
 const ONBOARDING_BUCKET = 'prospect-onboarding'
 
@@ -269,5 +270,29 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
     return { success: true, playerId: authData.user.id }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Conversion failed' }
+  }
+}
+
+export async function sendProspectEmail({
+  to,
+  subject,
+  body,
+}: {
+  to: string
+  subject: string
+  body: string
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    const html = wrapInBrandedHtml(body)
+    return await sendEmail({ to, subject, html })
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' }
   }
 }
