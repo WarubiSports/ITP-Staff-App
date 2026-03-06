@@ -475,6 +475,9 @@ export interface TrialProspect {
   // Email tracking
   last_email_sent_at?: string
   last_email_type?: string
+  // Contract request (from scout)
+  contract_requested_at?: string
+  contract_requested_by?: string
   // Metadata
   created_by?: string
   created_at: string

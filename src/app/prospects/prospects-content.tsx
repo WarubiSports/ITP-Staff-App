@@ -21,6 +21,7 @@ import {
   BedDouble,
   Check,
   X,
+  Send,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -420,6 +421,14 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
                   )}
                 </div>
 
+                {/* Contract Requested Badge */}
+                {prospect.contract_requested_at && (
+                  <div className="mt-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
+                    <Send className="w-3 h-3" />
+                    Contract requested{prospect.contract_requested_by ? ` by ${prospect.contract_requested_by}` : ''} · {formatTimeAgo(prospect.contract_requested_at)}
+                  </div>
+                )}
+
                 {/* Onboarding Status - only for confirmed trial prospects */}
                 {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'].includes(prospect.status)) && (
                   <div className="mt-3">
@@ -646,6 +655,18 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       )}
     </div>
   )
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  if (diffMins < 60) return `${diffMins}m ago`
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays}d ago`
 }
 
 function OnboardingBadge({ prospect }: { prospect: TrialProspect }) {
