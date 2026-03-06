@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarEvent, Player, PlayerTrial, TrialProspect, MedicalAppointment } from '@/types'
+import { CalendarEvent, CalendarEventType, Player, PlayerTrial, TrialProspect, MedicalAppointment } from '@/types'
 import { CompliancePanel } from '@/components/calendar/CompliancePanel'
 import { Button } from '@/components/ui/button'
 import { CalendarGrid } from '@/components/calendar/CalendarGrid'
@@ -185,6 +185,51 @@ function convertMedicalAppointmentsToEvents(appointments: MedicalAppointmentWith
   })
 }
 
+// Filter categories for calendar events
+const EVENT_CATEGORIES: { label: string; types: CalendarEventType[]; color: string; hiddenByDefault: boolean }[] = [
+  { label: 'Training', types: ['team_training', 'individual_training', 'training'], color: 'blue', hiddenByDefault: false },
+  { label: 'Gym / Recovery', types: ['gym', 'recovery'], color: 'cyan', hiddenByDefault: true },
+  { label: 'Language', types: ['language_class'], color: 'purple', hiddenByDefault: true },
+  { label: 'School', types: ['school'], color: 'purple', hiddenByDefault: false },
+  { label: 'Matches', types: ['match', 'tournament'], color: 'red', hiddenByDefault: false },
+  { label: 'Trials', types: ['trial', 'external_trial', 'prospect_trial'], color: 'violet', hiddenByDefault: false },
+  { label: 'Medical', types: ['medical'], color: 'green', hiddenByDefault: false },
+  { label: 'Meetings', types: ['meeting', 'video_session'], color: 'gray', hiddenByDefault: false },
+  { label: 'Logistics', types: ['airport_pickup', 'team_activity', 'visa'], color: 'orange', hiddenByDefault: false },
+  { label: 'Other', types: ['other'], color: 'gray', hiddenByDefault: true },
+]
+
+const STORAGE_KEY = 'calendar-hidden-categories'
+
+// Map event type to its category label
+const eventTypeToCategory = new Map<string, string>()
+EVENT_CATEGORIES.forEach((cat) => cat.types.forEach((t) => eventTypeToCategory.set(t, cat.label)))
+
+function getDefaultHidden(): Set<string> {
+  return new Set(EVENT_CATEGORIES.filter((c) => c.hiddenByDefault).map((c) => c.label))
+}
+
+function loadHiddenCategories(): Set<string> {
+  if (typeof window === 'undefined') return getDefaultHidden()
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) return new Set(JSON.parse(stored))
+  } catch { /* ignore */ }
+  return getDefaultHidden()
+}
+
+// Chip color styles per color name
+const chipColors: Record<string, { active: string; inactive: string }> = {
+  blue:   { active: 'bg-blue-100 text-blue-700 border-blue-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+  cyan:   { active: 'bg-cyan-100 text-cyan-700 border-cyan-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+  purple: { active: 'bg-purple-100 text-purple-700 border-purple-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+  red:    { active: 'bg-red-100 text-red-700 border-red-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+  violet: { active: 'bg-violet-100 text-violet-700 border-violet-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+  green:  { active: 'bg-green-100 text-green-700 border-green-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+  gray:   { active: 'bg-gray-200 text-gray-700 border-gray-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+  orange: { active: 'bg-orange-100 text-orange-700 border-orange-300', inactive: 'bg-gray-50 text-gray-400 border-gray-200 line-through' },
+}
+
 export function CalendarContent({
   events: initialEvents,
   players,
@@ -203,6 +248,32 @@ export function CalendarContent({
     const medicalEvents = convertMedicalAppointmentsToEvents(medicalAppointments)
     return [...initialEvents, ...trialEvents, ...prospectEvents, ...medicalEvents]
   }, [initialEvents, playerTrials, trialProspects, medicalAppointments])
+
+  // Category filter state (lazy init from localStorage)
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(loadHiddenCategories)
+
+  const toggleCategory = useCallback((label: string) => {
+    setHiddenCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(label)) {
+        next.delete(label)
+      } else {
+        next.add(label)
+      }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }, [])
+
+  // Filtered events based on category toggles
+  const filteredEvents = useMemo(() => {
+    if (hiddenCategories.size === 0) return events
+    return events.filter((e) => {
+      const category = eventTypeToCategory.get(e.type) ?? 'Other'
+      return !hiddenCategories.has(category)
+    })
+  }, [events, hiddenCategories])
+
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -361,12 +432,32 @@ export function CalendarContent({
         </div>
       </div>
 
+      {/* Filter Chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {EVENT_CATEGORIES.map((cat) => {
+          const hidden = hiddenCategories.has(cat.label)
+          const colors = chipColors[cat.color] || chipColors.gray
+          return (
+            <button
+              key={cat.label}
+              onClick={() => toggleCategory(cat.label)}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-full border transition-all',
+                hidden ? colors.inactive : colors.active
+              )}
+            >
+              {cat.label}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Calendar View */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {viewMode === 'month' && (
           <CalendarGrid
             currentDate={currentDate}
-            events={events}
+            events={filteredEvents}
             selectedDate={selectedDate}
             onDateClick={handleDateClick}
             onEventClick={handleEventClick}
@@ -376,7 +467,7 @@ export function CalendarContent({
         {viewMode === 'week' && (
           <WeekView
             currentDate={currentDate}
-            events={events}
+            events={filteredEvents}
             selectedDate={selectedDate}
             onDateClick={handleDateClick}
             onEventClick={handleEventClick}
@@ -386,7 +477,7 @@ export function CalendarContent({
         {viewMode === 'day' && (
           <DayView
             currentDate={currentDate}
-            events={events}
+            events={filteredEvents}
             onEventClick={handleEventClick}
             onAddEvent={handleAddEvent}
           />
