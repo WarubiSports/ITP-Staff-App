@@ -246,7 +246,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     }
   }
 
-  // Generate recurring dates
+  // Generate recurring dates (uses UTC arithmetic to avoid DST drift)
   const generateRecurringInstances = (
     startDate: string,
     rule: string,
@@ -254,8 +254,8 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     selectedDays: string[] = []
   ): string[] => {
     const dates: string[] = []
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const start = new Date(startDate + 'T12:00:00Z')
+    const end = new Date(endDate + 'T12:00:00Z')
     const current = new Date(start)
 
     // For custom rule with selected days
@@ -263,13 +263,13 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
       const selectedDayNumbers = selectedDays.map(d => dayNameToNumber[d])
 
       // Skip the first date (already created as main event)
-      current.setDate(current.getDate() + 1)
+      current.setUTCDate(current.getUTCDate() + 1)
 
       while (current <= end) {
-        if (selectedDayNumbers.includes(current.getDay())) {
+        if (selectedDayNumbers.includes(current.getUTCDay())) {
           dates.push(current.toISOString().split('T')[0])
         }
-        current.setDate(current.getDate() + 1)
+        current.setUTCDate(current.getUTCDate() + 1)
       }
       return dates
     }
@@ -277,13 +277,13 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     // Skip the first date (already created as main event)
     switch (rule) {
       case 'daily':
-        current.setDate(current.getDate() + 1)
+        current.setUTCDate(current.getUTCDate() + 1)
         break
       case 'weekly':
-        current.setDate(current.getDate() + 7)
+        current.setUTCDate(current.getUTCDate() + 7)
         break
       case 'monthly':
-        current.setMonth(current.getMonth() + 1)
+        current.setUTCMonth(current.getUTCMonth() + 1)
         break
     }
 
@@ -292,13 +292,13 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
 
       switch (rule) {
         case 'daily':
-          current.setDate(current.getDate() + 1)
+          current.setUTCDate(current.getUTCDate() + 1)
           break
         case 'weekly':
-          current.setDate(current.getDate() + 7)
+          current.setUTCDate(current.getUTCDate() + 7)
           break
         case 'monthly':
-          current.setMonth(current.getMonth() + 1)
+          current.setUTCMonth(current.getUTCMonth() + 1)
           break
       }
     }
