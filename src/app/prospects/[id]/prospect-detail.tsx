@@ -104,7 +104,7 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [emailPreview, setEmailPreview] = useState<{
-    to: string; subject: string; body: string; prospectId: string; emailType: string
+    to: string; cc?: string; subject: string; body: string; prospectId: string; emailType: string
   } | null>(null)
   const [formData, setFormData] = useState({
     first_name: prospect.first_name,
@@ -192,7 +192,8 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
           ...prospect,
           first_name: formData.first_name,
         })
-        setEmailPreview({ to: formData.email || '', subject, body, prospectId: prospect.id, emailType: 'accepted' })
+        const parentCc = (formData.parent_contact || prospect.parent_contact)?.includes('@') ? (formData.parent_contact || prospect.parent_contact) : undefined
+        setEmailPreview({ to: formData.email || '', cc: parentCc, subject, body, prospectId: prospect.id, emailType: 'accepted' })
       }
 
       setSuccess('Prospect updated successfully')
@@ -248,7 +249,8 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
     } else {
       return
     }
-    setEmailPreview({ to: formData.email || '', subject: template.subject, body: template.body, prospectId: prospect.id, emailType })
+    const parentCc = (formData.parent_contact || prospect.parent_contact)?.includes('@') ? (formData.parent_contact || prospect.parent_contact) : undefined
+    setEmailPreview({ to: formData.email || '', cc: parentCc, subject: template.subject, body: template.body, prospectId: prospect.id, emailType })
   }
 
   const config = statusConfig[formData.status]
@@ -766,6 +768,7 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
       {emailPreview && (
         <EmailPreviewModal
           to={emailPreview.to}
+          cc={emailPreview.cc}
           subject={emailPreview.subject}
           body={emailPreview.body}
           prospectId={emailPreview.prospectId}

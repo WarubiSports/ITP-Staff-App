@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, Send, X, AlertTriangle } from 'lucide-react'
+import { Mail, Send, X, AlertTriangle, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { sendProspectEmail } from '@/app/prospects/actions'
 
 interface EmailPreviewModalProps {
   to: string
+  cc?: string
   subject: string
   body: string
   prospectId?: string
@@ -18,6 +19,7 @@ interface EmailPreviewModalProps {
 
 export function EmailPreviewModal({
   to,
+  cc: initialCc,
   subject: initialSubject,
   body: initialBody,
   prospectId,
@@ -27,6 +29,7 @@ export function EmailPreviewModal({
 }: EmailPreviewModalProps) {
   const [subject, setSubject] = useState(initialSubject)
   const [body, setBody] = useState(initialBody)
+  const [cc, setCc] = useState(initialCc || '')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
 
@@ -37,7 +40,14 @@ export function EmailPreviewModal({
     setSending(true)
     setError('')
 
-    const result = await sendProspectEmail({ to, subject, body, prospectId, emailType })
+    const result = await sendProspectEmail({
+      to,
+      cc: cc || undefined,
+      subject,
+      body,
+      prospectId,
+      emailType,
+    })
 
     if (result.success) {
       onSent?.()
@@ -74,6 +84,18 @@ export function EmailPreviewModal({
             <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
               {to || 'No email address'}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              CC (Parent/Guardian)
+            </label>
+            <Input
+              value={cc}
+              onChange={(e) => setCc(e.target.value)}
+              placeholder="parent@email.com"
+            />
           </div>
 
           <div>

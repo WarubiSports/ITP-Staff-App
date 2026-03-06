@@ -275,12 +275,14 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
 
 export async function sendProspectEmail({
   to,
+  cc,
   subject,
   body,
   prospectId,
   emailType,
 }: {
   to: string
+  cc?: string
   subject: string
   body: string
   prospectId?: string
@@ -295,7 +297,7 @@ export async function sendProspectEmail({
     }
 
     const html = wrapInBrandedHtml(body)
-    const result = await sendEmail({ to, subject, html })
+    const result = await sendEmail({ to, cc, subject, html })
 
     if (result.success && prospectId) {
       await supabase

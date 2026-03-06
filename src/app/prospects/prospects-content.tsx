@@ -75,7 +75,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState('')
   const [emailPreview, setEmailPreview] = useState<{
-    to: string; subject: string; body: string; prospectId: string; emailType: string
+    to: string; cc?: string; subject: string; body: string; prospectId: string; emailType: string
   } | null>(null)
   const [emailToast, setEmailToast] = useState('')
   const router = useRouter()
@@ -101,7 +101,8 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       return
     }
     const { subject, body } = trialApprovedTemplate(approveModal, approveStartDate, approveEndDate)
-    setEmailPreview({ to: approveModal.email || '', subject, body, prospectId: approveModal.id, emailType: 'trial_approved' })
+    const parentCc = approveModal.parent_contact?.includes('@') ? approveModal.parent_contact : undefined
+    setEmailPreview({ to: approveModal.email || '', cc: parentCc, subject, body, prospectId: approveModal.id, emailType: 'trial_approved' })
     setApproveModal(null)
     router.refresh()
   }
@@ -124,7 +125,8 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       return
     }
     const { subject, body } = prospectRejectedTemplate(rejectModal, rejectReason || undefined)
-    setEmailPreview({ to: rejectModal.email || '', subject, body, prospectId: rejectModal.id, emailType: 'rejected' })
+    const parentCc = rejectModal.parent_contact?.includes('@') ? rejectModal.parent_contact : undefined
+    setEmailPreview({ to: rejectModal.email || '', cc: parentCc, subject, body, prospectId: rejectModal.id, emailType: 'rejected' })
     setRejectModal(null)
     setRejectReason('')
     router.refresh()
@@ -630,6 +632,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
       {emailPreview && (
         <EmailPreviewModal
           to={emailPreview.to}
+          cc={emailPreview.cc}
           subject={emailPreview.subject}
           body={emailPreview.body}
           prospectId={emailPreview.prospectId}
