@@ -263,11 +263,41 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
       // Non-critical — player already created, scout sync is best-effort
     }
 
+    // 8. Send welcome email with magic link
+    try {
+      const { data: linkData } = await adminClient.auth.admin.generateLink({
+        type: 'magiclink',
+        email: prospect.email,
+        options: { redirectTo: 'https://itp-player-app.vercel.app' },
+      })
+
+      if (linkData?.properties?.hashed_token) {
+        const magicLink = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=https://itp-player-app.vercel.app`
+
+        await sendEmail({
+          to: prospect.email,
+          cc: prospect.parent_contact?.includes('@') ? prospect.parent_contact : undefined,
+          subject: `Welcome to the ITP — ${prospect.first_name}, you're in!`,
+          html: wrapInBrandedHtml(
+            `Hi ${prospect.first_name},\n\n` +
+            `Congratulations — you've been accepted into the International Talent Program at 1. FC Köln!\n\n` +
+            `Click the button below to access your Player App, where you'll find your schedule, house info, and everything you need.\n\n` +
+            `<a href="${magicLink}" style="display:inline-block;padding:12px 24px;background:#1e293b;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;margin:8px 0;">Open Player App</a>\n\n` +
+            `You'll be asked to set a password on your first login.\n\n` +
+            `See you in Cologne!\n\n` +
+            `— The ITP Team`
+          ),
+        })
+      }
+    } catch {
+      // Non-critical — player is already created, welcome email is best-effort
+    }
+
     if (docErrors.length > 0) {
       return {
         success: true,
         playerId: authData.user.id,
-        error: `Player created. Some documents failed to copy: ${docErrors.join(', ')}. You can re-upload them on the player page.`,
+        error: `Player created and welcome email sent. Some documents failed to copy: ${docErrors.join(', ')}. You can re-upload them on the player page.`,
       }
     }
 
