@@ -82,6 +82,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
   const router = useRouter()
 
   const pendingRequests = prospects.filter(p => p.status === 'requested')
+  const awaitingConversion = prospects.filter(p => p.status === 'accepted')
 
   const handleApprove = async () => {
     if (!approveModal || !approveStartDate || !approveEndDate) return
@@ -336,6 +337,51 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
                   </div>
                 )
               })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Awaiting Conversion Banner */}
+      {awaitingConversion.length > 0 && statusFilter === 'all' && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-green-100">
+                <UserCheck className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-green-900">
+                  {awaitingConversion.length} Accepted Prospect{awaitingConversion.length !== 1 ? 's' : ''} Awaiting Conversion
+                </h3>
+                <p className="text-sm text-green-700">These players need to be converted to create their ITP account</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {awaitingConversion.map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">
+                      {p.first_name} {p.last_name}
+                      <span className="ml-2 text-xs text-gray-500">{p.position} · {p.nationality}</span>
+                    </p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                      {p.trial_start_date && p.trial_end_date && (
+                        <span>Trial: {new Date(p.trial_start_date).toLocaleDateString('de-DE')} – {new Date(p.trial_end_date).toLocaleDateString('de-DE')}</span>
+                      )}
+                      {!p.email && (
+                        <span className="text-red-500 font-medium">Missing email — required for conversion</span>
+                      )}
+                    </div>
+                  </div>
+                  <Link
+                    href={`/prospects/${p.id}`}
+                    className="ml-3 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
+                  >
+                    Convert
+                  </Link>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

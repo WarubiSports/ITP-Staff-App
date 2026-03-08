@@ -218,7 +218,7 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
       }
     }
 
-    // 7. Sync back to Scout Platform — update scout_prospects status to 'placed' and award XP
+    // 7. Sync back to Scout Platform — update scout_prospects status to 'placed' and increment placements
     try {
       const { data: scoutProspect } = await adminClient
         .from('scout_prospects')
@@ -227,28 +227,22 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
         .single()
 
       if (scoutProspect) {
-        // Update scout prospect status to placed
         await adminClient
           .from('scout_prospects')
           .update({ status: 'placed' })
           .eq('id', scoutProspect.id)
 
-        // Award 500 XP to the scout who found this player
         if (scoutProspect.scout_id) {
           const { data: scout } = await adminClient
             .from('scouts')
-            .select('xp_score, placements_count')
+            .select('placements_count')
             .eq('id', scoutProspect.scout_id)
             .single()
 
           if (scout) {
-            const newXP = (scout.xp_score || 0) + 500
-            const newLevel = Math.floor(newXP / 100) + 1
             await adminClient
               .from('scouts')
               .update({
-                xp_score: newXP,
-                level: newLevel,
                 placements_count: (scout.placements_count || 0) + 1,
               })
               .eq('id', scoutProspect.scout_id)
