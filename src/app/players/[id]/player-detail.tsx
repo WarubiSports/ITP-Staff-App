@@ -45,6 +45,11 @@ import {
   Target,
   Zap,
   Timer,
+  MessageSquare,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Phone,
+  Mail,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -54,12 +59,12 @@ import { Avatar } from '@/components/ui/avatar'
 import { formatDate } from '@/lib/utils'
 import { updatePlayer, deletePlayer } from '../actions'
 import { createClient } from '@/lib/supabase/client'
-import { UpdateWhereaboutsModal, AddFocusNoteModal } from '@/components/modals'
+import { UpdateWhereaboutsModal, AddFocusNoteModal, AddOutreachModal } from '@/components/modals'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
 import { DocumentUpload } from '@/components/documents/DocumentUpload'
 import { DocumentList } from '@/components/documents/DocumentList'
-import type { WhereaboutsDetails, PlayerDocument, PlayerTrial, PlayerFocusNote, PhysicalTest } from '@/types'
+import type { WhereaboutsDetails, PlayerDocument, PlayerTrial, PlayerFocusNote, PhysicalTest, PlacementOutreach } from '@/types'
 
 interface Player {
   id: string
@@ -175,9 +180,10 @@ interface PlayerDetailProps {
   collegeTargets: CollegeTarget[]
   focusNotes: PlayerFocusNote[]
   physicalTests: PhysicalTest[]
+  outreachEntries: PlacementOutreach[]
 }
 
-export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads, collegeTargets, focusNotes, physicalTests }: PlayerDetailProps) {
+export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads, collegeTargets, focusNotes, physicalTests, outreachEntries }: PlayerDetailProps) {
   const router = useRouter()
   const { showToast } = useToast()
 
@@ -195,6 +201,11 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
   const [editingFocusNote, setEditingFocusNote] = useState<PlayerFocusNote | null>(null)
   const [localFocusNotes, setLocalFocusNotes] = useState(focusNotes)
   const [localPhysicalTests, setLocalPhysicalTests] = useState(physicalTests)
+  const [localOutreach, setLocalOutreach] = useState(outreachEntries)
+  const [showOutreachModal, setShowOutreachModal] = useState(false)
+  const [selectedOutreach, setSelectedOutreach] = useState<PlacementOutreach | null>(null)
+  const [outreachCollegeTarget, setOutreachCollegeTarget] = useState<CollegeTarget | null>(null)
+
   const [showAddTestForm, setShowAddTestForm] = useState(false)
   const [savingTest, setSavingTest] = useState(false)
   const [newTest, setNewTest] = useState({
@@ -1227,44 +1238,81 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
           {/* College Pathway / Recruitment Opportunities */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="w-5 h-5" />
-                College Pathway
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5" />
+                  College Pathway
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedOutreach(null)
+                    setOutreachCollegeTarget(null)
+                    setShowOutreachModal(true)
+                  }}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Log Outreach
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {collegeTargets.length === 0 ? (
+              {/* Outreach Summary Stats */}
+              {localOutreach.length > 0 && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-blue-50 p-3 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-blue-700">{localOutreach.length}</div>
+                    <div className="text-xs text-blue-600">Conversations</div>
+                  </div>
+                  <div className="bg-amber-50 p-3 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-amber-700">
+                      {localOutreach.filter(o => o.outcome === 'no_response' || o.outcome === 'pending').length}
+                    </div>
+                    <div className="text-xs text-amber-600">Awaiting Response</div>
+                  </div>
+                  <div className="bg-red-50 p-3 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-red-700">
+                      {localOutreach.filter(o => o.follow_up_date && o.follow_up_date < new Date().toISOString().split('T')[0]).length}
+                    </div>
+                    <div className="text-xs text-red-600">Follow-ups Due</div>
+                  </div>
+                </div>
+              )}
+
+              {collegeTargets.length === 0 && localOutreach.length === 0 ? (
                 <p className="text-gray-500 text-sm">No recruitment opportunities added yet.</p>
               ) : (
                 <div className="space-y-4">
-                  {/* Summary stats */}
-                  <div className="grid grid-cols-4 gap-3">
-                    <div className="bg-blue-50 p-3 rounded-lg text-center">
-                      <div className="text-2xl font-bold text-blue-700">{collegeTargets.length}</div>
-                      <div className="text-xs text-blue-600">Total</div>
-                    </div>
-                    <div className="bg-green-50 p-3 rounded-lg text-center">
-                      <div className="text-2xl font-bold text-green-700">
-                        {collegeTargets.filter(t => t.status === 'offer_received' || t.status === 'offered').length}
+                  {/* College targets stats */}
+                  {collegeTargets.length > 0 && (
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="bg-blue-50 p-3 rounded-lg text-center">
+                        <div className="text-2xl font-bold text-blue-700">{collegeTargets.length}</div>
+                        <div className="text-xs text-blue-600">Targets</div>
                       </div>
-                      <div className="text-xs text-green-600">Offers</div>
-                    </div>
-                    <div className="bg-amber-50 p-3 rounded-lg text-center">
-                      <div className="text-2xl font-bold text-amber-700">
-                        {collegeTargets.filter(t => t.status === 'in_contact' || t.status === 'contacted' || t.status === 'interested').length}
+                      <div className="bg-green-50 p-3 rounded-lg text-center">
+                        <div className="text-2xl font-bold text-green-700">
+                          {collegeTargets.filter(t => t.status === 'offer_received' || t.status === 'offered').length}
+                        </div>
+                        <div className="text-xs text-green-600">Offers</div>
                       </div>
-                      <div className="text-xs text-amber-600">In Contact</div>
-                    </div>
-                    <div className="bg-purple-50 p-3 rounded-lg text-center">
-                      <div className="text-2xl font-bold text-purple-700">
-                        {collegeTargets.filter(t => t.status === 'signed' || t.status === 'committed').length}
+                      <div className="bg-amber-50 p-3 rounded-lg text-center">
+                        <div className="text-2xl font-bold text-amber-700">
+                          {collegeTargets.filter(t => t.status === 'in_contact' || t.status === 'contacted' || t.status === 'interested').length}
+                        </div>
+                        <div className="text-xs text-amber-600">In Contact</div>
                       </div>
-                      <div className="text-xs text-purple-600">Committed</div>
+                      <div className="bg-purple-50 p-3 rounded-lg text-center">
+                        <div className="text-2xl font-bold text-purple-700">
+                          {collegeTargets.filter(t => t.status === 'signed' || t.status === 'committed').length}
+                        </div>
+                        <div className="text-xs text-purple-600">Committed</div>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* College list */}
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {/* College list with outreach */}
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
                     {collegeTargets.map((target) => {
                       const statusColors: Record<string, { bg: string; text: string; label: string }> = {
                         researching: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Researching' },
@@ -1286,6 +1334,9 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                         medium: 'text-amber-600',
                         low: 'text-gray-500',
                       }
+
+                      // Get outreach entries for this college target
+                      const targetOutreach = localOutreach.filter(o => o.college_target_id === target.id)
 
                       return (
                         <div key={target.id} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
@@ -1324,14 +1375,149 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                           {target.notes && (
                             <p className="mt-2 text-sm text-gray-600 bg-white p-2 rounded">{target.notes}</p>
                           )}
+
+                          {/* Outreach for this target */}
+                          <div className="mt-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>{targetOutreach.length} conversation{targetOutreach.length !== 1 ? 's' : ''}</span>
+                              {targetOutreach.length > 0 && (
+                                <span>• Last: {formatDate(targetOutreach[0].created_at)}</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedOutreach(null)
+                                setOutreachCollegeTarget(target)
+                                setShowOutreachModal(true)
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              + Log Outreach
+                            </button>
+                          </div>
+
+                          {/* Conversation timeline for this target */}
+                          {targetOutreach.length > 0 && (
+                            <div className="mt-2 space-y-1.5">
+                              {targetOutreach.slice(0, 3).map(entry => {
+                                const outcomeColors: Record<string, string> = {
+                                  positive: 'text-green-600',
+                                  neutral: 'text-gray-600',
+                                  negative: 'text-red-600',
+                                  no_response: 'text-amber-600',
+                                  pending: 'text-blue-600',
+                                }
+                                return (
+                                  <div
+                                    key={entry.id}
+                                    onClick={() => { setSelectedOutreach(entry); setOutreachCollegeTarget(null); setShowOutreachModal(true); }}
+                                    className="flex items-center gap-2 text-sm p-2 bg-white rounded border border-gray-100 cursor-pointer hover:bg-gray-50"
+                                  >
+                                    {entry.direction === 'outbound' ? (
+                                      <ArrowUpRight className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                    ) : (
+                                      <ArrowDownLeft className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                                    )}
+                                    <span className="text-gray-500 text-xs flex-shrink-0">{formatDate(entry.created_at)}</span>
+                                    {entry.subject && <span className="text-gray-700 truncate">{entry.subject}</span>}
+                                    {entry.contact_method && (
+                                      <span className="text-gray-400 text-xs flex-shrink-0">via {entry.contact_method}</span>
+                                    )}
+                                    {entry.outcome && (
+                                      <span className={`text-xs font-medium flex-shrink-0 ${outcomeColors[entry.outcome] || 'text-gray-500'}`}>
+                                        {entry.outcome.replace('_', ' ')}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                              {targetOutreach.length > 3 && (
+                                <p className="text-xs text-gray-400 pl-2">+ {targetOutreach.length - 3} more</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
+
+                    {/* Standalone outreach (not linked to a college target) */}
+                    {(() => {
+                      const standaloneOutreach = localOutreach.filter(o => !o.college_target_id)
+                      if (standaloneOutreach.length === 0) return null
+                      return (
+                        <div className="border-t pt-4 mt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">Other Outreach</h4>
+                          <div className="space-y-1.5">
+                            {standaloneOutreach.map(entry => {
+                              const outcomeColors: Record<string, string> = {
+                                positive: 'text-green-600',
+                                neutral: 'text-gray-600',
+                                negative: 'text-red-600',
+                                no_response: 'text-amber-600',
+                                pending: 'text-blue-600',
+                              }
+                              return (
+                                <div
+                                  key={entry.id}
+                                  onClick={() => { setSelectedOutreach(entry); setOutreachCollegeTarget(null); setShowOutreachModal(true); }}
+                                  className="flex items-center gap-2 text-sm p-2 bg-white rounded border border-gray-100 cursor-pointer hover:bg-gray-50"
+                                >
+                                  {entry.direction === 'outbound' ? (
+                                    <ArrowUpRight className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                  ) : (
+                                    <ArrowDownLeft className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                                  )}
+                                  <span className="text-gray-500 text-xs flex-shrink-0">{formatDate(entry.created_at)}</span>
+                                  <span className="font-medium text-gray-800">{entry.organization_name}</span>
+                                  {entry.division && <Badge variant="default">{entry.division}</Badge>}
+                                  {entry.subject && <span className="text-gray-600 truncate">{entry.subject}</span>}
+                                  {entry.outcome && (
+                                    <span className={`text-xs font-medium flex-shrink-0 ${outcomeColors[entry.outcome] || 'text-gray-500'}`}>
+                                      {entry.outcome.replace('_', ' ')}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Outreach Modal */}
+          <AddOutreachModal
+            isOpen={showOutreachModal}
+            onClose={() => {
+              setShowOutreachModal(false)
+              setSelectedOutreach(null)
+              setOutreachCollegeTarget(null)
+            }}
+            players={[{ id: player.id, player_id: player.player_id, first_name: player.first_name, last_name: player.last_name }]}
+            onSuccess={() => {
+              router.refresh()
+              // Refresh local outreach
+              const refreshOutreach = async () => {
+                const supabase = createClient()
+                const { data } = await supabase
+                  .from('placement_outreach')
+                  .select('*')
+                  .eq('player_id', player.id)
+                  .order('created_at', { ascending: false })
+                if (data) setLocalOutreach(data)
+              }
+              refreshOutreach()
+            }}
+            editOutreach={selectedOutreach}
+            prefillPlayerId={player.id}
+            prefillCollegeTarget={outreachCollegeTarget || undefined}
+            collegeTargets={collegeTargets}
+          />
 
           {/* Wellness Reports */}
           <Card>

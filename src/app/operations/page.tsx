@@ -116,6 +116,12 @@ export default async function OperationsPage() {
     `)
     .order('created_at', { ascending: false })
 
+  // Fetch placement outreach entries
+  const { data: outreachEntries } = await supabase
+    .from('placement_outreach')
+    .select('*, player:players(id, first_name, last_name)')
+    .order('follow_up_date', { ascending: true, nullsFirst: false })
+
   // Pickups feature disabled - table doesn't exist yet
   const pickups: Pickup[] = []
 
@@ -158,6 +164,7 @@ export default async function OperationsPage() {
         playerDocuments={playerDocuments}
         chores={chores || []}
         pickups={pickups}
+        outreachEntries={outreachEntries || []}
         staffProfiles={staffProfiles || []}
         currentUserId={user.id}
       />

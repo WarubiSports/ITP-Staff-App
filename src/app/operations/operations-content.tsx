@@ -31,6 +31,11 @@ import {
   X,
   User,
   Car,
+  Calendar,
+  GraduationCap,
+  MessageSquare,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -40,13 +45,14 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/toast'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, getDaysUntil } from '@/lib/utils'
-import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder, PlayerDocument, TrialProspect, Chore, Pickup } from '@/types'
+import type { WellPassMembership, MedicalAppointment, InsuranceClaim, PlayerTrial, Room, GroceryOrder, PlayerDocument, TrialProspect, Chore, Pickup, PlacementOutreach } from '@/types'
 import {
   AddWellPassModal,
   AddMedicalAppointmentModal,
   AddInsuranceClaimModal,
   AddTrialModal,
   AddPickupModal,
+  AddOutreachModal,
 } from '@/components/modals'
 import { RoomAllocation } from '@/components/housing'
 import { VisaDocumentTracking } from '@/components/visa'
@@ -157,11 +163,12 @@ interface OperationsContentProps {
   playerDocuments?: Record<string, PlayerDocument[]> // playerId -> documents
   chores: Chore[]
   pickups: Pickup[]
+  outreachEntries: PlacementOutreach[]
   staffProfiles: StaffProfile[]
   currentUserId: string
 }
 
-type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery' | 'chores' | 'pickups'
+type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'billing' | 'trials' | 'grocery' | 'chores' | 'pickups' | 'placements'
 
 export function OperationsContent({
   players,
@@ -178,6 +185,7 @@ export function OperationsContent({
   playerDocuments = {},
   chores: initialChores,
   pickups: initialPickups,
+  outreachEntries: initialOutreach,
   staffProfiles,
   currentUserId,
 }: OperationsContentProps) {
@@ -225,6 +233,15 @@ export function OperationsContent({
   const [localPickups, setLocalPickups] = useState(initialPickups)
   const [showPickupModal, setShowPickupModal] = useState(false)
   const [selectedPickup, setSelectedPickup] = useState<Pickup | null>(null)
+  // Outreach state
+  const [localOutreach, setLocalOutreach] = useState(initialOutreach)
+  const [showOutreachModal, setShowOutreachModal] = useState(false)
+  const [selectedOutreach, setSelectedOutreach] = useState<PlacementOutreach | null>(null)
+
+  useEffect(() => {
+    setLocalOutreach(initialOutreach)
+  }, [initialOutreach])
+
   const [editingChore, setEditingChore] = useState<Chore | null>(null)
   const [editAllRecurring, setEditAllRecurring] = useState(false)
   const [showDeleteRecurringConfirm, setShowDeleteRecurringConfirm] = useState<Chore | null>(null)
@@ -302,6 +319,23 @@ export function OperationsContent({
     const days = getDaysUntil(p.arrival_date)
     return days >= 0 && days <= 14
   })
+
+  // Outreach follow-up counts
+  const today = new Date().toISOString().split('T')[0]
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const overdueOutreach = localOutreach.filter(o =>
+    o.follow_up_date && o.follow_up_date < today && o.outcome !== 'positive' && o.outcome !== 'negative'
+  )
+  const thisWeekOutreach = localOutreach.filter(o =>
+    o.follow_up_date && o.follow_up_date >= today && o.follow_up_date <= sevenDaysFromNow
+  )
+  const upcomingOutreach = localOutreach.filter(o =>
+    o.follow_up_date && o.follow_up_date > sevenDaysFromNow
+  )
+  const noFollowUpOutreach = localOutreach.filter(o =>
+    !o.follow_up_date && o.outcome !== 'positive' && o.outcome !== 'negative'
+  )
 
   // Chore counts
   const pendingApprovalChores = chores.filter((c) => c.status === 'pending_approval')
@@ -623,6 +657,7 @@ export function OperationsContent({
     { id: 'grocery', label: 'Grocery', icon: ShoppingCart, count: pendingGroceryOrders.length },
     { id: 'chores', label: 'Chores', icon: ListTodo, count: pendingApprovalChores.length },
     { id: 'pickups', label: 'Pickups', icon: Car, count: upcomingPickups.length },
+    { id: 'placements', label: 'Placements', icon: GraduationCap, count: overdueOutreach.length },
   ]
 
   return (
@@ -2313,6 +2348,159 @@ export function OperationsContent({
         </div>
       )}
 
+      {/* Placements Tab */}
+      {activeTab === 'placements' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Placement Outreach</h2>
+            <Button onClick={() => { setSelectedOutreach(null); setShowOutreachModal(true); }}>
+              <Plus className="w-4 h-4 mr-2" />
+              Log Outreach
+            </Button>
+          </div>
+
+          {/* Summary Stats */}
+          <div className="grid grid-cols-4 gap-4">
+            <Card className="border-red-200 bg-red-50/50">
+              <CardContent className="pt-4 pb-4 text-center">
+                <div className="text-2xl font-bold text-red-700">{overdueOutreach.length}</div>
+                <div className="text-xs text-red-600">Overdue</div>
+              </CardContent>
+            </Card>
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardContent className="pt-4 pb-4 text-center">
+                <div className="text-2xl font-bold text-amber-700">{thisWeekOutreach.length}</div>
+                <div className="text-xs text-amber-600">This Week</div>
+              </CardContent>
+            </Card>
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="pt-4 pb-4 text-center">
+                <div className="text-2xl font-bold text-blue-700">{upcomingOutreach.length}</div>
+                <div className="text-xs text-blue-600">Upcoming</div>
+              </CardContent>
+            </Card>
+            <Card className="border-gray-200 bg-gray-50/50">
+              <CardContent className="pt-4 pb-4 text-center">
+                <div className="text-2xl font-bold text-gray-700">{localOutreach.length}</div>
+                <div className="text-xs text-gray-600">Total</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {localOutreach.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-gray-500">
+                  <GraduationCap className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-lg font-medium">No outreach logged yet</p>
+                  <p className="text-sm">Start logging conversations with colleges, clubs, and agencies</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Overdue Follow-ups */}
+              {overdueOutreach.length > 0 && (
+                <Card className="border-red-200">
+                  <CardHeader>
+                    <CardTitle className="text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Overdue Follow-ups ({overdueOutreach.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {overdueOutreach.map(entry => (
+                        <OutreachRow
+                          key={entry.id}
+                          entry={entry}
+                          getPlayerName={getPlayerName}
+                          onClick={() => { setSelectedOutreach(entry); setShowOutreachModal(true); }}
+                          highlight="red"
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* This Week */}
+              {thisWeekOutreach.length > 0 && (
+                <Card className="border-amber-200">
+                  <CardHeader>
+                    <CardTitle className="text-amber-700 flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      This Week ({thisWeekOutreach.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {thisWeekOutreach.map(entry => (
+                        <OutreachRow
+                          key={entry.id}
+                          entry={entry}
+                          getPlayerName={getPlayerName}
+                          onClick={() => { setSelectedOutreach(entry); setShowOutreachModal(true); }}
+                          highlight="amber"
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Upcoming */}
+              {upcomingOutreach.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Upcoming ({upcomingOutreach.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {upcomingOutreach.map(entry => (
+                        <OutreachRow
+                          key={entry.id}
+                          entry={entry}
+                          getPlayerName={getPlayerName}
+                          onClick={() => { setSelectedOutreach(entry); setShowOutreachModal(true); }}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* No Follow-up Set */}
+              {noFollowUpOutreach.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-gray-500 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      No Follow-up Set ({noFollowUpOutreach.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {noFollowUpOutreach.map(entry => (
+                        <OutreachRow
+                          key={entry.id}
+                          entry={entry}
+                          getPlayerName={getPlayerName}
+                          onClick={() => { setSelectedOutreach(entry); setShowOutreachModal(true); }}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       <AddWellPassModal
         isOpen={showWellPassModal}
@@ -2382,6 +2570,96 @@ export function OperationsContent({
         editPickup={selectedPickup}
       />
 
+      <AddOutreachModal
+        isOpen={showOutreachModal}
+        onClose={() => {
+          setShowOutreachModal(false)
+          setSelectedOutreach(null)
+        }}
+        players={players}
+        onSuccess={handleRefresh}
+        editOutreach={selectedOutreach}
+      />
+
+    </div>
+  )
+}
+
+// Outreach row component for follow-up queue
+function OutreachRow({
+  entry,
+  getPlayerName,
+  onClick,
+  highlight,
+}: {
+  entry: PlacementOutreach
+  getPlayerName: (id: string) => string
+  onClick: () => void
+  highlight?: 'red' | 'amber'
+}) {
+  const outcomeColors: Record<string, { bg: string; text: string }> = {
+    positive: { bg: 'bg-green-100', text: 'text-green-700' },
+    neutral: { bg: 'bg-gray-100', text: 'text-gray-700' },
+    negative: { bg: 'bg-red-100', text: 'text-red-700' },
+    no_response: { bg: 'bg-amber-100', text: 'text-amber-700' },
+    pending: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  }
+  const outcomeStyle = outcomeColors[entry.outcome || 'pending'] || outcomeColors.pending
+
+  const bgClass = highlight === 'red'
+    ? 'bg-red-50 border-red-100 hover:bg-red-100/50'
+    : highlight === 'amber'
+    ? 'bg-amber-50 border-amber-100 hover:bg-amber-100/50'
+    : 'bg-white border-gray-100 hover:bg-gray-50'
+
+  const playerName = entry.player
+    ? `${entry.player.first_name} ${entry.player.last_name}`
+    : getPlayerName(entry.player_id)
+
+  return (
+    <div
+      onClick={onClick}
+      className={`p-3 rounded-lg border cursor-pointer transition-colors ${bgClass}`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex-shrink-0">
+            {entry.direction === 'outbound' ? (
+              <ArrowUpRight className="w-4 h-4 text-blue-500" />
+            ) : (
+              <ArrowDownLeft className="w-4 h-4 text-green-500" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-gray-900 truncate">{playerName}</span>
+              <span className="text-gray-400">→</span>
+              <span className="text-gray-700 truncate">{entry.organization_name}</span>
+              {entry.division && (
+                <Badge variant="default">{entry.division}</Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              {entry.subject && <span className="truncate">{entry.subject}</span>}
+              {entry.contact_name && <span>• {entry.contact_name}</span>}
+              {entry.contact_method && <span>• {entry.contact_method}</span>}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+          <span className={`px-2 py-0.5 rounded text-xs font-medium ${outcomeStyle.bg} ${outcomeStyle.text}`}>
+            {(entry.outcome || 'pending').replace('_', ' ')}
+          </span>
+          {entry.follow_up_date && (
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              {formatDate(entry.follow_up_date)}
+            </span>
+          )}
+        </div>
+      </div>
+      {entry.summary && (
+        <p className="mt-1 text-sm text-gray-600 line-clamp-1 pl-7">{entry.summary}</p>
+      )}
     </div>
   )
 }

@@ -48,6 +48,7 @@ const documentTypeOptions: Record<string, { value: string; label: string }[]> = 
     { value: 'other', label: 'Other' },
   ],
   performance: [
+    { value: 'video_analysis_recap', label: 'Video Analysis Recap' },
     { value: 'coach_evaluation', label: 'Coach Evaluation' },
     { value: 'scouting_report', label: 'Scouting Report' },
     { value: 'training_report', label: 'Training Report' },

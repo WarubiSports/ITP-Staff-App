@@ -58,6 +58,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
     { data: collegeTargets },
     { data: focusNotes },
     { data: physicalTests },
+    { data: outreachEntries },
   ] = await Promise.all([
     supabase.from('houses').select('id, name, address').order('name'),
     supabase.from('rooms').select('id, name, house_id, capacity, floor').order('name'),
@@ -106,6 +107,11 @@ export default async function PlayerDetailPage({ params }: PageProps) {
       .select('*')
       .eq('player_id', player.id)
       .order('test_date', { ascending: false }),
+    supabase
+      .from('placement_outreach')
+      .select('*')
+      .eq('player_id', player.id)
+      .order('created_at', { ascending: false }),
   ])
 
   // Find assigned room if player has room_id
@@ -132,6 +138,7 @@ export default async function PlayerDetailPage({ params }: PageProps) {
         collegeTargets={collegeTargets || []}
         focusNotes={focusNotes || []}
         physicalTests={physicalTests || []}
+        outreachEntries={outreachEntries || []}
       />
     </AppLayout>
   )
