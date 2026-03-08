@@ -84,7 +84,7 @@ function wrapHtml(body: string): string {
         ${body}
       </div>
       <div style="padding:16px 24px;border-top:1px solid #e5e7eb;text-align:center;">
-        <p style="margin:0;color:#9ca3af;font-size:12px;">Warubi Sports GmbH · International Talent Program · Cologne, Germany</p>
+        <p style="margin:0;color:#9ca3af;font-size:12px;">Warubi Sports LLC · International Talent Pathway · Cologne, Germany</p>
       </div>
     </div>
   </div>

@@ -280,7 +280,7 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
           subject: `Welcome to the ITP — ${prospect.first_name}, you're in!`,
           html: wrapInBrandedHtml(
             `Hi ${prospect.first_name},\n\n` +
-            `Congratulations — you've been accepted into the International Talent Program at 1. FC Köln!\n\n` +
+            `Congratulations — you've been accepted into the International Talent Pathway at 1. FC Köln!\n\n` +
             `Click the button below to access your Player App, where you'll find your schedule, house info, and everything you need.\n\n` +
             `<a href="${magicLink}" style="display:inline-block;padding:12px 24px;background:#1e293b;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;margin:8px 0;">Open Player App</a>\n\n` +
             `You'll be asked to set a password on your first login.\n\n` +

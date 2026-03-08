@@ -24,7 +24,7 @@ export function trialApprovedTemplate(
     subject: `Trial Confirmed – 1. FC Köln ITP`,
     body: `Hi ${prospect.first_name},
 
-We're pleased to confirm your trial with the 1. FC Köln International Talent Program.
+We're pleased to confirm your trial with the 1. FC Köln International Talent Pathway.
 
 Trial Dates: ${start} – ${end}
 Location: Cologne, Germany
@@ -72,7 +72,7 @@ export function prospectRejectedTemplate(
     subject: `Update on Your Trial – 1. FC Köln ITP`,
     body: `Hi ${prospect.first_name},
 
-Thank you for your interest in the 1. FC Köln International Talent Program and for the time you invested in the trial process.
+Thank you for your interest in the 1. FC Köln International Talent Pathway and for the time you invested in the trial process.
 ${reasonLine}
 
 We appreciate your effort and wish you all the best in your football career. Should circumstances change in the future, we would be happy to hear from you again.
