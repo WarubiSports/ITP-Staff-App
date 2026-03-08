@@ -44,18 +44,16 @@ export function prospectAcceptedTemplate(
   prospect: TrialProspect
 ): { subject: string; body: string } {
   return {
-    subject: `Congratulations – Accepted to 1. FC Köln ITP`,
+    subject: `Next Steps – Onboarding for 1. FC Köln ITP`,
     body: `Hi ${prospect.first_name},
 
-Congratulations! After careful evaluation, we are pleased to offer you a place in the 1. FC Köln International Talent Program.
-
-Please complete your onboarding using the link below. This includes travel details, document uploads, and other important information we need before your arrival:
+To prepare for your arrival, please complete the onboarding form below. This includes travel details, document uploads (passport, etc.), and equipment sizing:
 
 ${BASE_URL}/${prospect.id}/onboarding
 
-Please complete this as soon as possible so we can prepare everything for your arrival.
+Please complete this as soon as possible so we can have everything ready for you.
 
-We look forward to welcoming you to Cologne!
+If you have any questions, don't hesitate to reach out.
 
 Best regards,
 ITP Staff`,
