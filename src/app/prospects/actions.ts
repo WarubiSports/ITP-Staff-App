@@ -98,6 +98,15 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
       playerId = `ITP_${String(nextNum).padStart(3, '0')}`
 
       // 4. Insert into players table
+      const parentContact = prospect.parent_contact || ''
+      const parentIsEmail = parentContact.includes('@')
+
+      const noteParts = [
+        `Converted from trial prospect. Trial: ${prospect.trial_start_date || 'N/A'} - ${prospect.trial_end_date || 'N/A'}`,
+        prospect.equipment_size ? `Equipment size: ${prospect.equipment_size}` : '',
+        !parentIsEmail && parentContact ? `Parent phone: ${parentContact}` : '',
+      ].filter(Boolean)
+
       const { error: insertError } = await adminClient
         .from('players')
         .insert({
@@ -112,11 +121,12 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
           email: prospect.email,
           phone: prospect.whatsapp_number || prospect.phone || null,
           parent1_name: prospect.parent_name || null,
-          parent1_email: prospect.parent_contact || null,
+          parent1_email: parentIsEmail ? parentContact : null,
           height_cm: prospect.height_cm || null,
           video_url: prospect.video_url || null,
+          room_id: prospect.room_id || null,
           status: 'active',
-          notes: `Converted from trial prospect. Trial: ${prospect.trial_start_date || 'N/A'} - ${prospect.trial_end_date || 'N/A'}`,
+          notes: noteParts.join('\n'),
         })
         .select('id')
         .single()
