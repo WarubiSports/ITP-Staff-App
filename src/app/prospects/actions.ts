@@ -205,7 +205,7 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
         // Create player_documents record
         const { error: recordError } = await adminClient.from('player_documents').insert({
           player_id: authData.user.id,
-          name: `${type.replace(/_/g, ' ')} (from trial)`,
+          name: `${type.replace(/_/g, ' ')} (from onboarding)`,
           file_path: destPath,
           file_type: fileData.type,
           file_size: fileData.size,
