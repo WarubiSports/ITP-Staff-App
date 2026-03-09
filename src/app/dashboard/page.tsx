@@ -33,11 +33,12 @@ export default async function DashboardPage() {
     { data: completedOnboarding },
     { data: pendingTrialRequests },
   ] = await Promise.all([
-    // Players with whereabouts
+    // Players with whereabouts (exclude future arrivals like 26/27 cohort)
     supabase
       .from('players')
-      .select('id, player_id, first_name, last_name, status, insurance_expiry, visa_expiry, positions, nationality, whereabouts_status, whereabouts_details, program_end_date')
+      .select('id, player_id, first_name, last_name, status, insurance_expiry, visa_expiry, positions, nationality, whereabouts_status, whereabouts_details, program_end_date, program_start_date')
       .eq('status', 'active')
+      .or(`program_start_date.is.null,program_start_date.lte.${today}`)
       .order('last_name'),
     // All pending tasks
     supabase
