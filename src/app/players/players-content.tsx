@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Search,
@@ -56,6 +56,16 @@ const whereaboutsConfig: Record<string, { icon: typeof Home; color: string; bg: 
   traveling: { icon: Car, color: 'text-orange-600', bg: 'bg-orange-100', label: 'Traveling' },
 }
 
+function getCurrentCohort(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  if (month < 7) {
+    return `${String(year - 1).slice(2)}/${String(year).slice(2)}`
+  }
+  return `${String(year).slice(2)}/${String(year + 1).slice(2)}`
+}
+
 interface PlayersContentProps {
   players: Player[]
 }
@@ -63,9 +73,24 @@ interface PlayersContentProps {
 export function PlayersContent({ players }: PlayersContentProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('active')
+  const currentCohort = getCurrentCohort()
+  const [cohortFilter, setCohortFilter] = useState<string>(currentCohort)
+
+  const cohorts = useMemo(() => {
+    const set = new Set(players.map(p => p.cohort).filter(Boolean) as string[])
+    return Array.from(set).sort()
+  }, [players])
 
   // Filter players
   const filteredPlayers = players.filter((player) => {
+    // Cohort filter
+    if (cohortFilter === 'all') { /* no filter */ }
+    else if (cohortFilter === 'none') {
+      if (player.cohort) return false
+    } else {
+      if (player.cohort !== cohortFilter) return false
+    }
+
     const matchesSearch =
       `${player.first_name} ${player.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
       player.player_id?.toLowerCase().includes(search.toLowerCase())
@@ -115,6 +140,32 @@ export function PlayersContent({ players }: PlayersContentProps) {
                   Add Player
                 </Button>
               </Link>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {cohorts.map((c) => (
+                <Button
+                  key={c}
+                  variant={cohortFilter === c ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setCohortFilter(c)}
+                >
+                  {c}
+                </Button>
+              ))}
+              <Button
+                variant={cohortFilter === 'none' ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setCohortFilter('none')}
+              >
+                No Cohort
+              </Button>
+              <Button
+                variant={cohortFilter === 'all' ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setCohortFilter('all')}
+              >
+                All
+              </Button>
             </div>
             <div className="flex gap-2 flex-wrap">
               {statusButtons.map((btn) => (

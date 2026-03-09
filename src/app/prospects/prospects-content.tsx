@@ -373,6 +373,9 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
                         <span className="text-red-500 font-medium">Missing email — required for conversion</span>
                       )}
                     </div>
+                    <div className="mt-1">
+                      <OnboardingBadge prospect={p} />
+                    </div>
                   </div>
                   <Link
                     href={`/prospects/${p.id}`}

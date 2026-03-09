@@ -32,6 +32,16 @@ export async function getOnboardingDocumentUrl(
   }
 }
 
+function getCurrentCohort(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  if (month < 7) {
+    return `${String(year - 1).slice(2)}/${String(year).slice(2)}`
+  }
+  return `${String(year).slice(2)}/${String(year + 1).slice(2)}`
+}
+
 export async function convertProspectToPlayer(prospectId: string): Promise<{
   success: boolean
   playerId?: string
@@ -104,7 +114,8 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
       const noteParts = [
         `Converted from trial prospect. Trial: ${prospect.trial_start_date || 'N/A'} - ${prospect.trial_end_date || 'N/A'}`,
         prospect.equipment_size ? `Equipment size: ${prospect.equipment_size}` : '',
-        !parentIsEmail && parentContact ? `Parent phone: ${parentContact}` : '',
+        parentIsEmail && parentContact ? `Parent email: ${parentContact}` : '',
+        prospect.video_url ? `Video: ${prospect.video_url}` : '',
       ].filter(Boolean)
 
       const { error: insertError } = await adminClient
@@ -117,14 +128,13 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
           date_of_birth: prospect.date_of_birth,
           positions: [prospect.position],
           nationality: prospect.nationality,
-          passports: prospect.nationality,
           email: prospect.email,
           phone: prospect.whatsapp_number || prospect.phone || null,
-          parent1_name: prospect.parent_name || null,
-          parent1_email: parentIsEmail ? parentContact : null,
+          emergency_contact_name: prospect.parent_name || null,
+          emergency_contact_phone: parentIsEmail ? null : (parentContact || null),
           height_cm: prospect.height_cm || null,
-          video_url: prospect.video_url || null,
           room_id: prospect.room_id || null,
+          cohort: getCurrentCohort(),
           status: 'active',
           notes: noteParts.join('\n'),
         })
