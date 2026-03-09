@@ -17,8 +17,13 @@ export default async function SettingsPage() {
     redirect('/login')
   }
 
-  // Only fetch bug reports for admin user
-  const isAdmin = user.email === 'max.bisinger@warubi-sports.com'
+  // Check admin role from staff_profiles
+  const { data: staffProfile } = await supabase
+    .from('staff_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  const isAdmin = staffProfile?.role === 'admin'
   let bugReports: BugReport[] = []
 
   if (isAdmin) {

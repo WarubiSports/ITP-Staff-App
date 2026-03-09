@@ -122,8 +122,11 @@ export default async function OperationsPage() {
     .select('*, player:players(id, first_name, last_name)')
     .order('follow_up_date', { ascending: true, nullsFirst: false })
 
-  // Pickups feature disabled - table doesn't exist yet
-  const pickups: Pickup[] = []
+  const { data: pickupsData } = await supabase
+    .from('pickups')
+    .select('*, player:players(id, first_name, last_name), assigned_staff:staff_profiles(id, full_name, email)')
+    .order('arrival_date', { ascending: true })
+  const pickups: Pickup[] = pickupsData || []
 
   // Fetch staff profiles for pickup assignment dropdown
   const { data: staffProfiles } = await supabase

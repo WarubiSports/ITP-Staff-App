@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   User,
@@ -26,11 +26,6 @@ interface NewPlayerFormProps {
   houses: House[]
 }
 
-function generatePlayerId(): string {
-  const num = Math.floor(Math.random() * 900) + 100
-  return `ITP_${num}`
-}
-
 export function NewPlayerForm({ houses }: NewPlayerFormProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -38,8 +33,29 @@ export function NewPlayerForm({ houses }: NewPlayerFormProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Generate sequential player ID on mount
+  useEffect(() => {
+    async function fetchNextId() {
+      const { data: lastPlayer } = await supabase
+        .from('players')
+        .select('player_id')
+        .like('player_id', 'ITP_%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      let nextNum = 1
+      if (lastPlayer?.player_id) {
+        const match = lastPlayer.player_id.match(/ITP_(\d+)/)
+        if (match) nextNum = parseInt(match[1]) + 1
+      }
+      setFormData(prev => ({ ...prev, player_id: `ITP_${String(nextNum).padStart(3, '0')}` }))
+    }
+    fetchNextId()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [formData, setFormData] = useState({
-    player_id: generatePlayerId(),
+    player_id: '',
     first_name: '',
     last_name: '',
     email: '',

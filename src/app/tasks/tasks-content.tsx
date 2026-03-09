@@ -32,6 +32,7 @@ interface Task {
   priority: 'low' | 'medium' | 'high' | 'urgent'
   category: string
   assigned_to?: string
+  assignees?: { id?: string; staff_id: string; staff?: { id: string; full_name: string; email: string } | null }[]
   player_id?: string
   due_date?: string
   created_at: string
@@ -82,13 +83,18 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
 
   const supabase = createClient()
 
+  const isAssignedToMe = (task: Task) =>
+    task.assigned_to === currentUserId ||
+    task.assignees?.some((a) => a.staff_id === currentUserId) ||
+    false
+
   const filteredTasks = tasks.filter((task) => {
     if (filter === 'all') return true
-    if (filter === 'my_tasks') return task.assigned_to === currentUserId
+    if (filter === 'my_tasks') return isAssignedToMe(task)
     return task.status === filter
   })
 
-  const myTasksCount = tasks.filter((t) => t.assigned_to === currentUserId).length
+  const myTasksCount = tasks.filter(isAssignedToMe).length
 
   const updateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
     const { error } = await supabase
@@ -411,14 +417,12 @@ export function TasksContent({ tasks: initialTasks, players, staff, currentUserI
                           <CategoryIcon className="w-3 h-3" />
                           {task.category}
                         </span>
-                        {task.assigned_to && (
-                          <span className="flex items-center gap-1 text-sm text-blue-600">
+                        {(task.assignees?.length ? task.assignees : task.assigned_to ? [{ staff_id: task.assigned_to, staff: staff.find((s) => s.id === task.assigned_to) || null, id: '' }] : []).map((assignee, i) => (
+                          <span key={assignee.staff_id || i} className="flex items-center gap-1 text-sm text-blue-600">
                             <User className="w-3 h-3" />
-                            {staff.find((s) => s.id === task.assigned_to)?.full_name ||
-                              staff.find((s) => s.id === task.assigned_to)?.email ||
-                              'Assigned'}
+                            {assignee.staff?.full_name || assignee.staff?.email || 'Assigned'}
                           </span>
-                        )}
+                        ))}
                         {task.due_date && (
                           <span
                             className={cn(
