@@ -32,14 +32,15 @@ export async function getOnboardingDocumentUrl(
   }
 }
 
-function getCurrentCohort(): string {
+function getNextCohort(): string {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()
+  // Next season: before August → current year's season, Aug+ → next year's
   if (month < 7) {
-    return `${String(year - 1).slice(2)}/${String(year).slice(2)}`
+    return `${String(year).slice(2)}/${String(year + 1).slice(2)}`
   }
-  return `${String(year).slice(2)}/${String(year + 1).slice(2)}`
+  return `${String(year + 1).slice(2)}/${String(year + 2).slice(2)}`
 }
 
 export async function convertProspectToPlayer(prospectId: string): Promise<{
@@ -134,7 +135,7 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
           emergency_contact_phone: parentIsEmail ? null : (parentContact || null),
           height_cm: prospect.height_cm || null,
           room_id: prospect.room_id || null,
-          cohort: getCurrentCohort(),
+          cohort: getNextCohort(),
           status: 'active',
           notes: noteParts.join('\n'),
         })
