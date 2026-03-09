@@ -209,7 +209,7 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
           file_path: destPath,
           file_type: fileData.type,
           file_size: fileData.size,
-          category: type.includes('passport') ? 'identity' : 'consent',
+          category: type.includes('passport') ? 'identity' : 'other',
           document_type: type,
           uploaded_by: user.id,
         })
