@@ -70,7 +70,7 @@ export default async function DashboardPage() {
       .from('trial_prospects')
       .select('id, first_name, last_name, status, onboarding_completed_at')
       .not('onboarding_completed_at', 'is', null)
-      .not('status', 'eq', 'placed')
+      .eq('status', 'accepted')
       .order('onboarding_completed_at', { ascending: false }),
     // Pending trial requests from scouts
     supabase
