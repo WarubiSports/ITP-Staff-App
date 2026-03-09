@@ -19,7 +19,7 @@ export default async function AttendancePage() {
   // Fetch active players
   const { data: players } = await supabase
     .from('players')
-    .select('id, player_id, first_name, last_name, positions')
+    .select('id, player_id, first_name, last_name, positions, whereabouts_status')
     .eq('status', 'active')
     .order('last_name')
 

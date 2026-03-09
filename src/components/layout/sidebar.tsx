@@ -41,9 +41,10 @@ interface SidebarProps {
       full_name?: string
     }
   }
+  onNavigate?: () => void
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -97,6 +98,7 @@ export function Sidebar({ user }: SidebarProps) {
             <Link
               key={item.name}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isActive
@@ -141,6 +143,7 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="flex gap-2">
           <Link
             href="/settings"
+            onClick={onNavigate}
             className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
           >
             <Settings className="w-4 h-4" />

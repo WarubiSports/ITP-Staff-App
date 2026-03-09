@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   User,
   Calendar,
@@ -50,6 +51,7 @@ import {
   ArrowDownLeft,
   Phone,
   Mail,
+  ExternalLink,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -84,6 +86,9 @@ interface Player {
   insurance_number?: string
   visa_status?: string
   visa_expiry?: string
+  visa_documents?: Record<string, string>
+  visa_requires?: boolean
+  visa_arrival_date?: string
   program_start_date?: string
   program_end_date?: string
   house_id?: string
@@ -411,7 +416,6 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
         positions: player.positions,
         nationality: player.nationality || null,
         date_of_birth: player.date_of_birth || null,
-        visa_status: player.visa_status || null,
         visa_expiry: player.visa_expiry || null,
         insurance_expiry: player.insurance_expiry || null,
         insurance_provider: player.insurance_provider || null,
@@ -432,8 +436,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
       // Show success message
       showToast('Player saved successfully', 'success')
       setEditing(false)
-      // Force a full page refresh to ensure we get fresh data
-      window.location.reload()
+      router.refresh()
     } catch (err) {
       console.error('Save error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to save changes'
@@ -454,7 +457,6 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
   }
 
   const statusOptions = ['active', 'pending', 'alumni', 'cancelled']
-  const visaOptions = ['valid', 'pending', 'expired', 'not_required']
 
   return (
     <div className="space-y-6">
@@ -1150,41 +1152,59 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
             </CardContent>
           </Card>
 
-          {/* Visa Information */}
+          {/* Visa Information (read-only — managed in Operations) */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Visa Information
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Visa Information
+                </CardTitle>
+                <Link href="/operations" className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700 font-medium">
+                  Manage in Operations <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {editing ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Visa Status
-                    </label>
-                    <select
-                      value={player.visa_status || ''}
-                      onChange={(e) => updateField('visa_status', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    >
-                      <option value="">Select status</option>
-                      {visaOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <Input
-                    label="Visa Status"
-                    value={player.visa_status || 'Not set'}
-                    disabled
-                  />
-                )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Application Status</label>
+                  <Badge variant={
+                    (() => {
+                      const s = player.visa_status
+                      if (s === 'approved') return 'success'
+                      if (s === 'denied') return 'danger'
+                      if (s === 'applied' || s === 'processing') return 'info'
+                      if (s === 'documents_pending') return 'warning'
+                      return 'default'
+                    })()
+                  }>
+                    {(() => {
+                      const labels: Record<string, string> = {
+                        not_started: 'Not Started',
+                        documents_pending: 'Documents Pending',
+                        applied: 'Applied',
+                        processing: 'Processing',
+                        approved: 'Approved',
+                        denied: 'Denied',
+                        not_required: 'Not Required',
+                      }
+                      return labels[player.visa_status || ''] || player.visa_status || 'Not set'
+                    })()}
+                  </Badge>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Documents</label>
+                  <p className="text-sm text-gray-900">
+                    {(() => {
+                      const docs = player.visa_documents
+                      if (!docs) return 'No documents tracked'
+                      const total = Object.keys(docs).length
+                      const received = Object.values(docs).filter(v => v === 'received').length
+                      return `${received}/${total} received`
+                    })()}
+                  </p>
+                </div>
                 <Input
                   label="Visa Expiry"
                   type="date"

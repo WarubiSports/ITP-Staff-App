@@ -42,7 +42,7 @@ export function AppLayout({ children, title, subtitle, formattedDate, user }: Ap
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <Sidebar user={user} />
+        <Sidebar user={user} onNavigate={() => setSidebarOpen(false)} />
       </div>
 
       {/* Main content */}

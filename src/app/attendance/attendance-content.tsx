@@ -27,6 +27,7 @@ interface Player {
   first_name: string
   last_name: string
   positions?: string[]
+  whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
 }
 
 interface CalendarEvent {
@@ -93,11 +94,24 @@ export function AttendanceContent({
   // History expansion
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
 
-  // Initialize all players as present by default
+  const whereaboutsLabels: Record<string, string> = {
+    on_trial: 'On trial',
+    home_leave: 'Home leave',
+    injured: 'Injured',
+    school: 'School',
+    traveling: 'Traveling',
+  }
+
+  // Initialize attendance — auto-excuse players who are away
   const initializeAttendance = () => {
     const records: Record<string, AttendanceRecord> = {}
     players.forEach((player) => {
-      records[player.id] = { playerId: player.id, status: 'present' }
+      const isAway = player.whereabouts_status && player.whereabouts_status !== 'at_academy'
+      records[player.id] = {
+        playerId: player.id,
+        status: isAway ? 'excused' : 'present',
+        excuseReason: isAway ? whereaboutsLabels[player.whereabouts_status!] || player.whereabouts_status : undefined,
+      }
     })
     setAttendanceRecords(records)
   }
@@ -315,6 +329,11 @@ export function AttendanceContent({
                               </p>
                               <p className="text-xs text-gray-500">{player.player_id}</p>
                             </div>
+                            {player.whereabouts_status && player.whereabouts_status !== 'at_academy' && (
+                              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                                {whereaboutsLabels[player.whereabouts_status] || player.whereabouts_status}
+                              </span>
+                            )}
                           </div>
 
                           {(['present', 'late', 'excused', 'absent'] as AttendanceStatus[]).map(
