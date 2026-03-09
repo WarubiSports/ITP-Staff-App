@@ -100,13 +100,20 @@ export function PlayersContent({ players }: PlayersContentProps) {
     return matchesSearch && matchesStatus
   })
 
-  // Count by status
+  // Cohort-filtered players (before status filter) for accurate counts
+  const cohortPlayers = players.filter((p) => {
+    if (cohortFilter === 'all') return true
+    if (cohortFilter === 'none') return !p.cohort
+    return p.cohort === cohortFilter
+  })
+
+  // Count by status within selected cohort
   const statusCounts = {
-    all: players.length,
-    active: players.filter((p) => p.status === 'active').length,
-    pending: players.filter((p) => p.status === 'pending').length,
-    alumni: players.filter((p) => p.status === 'alumni').length,
-    cancelled: players.filter((p) => p.status === 'cancelled').length,
+    all: cohortPlayers.length,
+    active: cohortPlayers.filter((p) => p.status === 'active').length,
+    pending: cohortPlayers.filter((p) => p.status === 'pending').length,
+    alumni: cohortPlayers.filter((p) => p.status === 'alumni').length,
+    cancelled: cohortPlayers.filter((p) => p.status === 'cancelled').length,
   }
 
   const statusButtons = [
