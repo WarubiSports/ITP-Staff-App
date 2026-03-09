@@ -59,7 +59,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { formatDate } from '@/lib/utils'
-import { updatePlayer, deletePlayer } from '../actions'
+import { updatePlayer, deletePlayer, sendWelcomeEmail } from '../actions'
 import { createClient } from '@/lib/supabase/client'
 import { UpdateWhereaboutsModal, AddFocusNoteModal, AddOutreachModal } from '@/components/modals'
 import { Modal } from '@/components/ui/modal'
@@ -484,6 +484,22 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
             </>
           ) : (
             <>
+              {player.email && (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const res = await sendWelcomeEmail(player.id)
+                    if (res.success) {
+                      showToast(`Welcome email sent to ${player.email}`, 'success')
+                    } else {
+                      showToast(res.error || 'Failed to send email', 'error')
+                    }
+                  }}
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Welcome Email
+                </Button>
+              )}
               <Button onClick={() => setEditing(true)}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Player

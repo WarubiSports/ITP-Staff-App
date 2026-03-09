@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail, wrapInBrandedHtml } from '@/lib/email'
 
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -234,5 +235,51 @@ export async function deletePlayer(playerId: string, hardDelete: boolean = false
   } catch (err) {
     console.error('Delete player error:', err)
     return { error: err instanceof Error ? err.message : 'Failed to delete player' }
+  }
+}
+
+export async function sendWelcomeEmail(playerId: string): Promise<{ success: boolean; error?: string }> {
+  const supabaseAdmin = getAdminClient()
+  if (!supabaseAdmin) return { success: false, error: 'Server configuration error.' }
+
+  try {
+    const { data: player, error: fetchError } = await supabaseAdmin
+      .from('players')
+      .select('id, first_name, last_name, email')
+      .eq('id', playerId)
+      .single()
+
+    if (fetchError || !player) return { success: false, error: 'Player not found' }
+    if (!player.email) return { success: false, error: 'Player has no email address' }
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: player.email,
+      options: { redirectTo: 'https://itp-player-app.vercel.app' },
+    })
+
+    if (linkError || !linkData?.properties?.hashed_token) {
+      return { success: false, error: linkError?.message || 'Failed to generate magic link' }
+    }
+
+    const magicLink = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/verify?token=${linkData.properties.hashed_token}&type=magiclink&redirect_to=https://itp-player-app.vercel.app`
+
+    const result = await sendEmail({
+      to: player.email,
+      subject: `Welcome to the ITP — ${player.first_name}, you're in!`,
+      html: wrapInBrandedHtml(
+        `Hi ${player.first_name},\n\n` +
+        `Welcome to the International Talent Pathway at 1. FC Köln!\n\n` +
+        `Click the button below to access your Player App, where you'll find your schedule, house info, and everything you need.\n\n` +
+        `<a href="${magicLink}" style="display:inline-block;padding:12px 24px;background:#1e293b;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;margin:8px 0;">Open Player App</a>\n\n` +
+        `You'll be asked to set a password on your first login.\n\n` +
+        `See you in Cologne!\n\n` +
+        `— The ITP Team`
+      ),
+    })
+
+    return result
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' }
   }
 }
