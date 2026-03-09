@@ -136,7 +136,8 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
           height_cm: prospect.height_cm || null,
           room_id: prospect.room_id || null,
           cohort: getNextCohort(),
-          status: 'active',
+          status: new Date().getMonth() < 7 ? 'pending' : 'active',
+          program_start_date: new Date().getMonth() < 7 ? `${new Date().getFullYear()}-07-06` : null,
           notes: noteParts.join('\n'),
         })
         .select('id')
