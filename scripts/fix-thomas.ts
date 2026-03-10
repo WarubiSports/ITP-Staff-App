@@ -1,20 +1,13 @@
+import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
 
-// Read .env.local file manually
-const envPath = resolve(process.cwd(), '.env.local')
-const envContent = readFileSync(envPath, 'utf-8')
-const envVars: Record<string, string> = {}
-envContent.split('\n').forEach(line => {
-  const [key, ...valueParts] = line.split('=')
-  if (key && valueParts.length) {
-    envVars[key.trim()] = valueParts.join('=').trim().replace(/^["']|["']$/g, '')
-  }
-})
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL
-const serviceRoleKey = envVars.SUPABASE_SERVICE_ROLE_KEY
+if (!supabaseUrl || !serviceRoleKey) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local')
+  process.exit(1)
+}
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: {

@@ -63,7 +63,7 @@ export function Sidebar({ user, onNavigate }: SidebarProps) {
 
     if (newWindow) {
       if (session?.access_token) {
-        const ssoUrl = `${playerAppUrl}/auth/sso?access_token=${session.access_token}&refresh_token=${session.refresh_token}`
+        const ssoUrl = `${playerAppUrl}/auth/sso#access_token=${session.access_token}&refresh_token=${session.refresh_token}`
         newWindow.location.href = ssoUrl
       } else {
         // Fallback to regular link if no session
