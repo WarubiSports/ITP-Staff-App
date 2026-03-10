@@ -783,6 +783,36 @@ export function OperationsContent({
                           </span>
                         </div>
                       </div>
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <Input
+                          type="date"
+                          defaultValue={player.insurance_expiry?.split('T')[0] || ''}
+                          className="flex-1 text-sm"
+                          id={`ins-${player.id}`}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            const input = document.getElementById(`ins-${player.id}`) as HTMLInputElement
+                            if (!input?.value) return
+                            const supabase = createClient()
+                            const { error } = await supabase
+                              .from('players')
+                              .update({ insurance_expiry: input.value })
+                              .eq('id', player.id)
+                            if (error) {
+                              showToast(`Failed to update: ${error.message}`, 'error')
+                            } else {
+                              showToast(`Insurance updated for ${player.first_name} ${player.last_name}`)
+                              router.refresh()
+                            }
+                          }}
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 )
