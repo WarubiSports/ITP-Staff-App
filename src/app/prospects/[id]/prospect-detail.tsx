@@ -796,12 +796,18 @@ function OnboardingCard({ prospect }: { prospect: TrialProspect }) {
       window.open(docUrls[label], '_blank')
       return
     }
+    // Open window synchronously to avoid popup blocker
+    const newWindow = window.open('about:blank', '_blank')
     setLoadingDoc(label)
     const { url, error } = await getOnboardingDocumentUrl(filePath)
     setLoadingDoc(null)
     if (url) {
       setDocUrls(prev => ({ ...prev, [label]: url }))
-      window.open(url, '_blank')
+      if (newWindow) {
+        newWindow.location.href = url
+      }
+    } else {
+      newWindow?.close()
     }
   }
 

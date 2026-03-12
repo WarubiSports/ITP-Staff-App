@@ -517,6 +517,27 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
         </div>
       </div>
 
+      {/* Sticky Save Bar */}
+      {editing && (
+        <div className="sticky top-0 z-50 bg-white border border-gray-200 rounded-lg shadow-md px-4 py-3 flex items-center justify-between">
+          <span className="text-sm text-gray-600 font-medium">Editing player profile</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>
+              <X className="w-4 h-4 mr-1" />
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-1" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
@@ -1138,10 +1159,23 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
           {/* Insurance */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Insurance
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Insurance
+                </CardTitle>
+                {!editing && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditing(true)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
