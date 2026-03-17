@@ -65,10 +65,13 @@ export default async function OperationsPage() {
     .order('trial_start_date', { ascending: false })
 
   // Fetch trial prospects (prospective players trialing FOR the ITP)
+  // Filter out trials that have already ended
+  const today = new Date().toISOString().split('T')[0]
   const { data: trialProspects } = await supabase
     .from('trial_prospects')
     .select('*')
     .in('status', ['scheduled', 'in_progress'])
+    .gte('trial_end_date', today)
     .order('trial_start_date', { ascending: true })
 
   // Fetch rooms
@@ -85,7 +88,6 @@ export default async function OperationsPage() {
     .order('name')
 
   // Fetch grocery orders with player info and item details (upcoming only)
-  const today = new Date().toISOString().split('T')[0]
   const { data: groceryOrders } = await supabase
     .from('grocery_orders')
     .select(`
