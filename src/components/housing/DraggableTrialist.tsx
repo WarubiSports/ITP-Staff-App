@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core'
 import { Avatar } from '@/components/ui/avatar'
-import { GripVertical, Calendar, UserPlus } from 'lucide-react'
+import { GripVertical, Calendar } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import type { TrialProspect } from '@/types'

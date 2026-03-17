@@ -23,7 +23,7 @@ interface DroppableRoomProps {
   isUpdating?: boolean
 }
 
-export function DroppableRoom({ room, players, trialists = [], isUpdating }: DroppableRoomProps) {
+export function DroppableRoom({ room, players, trialists = [] }: DroppableRoomProps) {
   const totalOccupants = players.length + trialists.length
   const isFull = totalOccupants >= room.capacity
   const isEmpty = totalOccupants === 0

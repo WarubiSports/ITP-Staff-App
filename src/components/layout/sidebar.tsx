@@ -11,7 +11,6 @@ import {
   ClipboardList,
   Settings,
   LogOut,
-  Plane,
   Home,
   ExternalLink,
   UserSearch,

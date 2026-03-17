@@ -8,17 +8,15 @@ import {
   FileQuestion,
   ChevronDown,
   ChevronUp,
-  Calendar,
   AlertTriangle,
   CheckCircle2,
   Clock,
   User,
   Paperclip,
   Upload,
-  Download,
   X,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
@@ -29,8 +27,6 @@ import type {
   VisaDocumentStatus,
   VisaApplicationStatus,
   VisaDocumentChecklist,
-  visaDocumentLabels,
-  defaultVisaDocuments,
   PlayerDocument,
 } from '@/types'
 

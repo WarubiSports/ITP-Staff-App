@@ -182,7 +182,7 @@ export const PerformanceTestsCard = ({ playerId, physicalTests }: PerformanceTes
               type Benchmark = { label: string; key: keyof PhysicalTest; unit: string; lowerIsBetter?: boolean; thresholds: [number, number, number, number] }
 
               const getBenchmarkLevel = (value: number, b: Benchmark): 'elite' | 'good' | 'average' | 'needs-improvement' => {
-                const [ni, avg, good, elite] = b.thresholds
+                const [, avg, good, elite] = b.thresholds
                 if (b.lowerIsBetter) {
                   if (value <= elite) return 'elite'
                   if (value <= good) return 'good'

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import {
   User,
   Calendar,
-  MapPin,
   Phone,
   Mail,
   Video,
@@ -22,7 +21,6 @@ import {
   Ruler,
   Globe,
   Plane,
-  Shirt,
   ClipboardCheck,
   ExternalLink,
   Copy,
@@ -799,7 +797,7 @@ function OnboardingCard({ prospect }: { prospect: TrialProspect }) {
     // Open window synchronously to avoid popup blocker
     const newWindow = window.open('about:blank', '_blank')
     setLoadingDoc(label)
-    const { url, error } = await getOnboardingDocumentUrl(filePath)
+    const { url } = await getOnboardingDocumentUrl(filePath)
     setLoadingDoc(null)
     if (url) {
       setDocUrls(prev => ({ ...prev, [label]: url }))

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import {

@@ -37,7 +37,7 @@ async function supabaseUpdateOrphanedSeries(
   data: Record<string, unknown>
 ): Promise<{ error: Error | null }> {
   try {
-    const { date, start_time, end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
+    const { date: _date, start_time: _start_time, end_time: _end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
     const supabase = createClient()
     let query = supabase.from('events').update(seriesData).eq('title', event.title).eq('type', event.type)
     if (event.recurrence_rule) {
@@ -56,7 +56,7 @@ async function supabaseUpdateRecurringSeries(
   data: Record<string, unknown>
 ): Promise<{ error: Error | null }> {
   try {
-    const { date, start_time, end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
+    const { date: _date, start_time: _start_time, end_time: _end_time, ...seriesData } = data as Record<string, unknown> & { date?: string; start_time?: string; end_time?: string }
     const supabase = createClient()
     // Update parent
     const { error: parentError } = await supabase.from('events').update(seriesData).eq('id', parentEventId)
@@ -477,8 +477,6 @@ export function EventDetailModal({
               variant="outline"
               size="sm"
               onClick={() => {
-                console.log('[CLICK] "Delete/Edit this event only" button clicked')
-                console.log('[CLICK] showSeriesOptions:', showSeriesOptions)
                 if (showSeriesOptions === 'edit') {
                   setEditMode('single')
                   setIsEditing(true)
@@ -495,8 +493,6 @@ export function EventDetailModal({
               variant="outline"
               size="sm"
               onClick={async () => {
-                console.log('[CLICK] "Delete/Edit all events in series" button clicked')
-                console.log('[CLICK] showSeriesOptions:', showSeriesOptions)
                 if (showSeriesOptions === 'edit') {
                   setEditMode('series')
                   setIsEditing(true)

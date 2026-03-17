@@ -174,7 +174,7 @@ interface PlayerDetailProps {
   outreachEntries: PlacementOutreach[]
 }
 
-export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads, collegeTargets, focusNotes, physicalTests, outreachEntries }: PlayerDetailProps) {
+export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, documents, attendance, archivedTrials, wellnessLogs, trainingLoads, collegeTargets, focusNotes, physicalTests, outreachEntries }: PlayerDetailProps) {
   const router = useRouter()
   const { showToast } = useToast()
 
@@ -939,7 +939,7 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                   <>
                     <div>
                       <p className="text-sm text-gray-500">Assigned House</p>
-                      <p className="font-medium">{assignedRoom.house_id || 'Unknown'}</p>
+                      <p className="font-medium">{houses.find(h => h.id === assignedRoom.house_id)?.name || 'Unknown'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Room</p>
@@ -1007,7 +1007,6 @@ export function PlayerDetail({ player: initialPlayer, houses, rooms, assignedRoo
                       const excused = attendance.filter(a => a.status === 'excused').length
                       const absent = attendance.filter(a => a.status === 'absent').length
                       const total = attendance.length
-                      const attendanceRate = total > 0 ? Math.round(((present + late) / total) * 100) : 0
 
                       return (
                         <>

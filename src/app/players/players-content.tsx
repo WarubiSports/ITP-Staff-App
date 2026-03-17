@@ -21,7 +21,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { getDaysUntil } from '@/lib/utils'
 
 interface Player {
   id: string
@@ -193,13 +192,6 @@ export function PlayersContent({ players }: PlayersContentProps) {
       {/* Players Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredPlayers.map((player) => {
-          const daysRemaining = player.program_end_date
-            ? getDaysUntil(player.program_end_date)
-            : null
-          const insuranceDays = player.insurance_expiry
-            ? getDaysUntil(player.insurance_expiry)
-            : null
-
           return (
             <Card key={player.id} className="hover:shadow-md transition-shadow">
               <CardContent className="pt-6">

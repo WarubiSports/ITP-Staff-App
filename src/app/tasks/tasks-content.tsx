@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import {
   Plus,
-  Filter,
   CheckCircle2,
   Circle,
   Clock,
@@ -59,7 +58,7 @@ interface TasksContentProps {
   currentUserId: string
 }
 
-export function TasksContent({ tasks: initialTasks, players, staff, currentUserId }: TasksContentProps) {
+export function TasksContent({ tasks: initialTasks, staff, currentUserId }: TasksContentProps) {
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter] = useState<'all' | 'my_tasks' | 'pending' | 'in_progress' | 'completed'>('all')
   const [editingTask, setEditingTask] = useState<Task | null>(null)

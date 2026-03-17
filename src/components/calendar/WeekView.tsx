@@ -20,8 +20,6 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export function WeekView({
   currentDate,
   events,
-  selectedDate,
-  onDateClick,
   onEventClick,
   onAddEvent,
 }: WeekViewProps) {

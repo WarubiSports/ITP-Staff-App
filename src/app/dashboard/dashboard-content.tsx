@@ -160,7 +160,6 @@ const whereaboutsConfig: Record<string, { icon: typeof Home; color: string; bg: 
 export function DashboardContent({
   players,
   todayTasks,
-  allTasks: _allTasks,
   todayEvents,
   todayMedical,
   activeTrials,

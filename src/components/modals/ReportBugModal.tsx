@@ -159,16 +159,10 @@ export function ReportBugModal({ isOpen, onClose, currentUrl, userName, userId }
     setLoading(true)
 
     try {
-      const supabase = createClient()
-
       // Upload screenshot if provided
       let screenshotUrl: string | null = null
       if (screenshot) {
         screenshotUrl = await uploadScreenshot(screenshot)
-        if (!screenshotUrl) {
-          // Continue without screenshot if upload fails
-          console.warn('Screenshot upload failed, continuing without it')
-        }
       }
 
       const { error: insertError } = await supabaseInsert('bug_reports', {

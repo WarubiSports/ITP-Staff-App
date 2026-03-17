@@ -71,11 +71,6 @@ export function RoomAllocation({ players, rooms, houses, trialProspects = [], on
 
   const unassignedPlayers = players.filter((p) => !p.room_id)
 
-  // Get trialists who want academy housing and aren't assigned to a room yet
-  const unassignedTrialists = trialProspects.filter(p =>
-    (p.accommodation_type === 'house' || !p.accommodation_type) && !p.room_id
-  )
-
   const handleDragStart = (event: DragStartEvent) => {
     const itemId = event.active.id as string
 
@@ -212,7 +207,7 @@ export function RoomAllocation({ players, rooms, houses, trialProspects = [], on
 
   // Calculate stats
   const totalBeds = rooms.reduce((sum, r) => sum + r.capacity, 0)
-  const occupiedBeds = players.filter((p) => p.room_id).length
+  const occupiedBeds = players.filter((p) => p.room_id).length + trialProspects.filter((t) => t.room_id).length
   const awayPlayers = players.filter((p) => p.whereabouts_status && p.whereabouts_status !== 'at_academy')
 
   return (

@@ -68,13 +68,10 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
       return { error: 'Player not found in database' }
     }
 
-    console.log('Found player:', existingPlayer.first_name, existingPlayer.last_name)
-
     // If email is being changed and player has a linked auth user, update auth user's email
     const newEmail = data.email || undefined
     const emailChanged = newEmail && newEmail !== existingPlayer.email
     if (emailChanged && existingPlayer.user_id) {
-      console.log('Updating auth user email from', existingPlayer.email, 'to', newEmail)
       const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
         existingPlayer.user_id,
         { email: newEmail }
@@ -83,8 +80,6 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
         console.error('Auth user email update error:', authError)
         // Don't fail the whole update, just log the error
         // The player record will still be updated
-      } else {
-        console.log('Auth user email updated successfully')
       }
     }
 
@@ -116,7 +111,6 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
     if (verifyError) {
       console.error('Verification error:', verifyError)
     } else {
-      console.log('Verified email after update:', verifyData?.email)
       // Check if email matches what we tried to save
       if (data.email && verifyData?.email !== data.email) {
         console.error('EMAIL MISMATCH! Sent:', data.email, 'Got:', verifyData?.email)
@@ -124,7 +118,6 @@ export async function updatePlayer(playerId: string, data: PlayerUpdateData) {
       }
     }
 
-    console.log('Update successful for:', result[0]?.first_name, 'email:', result[0]?.email)
     return { success: true }
   } catch (err) {
     console.error('Update player exception:', err)
@@ -175,7 +168,6 @@ export async function updateExpiredWhereabouts() {
       // If end date has passed, mark for update
       if (endDate && endDate < today) {
         playersToUpdate.push(player.id)
-        console.log(`Marking ${player.first_name} ${player.last_name} as back at academy (was ${player.whereabouts_status}, ended ${endDate})`)
       }
     }
 
@@ -195,7 +187,6 @@ export async function updateExpiredWhereabouts() {
         return { error: updateError.message }
       }
 
-      console.log(`Updated ${playersToUpdate.length} players to at_academy`)
     }
 
     return { success: true, updated: playersToUpdate.length }

@@ -43,7 +43,6 @@ export const TrainingLoadsCard = ({ trainingLoads }: TrainingLoadsCardProps) => 
             {(() => {
               const totalSessions = trainingLoads.length
               const totalLoad = trainingLoads.reduce((sum, t) => sum + t.load_score, 0)
-              const avgLoad = totalLoad / totalSessions
               const totalMinutes = trainingLoads.reduce((sum, t) => sum + (t.duration || 0), 0)
               const avgRpe = trainingLoads.filter(t => t.rpe).reduce((sum, t) => sum + (t.rpe || 0), 0) /
                              (trainingLoads.filter(t => t.rpe).length || 1)
