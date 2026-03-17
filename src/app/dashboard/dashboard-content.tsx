@@ -385,7 +385,7 @@ export function DashboardContent({
                 <CalendarClock className="w-5 h-5 text-gray-500" />
                 Today&apos;s Schedule
               </CardTitle>
-              <Link href="/operations">
+              <Link href="/calendar">
                 <Button variant="ghost" size="sm">
                   Full Calendar <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
