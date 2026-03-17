@@ -45,7 +45,7 @@ import {
   AddPickupModal,
   AddOutreachModal,
 } from '@/components/modals'
-import { RoomAllocation } from '@/components/housing'
+import { RoomAllocation, HousingForecast } from '@/components/housing'
 import { VisaDocumentTracking } from '@/components/visa'
 import { ChoresTab } from '@/components/operations/ChoresTab'
 import { GroceryTab } from '@/components/operations/GroceryTab'
@@ -324,13 +324,21 @@ export function OperationsContent({
 
       {/* Housing Tab */}
       {activeTab === 'housing' && (
-        <RoomAllocation
-          players={players}
-          rooms={rooms}
-          houses={houses}
-          trialProspects={trialProspects}
-          onUpdate={handleRefresh}
-        />
+        <div className="space-y-6">
+          <RoomAllocation
+            players={players}
+            rooms={rooms}
+            houses={houses}
+            trialProspects={trialProspects}
+            onUpdate={handleRefresh}
+          />
+          <HousingForecast
+            players={players}
+            rooms={rooms}
+            houses={houses}
+            trialProspects={trialProspects}
+          />
+        </div>
       )}
 
       {/* Insurance Tab */}
