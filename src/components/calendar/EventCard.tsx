@@ -48,6 +48,11 @@ const formatEventTime = (event: CalendarEvent) => {
   if (event.all_day) return 'All day'
   if (!event.start_time) return ''
 
+  const isMatch = event.type === 'match' || event.type === 'tournament'
+  if (isMatch && event.meeting_time) {
+    return `Meeting ${formatTime(event.meeting_time)} · KO ${formatTime(event.start_time)}`
+  }
+
   const startTime = formatTime(event.start_time)
   const endTime = event.end_time ? formatTime(event.end_time) : ''
 

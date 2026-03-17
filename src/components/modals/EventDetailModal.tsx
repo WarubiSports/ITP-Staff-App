@@ -156,12 +156,16 @@ export function EventDetailModal({
     date: event.date,
     start_time: parseTime(event.start_time),
     end_time: parseTime(event.end_time) || '10:00',
+    meeting_time: parseTime(event.meeting_time) !== '09:00' ? parseTime(event.meeting_time) : '',
     type: event.type,
     location: event.location || '',
     description: event.description || '',
     all_day: event.all_day,
     selectedPlayers: event.attendees?.map((a) => a.player_id) || [],
   })
+
+  const isMatchEvent = formData.type === 'match' || formData.type === 'tournament'
+  const isViewMatchEvent = event.type === 'match' || event.type === 'tournament'
 
   // Re-sync form data when a different event is opened
   useEffect(() => {
@@ -170,6 +174,7 @@ export function EventDetailModal({
       date: event.date,
       start_time: parseTime(event.start_time),
       end_time: parseTime(event.end_time) || '10:00',
+      meeting_time: event.meeting_time ? parseTime(event.meeting_time) : '',
       type: event.type,
       location: event.location || '',
       description: event.description || '',
@@ -208,11 +213,16 @@ export function EventDetailModal({
         ? createTimestamp(formData.date, '23:59')
         : createTimestamp(formData.date, formData.end_time)
 
+      const meetingDateTime = formData.meeting_time
+        ? createTimestamp(formData.date, formData.meeting_time)
+        : null
+
       const updateData = {
         title: formData.title,
         date: formData.date,
         start_time: startDateTime,
         end_time: endDateTime,
+        meeting_time: meetingDateTime,
         type: formData.type,
         location: formData.location || null,
         description: formData.description || null,
@@ -522,11 +532,16 @@ export function EventDetailModal({
 
         <div className="flex items-center gap-3 text-gray-600">
           <Clock className="w-4 h-4" />
-          <span>
-            {event.all_day
-              ? 'All day'
-              : `${formatTime(event.start_time || '')} - ${formatTime(event.end_time || '')}`}
-          </span>
+          {event.all_day ? (
+            <span>All day</span>
+          ) : isViewMatchEvent && event.meeting_time ? (
+            <div className="flex flex-col text-sm">
+              <span>Meeting: <strong>{formatTime(event.meeting_time)}</strong></span>
+              <span>Kickoff: <strong>{formatTime(event.start_time || '')}</strong></span>
+            </div>
+          ) : (
+            <span>{formatTime(event.start_time || '')} - {formatTime(event.end_time || '')}</span>
+          )}
         </div>
 
         {event.location && (
@@ -638,7 +653,7 @@ export function EventDetailModal({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${isMatchEvent && !formData.all_day ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
         <Input
           label="Date *"
           type="date"
@@ -648,8 +663,16 @@ export function EventDetailModal({
         />
         {!formData.all_day && (
           <>
+            {isMatchEvent && (
+              <Input
+                label="Meeting Time"
+                type="time"
+                value={formData.meeting_time}
+                onChange={(e) => setFormData({ ...formData, meeting_time: e.target.value })}
+              />
+            )}
             <Input
-              label="Start Time"
+              label={isMatchEvent ? 'Kickoff Time' : 'Start Time'}
               type="time"
               value={formData.start_time}
               onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}

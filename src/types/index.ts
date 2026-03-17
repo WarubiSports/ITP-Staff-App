@@ -238,6 +238,7 @@ export interface CalendarEvent {
   date: string
   start_time?: string
   end_time?: string
+  meeting_time?: string
   type: CalendarEventType
   location?: string
   player_ids?: string[]

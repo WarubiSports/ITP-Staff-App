@@ -73,6 +73,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     date: defaultDate || today,
     start_time: '09:00',
     end_time: '10:00',
+    meeting_time: '',
     type: 'team_training' as CalendarEventType,
     location: '',
     description: '',
@@ -83,6 +84,8 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
     recurrence_end_date: '',
     selectedPlayers: [] as string[],
   })
+
+  const isMatchEvent = formData.type === 'match' || formData.type === 'tournament'
 
   const toggleRecurrenceDay = (day: string) => {
     setFormData((prev) => ({
@@ -134,11 +137,16 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
         ? createTimestamp(formData.date, '23:59')
         : createTimestamp(formData.date, formData.end_time)
 
+      const meetingDateTime = formData.meeting_time
+        ? createTimestamp(formData.date, formData.meeting_time)
+        : null
+
       const eventData = {
         title: formData.title,
         date: formData.date,
         start_time: startDateTime,
         end_time: endDateTime,
+        meeting_time: meetingDateTime,
         type: formData.type,
         location: formData.location || null,
         description: formData.description || null,
@@ -227,6 +235,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
         date: defaultDate || today,
         start_time: '09:00',
         end_time: '10:00',
+        meeting_time: '',
         type: 'team_training',
         location: '',
         description: '',
@@ -360,7 +369,7 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className={`grid gap-4 ${isMatchEvent && !formData.all_day ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
           <Input
             label="Date *"
             type="date"
@@ -370,8 +379,17 @@ export function AddEventModal({ isOpen, onClose, onSuccess, defaultDate, players
           />
           {!formData.all_day && (
             <>
+              {isMatchEvent && (
+                <Input
+                  label="Meeting Time"
+                  type="time"
+                  value={formData.meeting_time}
+                  onChange={(e) => setFormData({ ...formData, meeting_time: e.target.value })}
+                  placeholder="e.g., 13:00"
+                />
+              )}
               <Input
-                label="Start Time"
+                label={isMatchEvent ? 'Kickoff Time' : 'Start Time'}
                 type="time"
                 value={formData.start_time}
                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
