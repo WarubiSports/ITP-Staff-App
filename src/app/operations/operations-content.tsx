@@ -45,13 +45,11 @@ import {
   AddPickupModal,
   AddOutreachModal,
 } from '@/components/modals'
-import { RoomAllocation, HousingForecast } from '@/components/housing'
+import { RoomAllocation, HousingForecast, HousingRequests } from '@/components/housing'
 import { VisaDocumentTracking } from '@/components/visa'
 import { ChoresTab } from '@/components/operations/ChoresTab'
 import { GroceryTab } from '@/components/operations/GroceryTab'
 import { TrialsTab } from '@/components/operations/TrialsTab'
-// CapacityChart temporarily disabled due to recharts rendering issue
-// import { CapacityChartWithBoundary as CapacityChart } from '@/components/charts/CapacityChart'
 import type { VisaApplicationStatus, VisaDocumentChecklist } from '@/types'
 
 interface Player {
@@ -119,7 +117,6 @@ type TabType = 'visa' | 'housing' | 'insurance' | 'wellpass' | 'medical' | 'bill
 
 export function OperationsContent({
   players,
-  events: _events,
   wellpassMemberships,
   medicalAppointments,
   insuranceClaims,
@@ -325,6 +322,12 @@ export function OperationsContent({
       {/* Housing Tab */}
       {activeTab === 'housing' && (
         <div className="space-y-6">
+          <HousingRequests
+            trialProspects={trialProspects}
+            rooms={rooms}
+            houses={houses}
+            onUpdate={handleRefresh}
+          />
           <RoomAllocation
             players={players}
             rooms={rooms}
