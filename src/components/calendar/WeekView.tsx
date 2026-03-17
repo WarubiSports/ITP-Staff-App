@@ -116,7 +116,7 @@ export function WeekView({
       </div>
 
       {/* All-day events row */}
-      <div className="flex border-b border-gray-200 min-h-[40px]">
+      <div className="flex border-b border-gray-200 min-h-[40px] max-h-[120px]">
         <div className="w-16 flex-shrink-0 border-r border-gray-200 px-2 py-1 text-xs text-gray-500">
           All day
         </div>
@@ -125,7 +125,7 @@ export function WeekView({
           return (
             <div
               key={index}
-              className="flex-1 border-r border-gray-200 last:border-r-0 p-1 space-y-1"
+              className="flex-1 border-r border-gray-200 last:border-r-0 p-1 space-y-1 overflow-y-auto"
             >
               {allDayEvents.map((event) => (
                 <EventCard

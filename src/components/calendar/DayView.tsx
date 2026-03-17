@@ -94,8 +94,8 @@ export function DayView({
 
       {/* All-day events */}
       {allDayEvents.length > 0 && (
-        <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
-          <div className="text-xs text-gray-500 mb-2">All Day</div>
+        <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 max-h-[150px] overflow-y-auto">
+          <div className="text-xs text-gray-500 mb-2 sticky top-0 bg-gray-50">All Day ({allDayEvents.length})</div>
           <div className="space-y-2">
             {allDayEvents.map((event) => (
               <EventCard
