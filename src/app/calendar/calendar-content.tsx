@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarEvent, CalendarEventType, Player, PlayerTrial, TrialProspect, MedicalAppointment } from '@/types'
+import { CalendarEvent, CalendarEventType, Player, PlayerTrial, TrialProspect, Visitor, MedicalAppointment } from '@/types'
 import { CompliancePanel } from '@/components/calendar/CompliancePanel'
 import { Button } from '@/components/ui/button'
 import { CalendarGrid } from '@/components/calendar/CalendarGrid'
@@ -48,6 +48,7 @@ interface CalendarContentProps {
   players: Pick<Player, 'id' | 'first_name' | 'last_name' | 'player_id'>[]
   playerTrials?: PlayerTrialWithPlayer[]
   trialProspects?: TrialProspect[]
+  visitors?: Visitor[]
   medicalAppointments?: MedicalAppointmentWithPlayer[]
   wellnessLogs?: WellnessLog[]
   trainingLoads?: TrainingLoad[]
@@ -154,6 +155,37 @@ function convertProspectsToEvents(prospects: TrialProspect[]): CalendarEvent[] {
   return events
 }
 
+// Convert visitors to calendar events (all-day overlay for visit duration)
+function convertVisitorsToEvents(visitors: Visitor[]): CalendarEvent[] {
+  const events: CalendarEvent[] = []
+
+  visitors.forEach((visitor) => {
+    const name = `${visitor.first_name} ${visitor.last_name}`
+    const org = visitor.organization ? ` (${visitor.organization})` : ''
+
+    const startDate = parseDateString(visitor.visit_start_date)
+    const endDate = parseDateString(visitor.visit_end_date)
+
+    const current = new Date(startDate)
+    while (current <= endDate) {
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
+      events.push({
+        id: `visitor-${visitor.id}-${dateStr}`,
+        title: `Visit: ${name}${org}`,
+        description: visitor.purpose || undefined,
+        date: dateStr,
+        type: 'meeting' as CalendarEventType,
+        all_day: true,
+        created_at: visitor.created_at,
+        updated_at: visitor.updated_at,
+      })
+      current.setDate(current.getDate() + 1)
+    }
+  })
+
+  return events
+}
+
 // Convert medical appointments to calendar events
 function convertMedicalAppointmentsToEvents(appointments: MedicalAppointmentWithPlayer[]): CalendarEvent[] {
   return appointments.map((appointment) => {
@@ -235,6 +267,7 @@ export function CalendarContent({
   players,
   playerTrials = [],
   trialProspects = [],
+  visitors = [],
   medicalAppointments = [],
   wellnessLogs = [],
   trainingLoads = [],
@@ -245,9 +278,10 @@ export function CalendarContent({
   const events = useMemo(() => {
     const trialEvents = convertPlayerTrialsToEvents(playerTrials)
     const prospectEvents = convertProspectsToEvents(trialProspects)
+    const visitorEvents = convertVisitorsToEvents(visitors)
     const medicalEvents = convertMedicalAppointmentsToEvents(medicalAppointments)
-    return [...initialEvents, ...trialEvents, ...prospectEvents, ...medicalEvents]
-  }, [initialEvents, playerTrials, trialProspects, medicalAppointments])
+    return [...initialEvents, ...trialEvents, ...prospectEvents, ...visitorEvents, ...medicalEvents]
+  }, [initialEvents, playerTrials, trialProspects, visitors, medicalAppointments])
 
   // Category filter state (lazy init from localStorage)
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(loadHiddenCategories)

@@ -58,6 +58,12 @@ export default async function CalendarPage() {
     .eq('status', 'scheduled')
     .order('appointment_date', { ascending: true })
 
+  // Fetch visitors with upcoming/recent visits
+  const { data: visitors } = await supabase
+    .from('visitors')
+    .select('*')
+    .order('visit_start_date', { ascending: true })
+
   // Fetch active players for assignment
   const { data: players } = await supabase
     .from('players')
@@ -92,6 +98,7 @@ export default async function CalendarPage() {
         players={players || []}
         playerTrials={playerTrials || []}
         trialProspects={trialProspects || []}
+        visitors={visitors || []}
         medicalAppointments={medicalAppointments || []}
         wellnessLogs={wellnessLogs || []}
         trainingLoads={trainingLoads || []}
