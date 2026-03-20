@@ -68,6 +68,7 @@ function calculateAge(dateOfBirth: string): number {
 export function ProspectsContent({ prospects, rooms = [], players = [] }: ProspectsContentProps) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [showCompleted, setShowCompleted] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [approveModal, setApproveModal] = useState<TrialProspect | null>(null)
   const [rejectModal, setRejectModal] = useState<TrialProspect | null>(null)
@@ -139,6 +140,8 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
     router.refresh()
   }
 
+  const completedStatuses = ['rejected', 'withdrawn', 'placed']
+
   // Filter and sort prospects chronologically by trial start date
   const filteredProspects = prospects
     .filter((prospect) => {
@@ -147,7 +150,9 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
         prospect.current_club?.toLowerCase().includes(search.toLowerCase()) ||
         prospect.nationality?.toLowerCase().includes(search.toLowerCase())
 
-      const matchesStatus = statusFilter === 'all' || prospect.status === statusFilter
+      const matchesStatus = statusFilter === 'all'
+        ? (showCompleted || !completedStatuses.includes(prospect.status))
+        : prospect.status === statusFilter
 
       return matchesSearch && matchesStatus
     })
@@ -161,8 +166,9 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
     })
 
   // Count by status
+  const activeCount = prospects.filter(p => !completedStatuses.includes(p.status)).length
   const statusCounts = {
-    all: prospects.length,
+    all: showCompleted ? prospects.length : activeCount,
     requested: prospects.filter((p) => p.status === 'requested').length,
     inquiry: prospects.filter((p) => p.status === 'inquiry').length,
     scheduled: prospects.filter((p) => p.status === 'scheduled').length,
@@ -177,7 +183,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
 
   // Active statuses for quick filters
   const activeStatuses = ['requested', 'inquiry', 'scheduled', 'in_progress', 'evaluation', 'decision_pending']
-  const completedStatuses = ['accepted', 'rejected', 'withdrawn', 'placed']
+  const completedFilterStatuses = ['accepted', 'rejected', 'withdrawn', 'placed']
 
   return (
     <div className="space-y-6">
@@ -247,22 +253,40 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium text-gray-500 uppercase">Completed</p>
-              <div className="flex gap-2 flex-wrap">
-                {completedStatuses.map((status) => {
-                  const config = statusConfig[status]
-                  return (
-                    <Button
-                      key={status}
-                      variant={statusFilter === status ? 'primary' : 'outline'}
-                      size="sm"
-                      onClick={() => setStatusFilter(status)}
-                    >
-                      {config.label} ({statusCounts[status as keyof typeof statusCounts]})
-                    </Button>
-                  )
-                })}
+              <div className="flex items-center gap-3">
+                <p className="text-xs font-medium text-gray-500 uppercase">Completed</p>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showCompleted}
+                    onChange={(e) => {
+                      setShowCompleted(e.target.checked)
+                      if (!e.target.checked && completedStatuses.includes(statusFilter)) {
+                        setStatusFilter('all')
+                      }
+                    }}
+                    className="rounded border-gray-300 text-gray-900 focus:ring-gray-500 h-3.5 w-3.5"
+                  />
+                  <span className="text-xs text-gray-500">Show</span>
+                </label>
               </div>
+              {showCompleted && (
+                <div className="flex gap-2 flex-wrap">
+                  {completedFilterStatuses.map((status) => {
+                    const config = statusConfig[status]
+                    return (
+                      <Button
+                        key={status}
+                        variant={statusFilter === status ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setStatusFilter(status)}
+                      >
+                        {config.label} ({statusCounts[status as keyof typeof statusCounts]})
+                      </Button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
