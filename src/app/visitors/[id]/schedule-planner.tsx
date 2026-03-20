@@ -51,7 +51,7 @@ function formatDayHeader(dateStr: string): { day: string; date: string } {
 function formatTime(isoTime?: string): string {
   if (!isoTime) return ''
   const d = new Date(isoTime)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Berlin' })
 }
 
 function addMinutes(time: string, minutes: number): string {
