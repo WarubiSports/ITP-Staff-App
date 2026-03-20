@@ -258,8 +258,19 @@ export interface CalendarEvent {
   // Contact info (for visitor meetings)
   contact_name?: string
   contact_role?: string
+  contact_id?: string
   // Joined data
   attendees?: EventAttendee[]
+}
+
+export interface ITPContact {
+  id: string
+  name: string
+  role?: string
+  organization?: string
+  photo_url?: string
+  created_at: string
+  updated_at: string
 }
 
 // Event attendee for player-event assignments

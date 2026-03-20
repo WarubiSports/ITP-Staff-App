@@ -21,11 +21,12 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { getErrorMessage } from '@/lib/utils'
 import { SchedulePlanner } from './schedule-planner'
-import type { Visitor, VisitorRole, CalendarEvent } from '@/types'
+import type { Visitor, VisitorRole, CalendarEvent, ITPContact } from '@/types'
 
 interface VisitorDetailProps {
   visitor: Visitor
   meetings: CalendarEvent[]
+  contacts: ITPContact[]
 }
 
 const roleOptions = [
@@ -52,7 +53,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export function VisitorDetail({ visitor, meetings }: VisitorDetailProps) {
+export function VisitorDetail({ visitor, meetings, contacts }: VisitorDetailProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -333,6 +334,7 @@ export function VisitorDetail({ visitor, meetings }: VisitorDetailProps) {
             startDate={formData.visit_start_date}
             endDate={formData.visit_end_date}
             meetings={meetings}
+            contacts={contacts}
           />
         </CardContent>
       </Card>

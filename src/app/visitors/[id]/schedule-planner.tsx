@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Clock, MapPin, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { createClient } from '@/lib/supabase/client'
 import { getErrorMessage } from '@/lib/utils'
-import type { CalendarEvent } from '@/types'
+import type { CalendarEvent, ITPContact } from '@/types'
 
 interface SchedulePlannerProps {
   visitorId: string
   startDate: string
   endDate: string
   meetings: CalendarEvent[]
+  contacts: ITPContact[]
 }
 
 const TEMPLATES = [
@@ -61,11 +62,11 @@ function addMinutes(time: string, minutes: number): string {
   return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
 }
 
-export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: SchedulePlannerProps) {
+export function SchedulePlanner({ visitorId, startDate, endDate, meetings, contacts }: SchedulePlannerProps) {
   const router = useRouter()
   const days = getDaysInRange(startDate, endDate)
 
-  const [showAdd, setShowAdd] = useState<string | null>(null) // date string or null
+  const [showAdd, setShowAdd] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [addLoading, setAddLoading] = useState(false)
   const [error, setError] = useState('')
@@ -77,9 +78,11 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
     location: '',
     description: '',
     type: 'meeting' as string,
-    contact_name: '',
-    contact_role: '',
+    contact_id: '',
   })
+
+  // Build a contact lookup for display on cards
+  const contactById = new Map(contacts.map(c => [c.id, c]))
 
   // Group meetings by date
   const meetingsByDate: Record<string, CalendarEvent[]> = {}
@@ -91,13 +94,12 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
       meetingsByDate[m.date].push(m)
     }
   }
-  // Sort each day by start_time
   for (const day of days) {
     meetingsByDate[day].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
   }
 
   const openAddForDay = (date: string) => {
-    setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting', contact_name: '', contact_role: '' })
+    setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting', contact_id: '' })
     setError('')
     setShowAdd(date)
   }
@@ -123,6 +125,9 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
       const startTime = form.start_time ? `${showAdd}T${form.start_time}:00+01:00` : null
       const endTime = form.end_time ? `${showAdd}T${form.end_time}:00+01:00` : null
 
+      // Resolve contact fields from selected contact
+      const selectedContact = form.contact_id ? contactById.get(form.contact_id) : null
+
       const { error: insertError } = await supabase.from('events').insert({
         title: form.title.trim(),
         date: showAdd,
@@ -133,8 +138,9 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
         type: form.type,
         all_day: false,
         visitor_id: visitorId,
-        contact_name: form.contact_name.trim() || null,
-        contact_role: form.contact_role.trim() || null,
+        contact_id: selectedContact?.id || null,
+        contact_name: selectedContact?.name || null,
+        contact_role: selectedContact?.role || null,
       })
 
       if (insertError) throw insertError
@@ -159,6 +165,16 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
     } finally {
       setDeleting(null)
     }
+  }
+
+  // Resolve display name for a meeting's contact
+  const getContactDisplay = (m: CalendarEvent) => {
+    if (m.contact_id) {
+      const c = contactById.get(m.contact_id)
+      if (c) return { name: c.name, role: c.role, photo: c.photo_url }
+    }
+    if (m.contact_name) return { name: m.contact_name, role: m.contact_role }
+    return null
   }
 
   return (
@@ -190,42 +206,49 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
                 {dayMeetings.length === 0 && (
                   <p className="text-xs text-gray-300 text-center py-6">No activities</p>
                 )}
-                {dayMeetings.map((m) => (
-                  <div
-                    key={m.id}
-                    className="group bg-white rounded-lg border border-gray-200 p-2.5 shadow-sm hover:shadow transition-shadow"
-                  >
-                    <div className="flex items-start justify-between gap-1">
-                      <p className="text-sm font-medium text-gray-900 leading-tight">{m.title}</p>
-                      <button
-                        onClick={() => handleDelete(m.id)}
-                        disabled={deleting === m.id}
-                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-0.5 -mt-0.5 -mr-0.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                {dayMeetings.map((m) => {
+                  const contact = getContactDisplay(m)
+                  return (
+                    <div
+                      key={m.id}
+                      className="group bg-white rounded-lg border border-gray-200 p-2.5 shadow-sm hover:shadow transition-shadow"
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <p className="text-sm font-medium text-gray-900 leading-tight">{m.title}</p>
+                        <button
+                          onClick={() => handleDelete(m.id)}
+                          disabled={deleting === m.id}
+                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-0.5 -mt-0.5 -mr-0.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      {m.start_time && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                          <Clock className="w-3 h-3" />
+                          {formatTime(m.start_time)}
+                          {m.end_time ? ` – ${formatTime(m.end_time)}` : ''}
+                        </div>
+                      )}
+                      {m.location && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                          <MapPin className="w-3 h-3" />
+                          {m.location}
+                        </div>
+                      )}
+                      {contact && (
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
+                          {contact.photo ? (
+                            <img src={contact.photo} alt="" className="w-4 h-4 rounded-full object-cover" />
+                          ) : (
+                            <User className="w-3 h-3" />
+                          )}
+                          {contact.name}{contact.role ? `, ${contact.role}` : ''}
+                        </div>
+                      )}
                     </div>
-                    {m.start_time && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                        <Clock className="w-3 h-3" />
-                        {formatTime(m.start_time)}
-                        {m.end_time ? ` – ${formatTime(m.end_time)}` : ''}
-                      </div>
-                    )}
-                    {m.location && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                        <MapPin className="w-3 h-3" />
-                        {m.location}
-                      </div>
-                    )}
-                    {m.contact_name && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                        <User className="w-3 h-3" />
-                        {m.contact_name}{m.contact_role ? `, ${m.contact_role}` : ''}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Add button */}
@@ -291,20 +314,46 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
             value={form.location}
             onChange={(e) => setForm({ ...form, location: e.target.value })}
           />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Contact Person"
-              placeholder="e.g. Max Bisinger"
-              value={form.contact_name}
-              onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
-            />
-            <Input
-              label="Their Role"
-              placeholder="e.g. Program Director"
-              value={form.contact_role}
-              onChange={(e) => setForm({ ...form, contact_role: e.target.value })}
-            />
-          </div>
+
+          {/* Contact person picker */}
+          {contacts.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Person</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, contact_id: '' })}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    !form.contact_id
+                      ? 'border-red-300 bg-red-50 text-red-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  None
+                </button>
+                {contacts.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setForm({ ...form, contact_id: c.id })}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      form.contact_id === c.id
+                        ? 'border-red-300 bg-red-50 text-red-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {c.photo_url ? (
+                      <img src={c.photo_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                    ) : (
+                      <User className="w-3 h-3" />
+                    )}
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Input
             label="Notes"
             placeholder="Optional notes"

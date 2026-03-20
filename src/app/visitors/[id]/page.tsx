@@ -21,7 +21,7 @@ export default async function VisitorDetailPage({ params }: PageProps) {
     redirect('/login')
   }
 
-  const [{ data: visitor, error }, { data: meetings }] = await Promise.all([
+  const [{ data: visitor, error }, { data: meetings }, { data: contacts }] = await Promise.all([
     supabase
       .from('visitors')
       .select('*')
@@ -33,6 +33,10 @@ export default async function VisitorDetailPage({ params }: PageProps) {
       .eq('visitor_id', id)
       .order('date')
       .order('start_time'),
+    supabase
+      .from('itp_contacts')
+      .select('*')
+      .order('name'),
   ])
 
   if (error || !visitor) {
@@ -45,7 +49,7 @@ export default async function VisitorDetailPage({ params }: PageProps) {
       subtitle={visitor.organization || 'Visitor'}
       user={user}
     >
-      <VisitorDetail visitor={visitor} meetings={meetings || []} />
+      <VisitorDetail visitor={visitor} meetings={meetings || []} contacts={contacts || []} />
     </AppLayout>
   )
 }
