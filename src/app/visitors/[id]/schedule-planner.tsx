@@ -54,6 +54,14 @@ function formatTime(isoTime?: string): string {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Berlin' })
 }
 
+// Get correct Berlin offset for a given date (+01:00 in winter, +02:00 in summer)
+function toBerlinTimestamp(dateStr: string, timeStr: string): string {
+  const withCET = new Date(`${dateStr}T${timeStr}:00+01:00`)
+  const cetDisplay = withCET.toLocaleTimeString('en-GB', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false })
+  if (cetDisplay === timeStr) return `${dateStr}T${timeStr}:00+01:00`
+  return `${dateStr}T${timeStr}:00+02:00`
+}
+
 function addMinutes(time: string, minutes: number): string {
   const [h, m] = time.split(':').map(Number)
   const total = h * 60 + m + minutes
@@ -150,8 +158,8 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
     setError('')
     try {
       const supabase = createClient()
-      const startTime = form.start_time ? `${showModal}T${form.start_time}:00+01:00` : null
-      const endTime = form.end_time ? `${showModal}T${form.end_time}:00+01:00` : null
+      const startTime = form.start_time ? toBerlinTimestamp(showModal, form.start_time) : null
+      const endTime = form.end_time ? toBerlinTimestamp(showModal, form.end_time) : null
 
       // Resolve contact fields from selected contacts
       const selectedContacts = form.contact_ids
