@@ -185,20 +185,21 @@ export function AttendanceContent({
     }
   }
 
-  // Group recent attendance by date
-  const attendanceByDate = useMemo(() => {
+  // Group recent attendance by session (not by date — multiple sessions per day)
+  const attendanceBySession = useMemo(() => {
     const grouped: Record<string, TrainingAttendance[]> = {}
     recentAttendance.forEach((record) => {
-      if (!grouped[record.session_date]) {
-        grouped[record.session_date] = []
+      const key = record.session_id
+      if (!grouped[key]) {
+        grouped[key] = []
       }
-      grouped[record.session_date].push(record)
+      grouped[key].push(record)
     })
     return grouped
   }, [recentAttendance])
 
-  // Calculate stats for a date
-  const getDateStats = (records: TrainingAttendance[]) => {
+  // Calculate stats for a session
+  const getSessionStats = (records: TrainingAttendance[]) => {
     const stats = { present: 0, late: 0, excused: 0, absent: 0 }
     records.forEach((r) => {
       stats[r.status as keyof typeof stats]++
@@ -206,13 +207,13 @@ export function AttendanceContent({
     return stats
   }
 
-  const toggleDateExpand = (date: string) => {
+  const toggleSessionExpand = (sessionId: string) => {
     setExpandedDates((prev) => {
       const next = new Set(prev)
-      if (next.has(date)) {
-        next.delete(date)
+      if (next.has(sessionId)) {
+        next.delete(sessionId)
       } else {
-        next.add(date)
+        next.add(sessionId)
       }
       return next
     })
@@ -412,39 +413,43 @@ export function AttendanceContent({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {Object.keys(attendanceByDate).length === 0 ? (
+              {Object.keys(attendanceBySession).length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   No attendance records yet
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {Object.entries(attendanceByDate)
-                    .sort((a, b) => b[0].localeCompare(a[0]))
-                    .map(([date, records]) => {
-                      const stats = getDateStats(records)
-                      const isExpanded = expandedDates.has(date)
-                      const sessionNames = [...new Set(records.map((r) => r.session_name))].filter(
-                        Boolean
-                      )
+                  {Object.entries(attendanceBySession)
+                    .sort((a, b) => {
+                      // Sort by date desc, then by session name
+                      const dateA = a[1][0]?.session_date || ''
+                      const dateB = b[1][0]?.session_date || ''
+                      return dateB.localeCompare(dateA)
+                    })
+                    .map(([sessionId, records]) => {
+                      const stats = getSessionStats(records)
+                      const isExpanded = expandedDates.has(sessionId)
+                      const sessionDate = records[0]?.session_date
+                      const sessionName = records[0]?.session_name
 
                       return (
-                        <div key={date} className="border rounded-lg overflow-hidden">
+                        <div key={sessionId} className="border rounded-lg overflow-hidden">
                           <button
-                            onClick={() => toggleDateExpand(date)}
+                            onClick={() => toggleSessionExpand(sessionId)}
                             className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
                           >
                             <div className="text-left">
                               <p className="font-medium text-sm">
-                                {new Date(date).toLocaleDateString('en-US', {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                })}
+                                {sessionDate
+                                  ? new Date(sessionDate).toLocaleDateString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })
+                                  : 'Unknown Date'}
                               </p>
-                              {sessionNames.length > 0 && (
-                                <p className="text-xs text-gray-500">
-                                  {sessionNames.join(', ')}
-                                </p>
+                              {sessionName && (
+                                <p className="text-xs text-gray-500">{sessionName}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
