@@ -698,6 +698,37 @@ export interface PlacementOutreach {
   player?: { id: string; first_name: string; last_name: string }
 }
 
+// Visitors - external guests (agents, coaches, partners, parents, scouts)
+export type VisitorRole = 'agent' | 'coach' | 'partner' | 'parent' | 'scout'
+
+export interface Visitor {
+  id: string
+  first_name: string
+  last_name: string
+  email?: string
+  phone?: string
+  organization?: string
+  role: VisitorRole
+  visit_start_date: string
+  visit_end_date: string
+  purpose?: string
+  notes?: string
+  // Travel (same pattern as trial_prospects)
+  travel_arrangements?: string
+  arrival_date?: string
+  arrival_time?: string
+  flight_number?: string
+  arrival_airport?: string
+  needs_pickup?: boolean
+  pickup_location?: string
+  whatsapp_number?: string
+  travel_submitted_at?: string
+  // Metadata
+  created_by?: string
+  created_at: string
+  updated_at: string
+}
+
 // Player pickup tracking (airport/train station arrivals)
 export interface Pickup {
   id: string

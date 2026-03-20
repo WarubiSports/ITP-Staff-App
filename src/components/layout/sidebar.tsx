@@ -16,6 +16,7 @@ import {
   UserSearch,
   ClipboardCheck,
   UserCog,
+  Briefcase,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Players', href: '/players', icon: Users },
   { name: 'Prospects', href: '/prospects', icon: UserSearch },
+  { name: 'Visitors', href: '/visitors', icon: Briefcase },
   { name: 'Attendance', href: '/attendance', icon: ClipboardCheck },
   { name: 'Calendar', href: '/calendar', icon: CalendarDays },
   { name: 'Operations', href: '/operations', icon: Calendar },
