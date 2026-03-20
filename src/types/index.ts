@@ -57,6 +57,7 @@ export interface StaffUser {
   full_name: string
   role: 'admin' | 'staff' | 'coach'
   avatar_url?: string
+  responsibilities?: string[]
   created_at: string
 }
 

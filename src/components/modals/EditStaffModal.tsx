@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { StaffUser } from '@/types'
-import { Trash2, AlertTriangle } from 'lucide-react'
+import { Trash2, AlertTriangle, X, Plus } from 'lucide-react'
 import { deleteStaffMember } from '@/app/staff/actions'
 
 interface EditStaffModalProps {
@@ -33,6 +33,8 @@ export function EditStaffModal({ isOpen, onClose, onSuccess, staff, currentUserI
     full_name: staff.full_name || '',
     role: staff.role || 'staff',
   })
+  const [responsibilities, setResponsibilities] = useState<string[]>(staff.responsibilities || [])
+  const [newResp, setNewResp] = useState('')
 
   const isCurrentUser = staff.id === currentUserId
 
@@ -49,6 +51,7 @@ export function EditStaffModal({ isOpen, onClose, onSuccess, staff, currentUserI
         .update({
           full_name: formData.full_name,
           role: formData.role,
+          responsibilities,
         })
         .eq('id', staff.id)
 
@@ -113,6 +116,62 @@ export function EditStaffModal({ isOpen, onClose, onSuccess, staff, currentUserI
           onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'staff' | 'coach' })}
           options={roleOptions}
         />
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Responsibilities
+          </label>
+          {responsibilities.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {responsibilities.map((resp) => (
+                <span
+                  key={resp}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700"
+                >
+                  {resp}
+                  <button
+                    type="button"
+                    onClick={() => setResponsibilities(responsibilities.filter(r => r !== resp))}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              value={newResp}
+              onChange={(e) => setNewResp(e.target.value)}
+              placeholder="e.g. Housing, Visa, Training..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  const trimmed = newResp.trim()
+                  if (trimmed && !responsibilities.includes(trimmed)) {
+                    setResponsibilities([...responsibilities, trimmed])
+                    setNewResp('')
+                  }
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const trimmed = newResp.trim()
+                if (trimmed && !responsibilities.includes(trimmed)) {
+                  setResponsibilities([...responsibilities, trimmed])
+                  setNewResp('')
+                }
+              }}
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
 
         {/* Delete Confirmation */}
         {showDeleteConfirm && (
