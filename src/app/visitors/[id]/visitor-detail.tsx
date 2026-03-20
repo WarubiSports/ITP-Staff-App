@@ -44,12 +44,6 @@ const roleColors: Record<string, string> = {
   scout: 'bg-teal-100 text-teal-700',
 }
 
-function formatTime(isoTime?: string): string {
-  if (!isoTime) return ''
-  const d = new Date(isoTime)
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
-
 function formatDate(dateStr: string): string {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
     weekday: 'short',
