@@ -10,9 +10,6 @@ import {
   Copy,
   Check,
   Calendar,
-  Plus,
-  Clock,
-  MapPin,
   Plane,
   ExternalLink,
 } from 'lucide-react'
@@ -21,9 +18,9 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import { Modal } from '@/components/ui/modal'
 import { createClient } from '@/lib/supabase/client'
 import { getErrorMessage } from '@/lib/utils'
+import { SchedulePlanner } from './schedule-planner'
 import type { Visitor, VisitorRole, CalendarEvent } from '@/types'
 
 interface VisitorDetailProps {
@@ -68,8 +65,6 @@ export function VisitorDetail({ visitor, meetings }: VisitorDetailProps) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [copied, setCopied] = useState(false)
-  const [showAddMeeting, setShowAddMeeting] = useState(false)
-
   const [formData, setFormData] = useState({
     first_name: visitor.first_name,
     last_name: visitor.last_name,
@@ -327,174 +322,26 @@ export function VisitorDetail({ visitor, meetings }: VisitorDetailProps) {
             </Card>
           )}
 
-          {/* Meetings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Meetings
-                </CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setShowAddMeeting(true)}>
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {meetings.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">No meetings scheduled yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {meetings.map(m => (
-                    <div key={m.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm text-gray-900">{m.title}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(m.date)}
-                          </span>
-                          {m.start_time && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatTime(m.start_time)}{m.end_time ? ` – ${formatTime(m.end_time)}` : ''}
-                            </span>
-                          )}
-                        </div>
-                        {m.location && (
-                          <span className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                            <MapPin className="w-3 h-3" />
-                            {m.location}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
 
-      <AddMeetingModal
-        isOpen={showAddMeeting}
-        onClose={() => setShowAddMeeting(false)}
-        visitorId={visitor.id}
-        defaultDate={visitor.visit_start_date}
-        onSuccess={() => { setShowAddMeeting(false); router.refresh() }}
-      />
+      {/* Schedule Planner — full width below */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Visit Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SchedulePlanner
+            visitorId={visitor.id}
+            startDate={formData.visit_start_date}
+            endDate={formData.visit_end_date}
+            meetings={meetings}
+          />
+        </CardContent>
+      </Card>
     </div>
-  )
-}
-
-// Inline meeting modal — simple enough to keep here
-function AddMeetingModal({
-  isOpen, onClose, visitorId, defaultDate, onSuccess,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  visitorId: string
-  defaultDate: string
-  onSuccess: () => void
-}) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [form, setForm] = useState({
-    title: '',
-    date: defaultDate,
-    start_time: '10:00',
-    end_time: '11:00',
-    location: '',
-    description: '',
-  })
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form.title.trim() || !form.date) return
-
-    setLoading(true)
-    setError('')
-    try {
-      const supabase = createClient()
-      const startTime = form.start_time ? `${form.date}T${form.start_time}:00+01:00` : null
-      const endTime = form.end_time ? `${form.date}T${form.end_time}:00+01:00` : null
-
-      const { error: insertError } = await supabase
-        .from('events')
-        .insert({
-          title: form.title.trim(),
-          date: form.date,
-          start_time: startTime,
-          end_time: endTime,
-          location: form.location.trim() || null,
-          description: form.description.trim() || null,
-          type: 'meeting',
-          all_day: false,
-          visitor_id: visitorId,
-        })
-
-      if (insertError) throw insertError
-
-      setForm({ title: '', date: defaultDate, start_time: '10:00', end_time: '11:00', location: '', description: '' })
-      onSuccess()
-    } catch (err) {
-      setError(getErrorMessage(err, 'Failed to add meeting'))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Meeting" size="md">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
-        <Input
-          label="Title *"
-          placeholder="e.g. Meeting with Max, Campus Tour"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-        />
-        <Input
-          label="Date *"
-          type="date"
-          value={form.date}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Start Time"
-            type="time"
-            value={form.start_time}
-            onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-          />
-          <Input
-            label="End Time"
-            type="time"
-            value={form.end_time}
-            onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-          />
-        </div>
-        <Input
-          label="Location"
-          placeholder="e.g. Salzburger Weg, Spoho"
-          value={form.location}
-          onChange={(e) => setForm({ ...form, location: e.target.value })}
-        />
-        <Textarea
-          label="Notes"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          rows={2}
-        />
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={loading}>
-            {loading ? 'Adding...' : 'Add Meeting'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
   )
 }

@@ -1,0 +1,302 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Plus, Trash2, Clock, MapPin } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Modal } from '@/components/ui/modal'
+import { createClient } from '@/lib/supabase/client'
+import { getErrorMessage } from '@/lib/utils'
+import type { CalendarEvent } from '@/types'
+
+interface SchedulePlannerProps {
+  visitorId: string
+  startDate: string
+  endDate: string
+  meetings: CalendarEvent[]
+}
+
+const TEMPLATES = [
+  { label: 'Watch Training', type: 'team_training', duration: 90, location: 'Salzburger Weg' },
+  { label: 'Meeting', type: 'meeting', duration: 60, location: '' },
+  { label: 'Lunch', type: 'meeting', duration: 60, location: 'Geißbockheim' },
+  { label: 'Campus Tour', type: 'meeting', duration: 90, location: 'Geißbockheim' },
+  { label: 'Watch Match', type: 'match', duration: 120, location: '' },
+  { label: 'Gym Visit', type: 'gym', duration: 60, location: 'Spoho' },
+  { label: 'Video Session', type: 'video_session', duration: 45, location: 'Geißbockheim' },
+  { label: 'Custom', type: 'meeting', duration: 60, location: '' },
+] as const
+
+function getDaysInRange(start: string, end: string): string[] {
+  const days: string[] = []
+  const current = new Date(start + 'T00:00:00')
+  const last = new Date(end + 'T00:00:00')
+  while (current <= last) {
+    days.push(current.toISOString().split('T')[0])
+    current.setDate(current.getDate() + 1)
+  }
+  return days
+}
+
+function formatDayHeader(dateStr: string): { day: string; date: string } {
+  const d = new Date(dateStr + 'T00:00:00')
+  return {
+    day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  }
+}
+
+function formatTime(isoTime?: string): string {
+  if (!isoTime) return ''
+  const d = new Date(isoTime)
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number)
+  const total = h * 60 + m + minutes
+  const newH = Math.floor(total / 60) % 24
+  const newM = total % 60
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
+}
+
+export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: SchedulePlannerProps) {
+  const router = useRouter()
+  const days = getDaysInRange(startDate, endDate)
+
+  const [showAdd, setShowAdd] = useState<string | null>(null) // date string or null
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [addLoading, setAddLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const [form, setForm] = useState({
+    title: '',
+    start_time: '10:00',
+    end_time: '11:00',
+    location: '',
+    description: '',
+    type: 'meeting' as string,
+  })
+
+  // Group meetings by date
+  const meetingsByDate: Record<string, CalendarEvent[]> = {}
+  for (const day of days) {
+    meetingsByDate[day] = []
+  }
+  for (const m of meetings) {
+    if (meetingsByDate[m.date]) {
+      meetingsByDate[m.date].push(m)
+    }
+  }
+  // Sort each day by start_time
+  for (const day of days) {
+    meetingsByDate[day].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+  }
+
+  const openAddForDay = (date: string) => {
+    setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting' })
+    setError('')
+    setShowAdd(date)
+  }
+
+  const applyTemplate = (tpl: typeof TEMPLATES[number]) => {
+    setForm({
+      ...form,
+      title: tpl.label === 'Custom' ? '' : tpl.label,
+      type: tpl.type,
+      location: tpl.location,
+      end_time: addMinutes(form.start_time, tpl.duration),
+    })
+  }
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.title.trim() || !showAdd) return
+
+    setAddLoading(true)
+    setError('')
+    try {
+      const supabase = createClient()
+      const startTime = form.start_time ? `${showAdd}T${form.start_time}:00+01:00` : null
+      const endTime = form.end_time ? `${showAdd}T${form.end_time}:00+01:00` : null
+
+      const { error: insertError } = await supabase.from('events').insert({
+        title: form.title.trim(),
+        date: showAdd,
+        start_time: startTime,
+        end_time: endTime,
+        location: form.location.trim() || null,
+        description: form.description.trim() || null,
+        type: form.type,
+        all_day: false,
+        visitor_id: visitorId,
+      })
+
+      if (insertError) throw insertError
+      setShowAdd(null)
+      router.refresh()
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to add activity'))
+    } finally {
+      setAddLoading(false)
+    }
+  }
+
+  const handleDelete = async (eventId: string) => {
+    setDeleting(eventId)
+    try {
+      const supabase = createClient()
+      const { error: deleteError } = await supabase.from('events').delete().eq('id', eventId)
+      if (deleteError) throw deleteError
+      router.refresh()
+    } catch {
+      // Silently fail — will show stale until refresh
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-gray-900">Schedule Planner</h3>
+        <p className="text-xs text-gray-400">{days.length} day{days.length !== 1 ? 's' : ''}</p>
+      </div>
+
+      {/* Kanban columns */}
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+        {days.map((day) => {
+          const header = formatDayHeader(day)
+          const dayMeetings = meetingsByDate[day] || []
+
+          return (
+            <div
+              key={day}
+              className="flex-shrink-0 w-56 bg-gray-50 rounded-xl border border-gray-200 flex flex-col"
+            >
+              {/* Day header */}
+              <div className="px-3 py-2.5 border-b border-gray-200 text-center">
+                <p className="text-xs font-semibold text-gray-400 uppercase">{header.day}</p>
+                <p className="text-sm font-bold text-gray-900">{header.date}</p>
+              </div>
+
+              {/* Activities */}
+              <div className="flex-1 p-2 space-y-2 min-h-[120px]">
+                {dayMeetings.length === 0 && (
+                  <p className="text-xs text-gray-300 text-center py-6">No activities</p>
+                )}
+                {dayMeetings.map((m) => (
+                  <div
+                    key={m.id}
+                    className="group bg-white rounded-lg border border-gray-200 p-2.5 shadow-sm hover:shadow transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="text-sm font-medium text-gray-900 leading-tight">{m.title}</p>
+                      <button
+                        onClick={() => handleDelete(m.id)}
+                        disabled={deleting === m.id}
+                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-0.5 -mt-0.5 -mr-0.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {m.start_time && (
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                        <Clock className="w-3 h-3" />
+                        {formatTime(m.start_time)}
+                        {m.end_time ? ` – ${formatTime(m.end_time)}` : ''}
+                      </div>
+                    )}
+                    {m.location && (
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {m.location}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add button */}
+              <div className="p-2 border-t border-gray-200">
+                <button
+                  onClick={() => openAddForDay(day)}
+                  className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Activity
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Add activity modal */}
+      <Modal isOpen={!!showAdd} onClose={() => setShowAdd(null)} title={`Add Activity — ${showAdd ? formatDayHeader(showAdd).day + ', ' + formatDayHeader(showAdd).date : ''}`} size="md">
+        <form onSubmit={handleAdd} className="space-y-4">
+          {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
+
+          {/* Quick templates */}
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-2">Quick add</p>
+            <div className="flex flex-wrap gap-1.5">
+              {TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.label}
+                  type="button"
+                  onClick={() => applyTemplate(tpl)}
+                  className="px-2.5 py-1 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+                >
+                  {tpl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Input
+            label="Title *"
+            placeholder="e.g. Watch Training, Lunch with Max"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Start"
+              type="time"
+              value={form.start_time}
+              onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+            />
+            <Input
+              label="End"
+              type="time"
+              value={form.end_time}
+              onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+            />
+          </div>
+          <Input
+            label="Location"
+            placeholder="e.g. Salzburger Weg, Geißbockheim"
+            value={form.location}
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
+          />
+          <Input
+            label="Notes"
+            placeholder="Optional notes"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setShowAdd(null)}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={addLoading || !form.title.trim()}>
+              {addLoading ? 'Adding...' : 'Add'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  )
+}
