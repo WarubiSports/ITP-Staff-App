@@ -81,6 +81,9 @@ interface Player {
   emergency_contact_name?: string
   emergency_contact_phone?: string
   notes?: string
+  pathway_interest?: 'college' | 'club_europe' | 'club_usa' | 'return_home' | 'undecided'
+  player_knows_interest?: boolean
+  placement_next_steps?: string
   whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
   whereabouts_details?: WhereaboutsDetails
   created_at?: string
@@ -318,6 +321,9 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
         emergency_contact_phone: player.emergency_contact_phone || null,
         notes: player.notes || null,
         jersey_number: player.jersey_number || null,
+        pathway_interest: player.pathway_interest || null,
+        player_knows_interest: player.player_knows_interest || false,
+        placement_next_steps: player.placement_next_steps || null,
       })
 
       if (result.error) {
@@ -343,7 +349,7 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
     setError(null)
   }
 
-  const updateField = (field: keyof Player, value: string | string[] | number | null) => {
+  const updateField = (field: keyof Player, value: string | string[] | number | boolean | null) => {
     setPlayer((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -613,6 +619,82 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
                   onChange={(e) => updateField('program_end_date', e.target.value)}
                   disabled={!editing}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pathway Interest */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5" />
+                Pathway Interest
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {editing ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Interest
+                    </label>
+                    <select
+                      value={player.pathway_interest || ''}
+                      onChange={(e) => updateField('pathway_interest', e.target.value || null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    >
+                      <option value="">Not set</option>
+                      <option value="college">College (USA)</option>
+                      <option value="club_europe">Club (Europe)</option>
+                      <option value="club_usa">Club (USA)</option>
+                      <option value="return_home">Return Home</option>
+                      <option value="undecided">Undecided</option>
+                    </select>
+                  </div>
+                ) : (
+                  <Input
+                    label="Interest"
+                    value={
+                      player.pathway_interest
+                        ? { college: 'College (USA)', club_europe: 'Club (Europe)', club_usa: 'Club (USA)', return_home: 'Return Home', undecided: 'Undecided' }[player.pathway_interest] || ''
+                        : 'Not set'
+                    }
+                    disabled
+                  />
+                )}
+                {editing ? (
+                  <div className="flex items-center gap-3 pt-6">
+                    <input
+                      type="checkbox"
+                      id="player_knows"
+                      checked={player.player_knows_interest || false}
+                      onChange={(e) => updateField('player_knows_interest', e.target.checked)}
+                      className="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                    />
+                    <label htmlFor="player_knows" className="text-sm font-medium text-gray-700">
+                      Player knows about this interest
+                    </label>
+                  </div>
+                ) : (
+                  <Input
+                    label="Player Knows"
+                    value={player.player_knows_interest ? 'Yes' : 'No'}
+                    disabled
+                  />
+                )}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Next Steps
+                  </label>
+                  <textarea
+                    value={player.placement_next_steps || ''}
+                    onChange={(e) => updateField('placement_next_steps', e.target.value)}
+                    disabled={!editing}
+                    rows={2}
+                    placeholder={editing ? 'e.g. Send highlight reel to coach at XYZ University' : 'No next steps set'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-50 disabled:text-gray-500"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

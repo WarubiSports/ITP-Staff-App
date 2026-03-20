@@ -41,6 +41,9 @@ interface PlayerUpdateData {
   notes?: string | null
   jersey_number?: number | null
   photo_url?: string | null
+  pathway_interest?: string | null
+  player_knows_interest?: boolean
+  placement_next_steps?: string | null
 }
 
 export async function updatePlayer(playerId: string, data: PlayerUpdateData) {

@@ -27,6 +27,10 @@ export interface Player {
   house_id?: string
   room_id?: string
   notes?: string
+  // Pathway / Placement tracking
+  pathway_interest?: 'college' | 'club_europe' | 'club_usa' | 'return_home' | 'undecided'
+  player_knows_interest?: boolean
+  placement_next_steps?: string
   // Whereabouts tracking
   whereabouts_status?: 'at_academy' | 'on_trial' | 'home_leave' | 'injured' | 'school' | 'traveling'
   whereabouts_details?: WhereaboutsDetails
