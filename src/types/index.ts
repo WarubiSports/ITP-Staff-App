@@ -255,6 +255,9 @@ export interface CalendarEvent {
   parent_event_id?: string
   created_at?: string
   updated_at?: string
+  // Contact info (for visitor meetings)
+  contact_name?: string
+  contact_role?: string
   // Joined data
   attendees?: EventAttendee[]
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Clock, MapPin } from 'lucide-react'
+import { Plus, Trash2, Clock, MapPin, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
@@ -77,6 +77,8 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
     location: '',
     description: '',
     type: 'meeting' as string,
+    contact_name: '',
+    contact_role: '',
   })
 
   // Group meetings by date
@@ -95,7 +97,7 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
   }
 
   const openAddForDay = (date: string) => {
-    setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting' })
+    setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting', contact_name: '', contact_role: '' })
     setError('')
     setShowAdd(date)
   }
@@ -131,6 +133,8 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
         type: form.type,
         all_day: false,
         visitor_id: visitorId,
+        contact_name: form.contact_name.trim() || null,
+        contact_role: form.contact_role.trim() || null,
       })
 
       if (insertError) throw insertError
@@ -214,6 +218,12 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
                         {m.location}
                       </div>
                     )}
+                    {m.contact_name && (
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                        <User className="w-3 h-3" />
+                        {m.contact_name}{m.contact_role ? `, ${m.contact_role}` : ''}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -281,6 +291,20 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings }: Sch
             value={form.location}
             onChange={(e) => setForm({ ...form, location: e.target.value })}
           />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Contact Person"
+              placeholder="e.g. Max Bisinger"
+              value={form.contact_name}
+              onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
+            />
+            <Input
+              label="Their Role"
+              placeholder="e.g. Program Director"
+              value={form.contact_role}
+              onChange={(e) => setForm({ ...form, contact_role: e.target.value })}
+            />
+          </div>
           <Input
             label="Notes"
             placeholder="Optional notes"
