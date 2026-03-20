@@ -555,7 +555,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
                       onClick={(e) => {
                         e.preventDefault()
                         navigator.clipboard.writeText(
-                          `https://itp-trial-onboarding.vercel.app/${prospect.id}`
+                          `https://itp-portal.vercel.app/${prospect.id}`
                         )
                       }}
                     >
@@ -571,7 +571,7 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
                       onClick={(e) => {
                         e.preventDefault()
                         navigator.clipboard.writeText(
-                          `https://itp-trial-onboarding.vercel.app/${prospect.id}/onboarding`
+                          `https://itp-portal.vercel.app/${prospect.id}/onboarding`
                         )
                       }}
                     >

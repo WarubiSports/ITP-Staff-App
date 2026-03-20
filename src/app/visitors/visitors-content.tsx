@@ -66,7 +66,7 @@ export function VisitorsContent({ visitors }: VisitorsContentProps) {
   const pastCount = visitors.filter(v => v.visit_end_date < today).length
 
   const copyLink = (id: string) => {
-    navigator.clipboard.writeText(`https://itp-trial-onboarding.vercel.app/visitor/${id}`)
+    navigator.clipboard.writeText(`https://itp-portal.vercel.app/visitor/${id}`)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }

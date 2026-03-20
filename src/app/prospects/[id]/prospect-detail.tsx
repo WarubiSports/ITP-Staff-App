@@ -733,7 +733,7 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                   className="w-full"
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `https://itp-trial-onboarding.vercel.app/${prospect.id}`
+                      `https://itp-portal.vercel.app/${prospect.id}`
                     )
                   }}
                 >
@@ -747,7 +747,7 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                   className="w-full"
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `https://itp-trial-onboarding.vercel.app/${prospect.id}/onboarding`
+                      `https://itp-portal.vercel.app/${prospect.id}/onboarding`
                     )
                   }}
                 >
@@ -818,7 +818,7 @@ function OnboardingCard({ prospect }: { prospect: TrialProspect }) {
   const [loadingDoc, setLoadingDoc] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const onboardingLink = `https://itp-trial-onboarding.vercel.app/${prospect.id}/onboarding`
+  const onboardingLink = `https://itp-portal.vercel.app/${prospect.id}/onboarding`
 
   const handleViewDoc = async (filePath: string, label: string) => {
     if (docUrls[label]) {

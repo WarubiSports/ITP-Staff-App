@@ -1,6 +1,6 @@
 import { TrialProspect } from '@/types'
 
-const BASE_URL = 'https://itp-trial-onboarding.vercel.app'
+const BASE_URL = 'https://itp-portal.vercel.app'
 
 // --- Scout notification templates ---
 

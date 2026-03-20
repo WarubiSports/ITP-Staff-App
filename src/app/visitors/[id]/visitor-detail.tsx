@@ -74,7 +74,7 @@ export function VisitorDetail({ visitor, meetings, contacts }: VisitorDetailProp
     travel_arrangements: visitor.travel_arrangements || '',
   })
 
-  const visitorLink = `https://itp-trial-onboarding.vercel.app/visitor/${visitor.id}`
+  const visitorLink = `https://itp-portal.vercel.app/visitor/${visitor.id}`
 
   const handleSave = async () => {
     setError('')
