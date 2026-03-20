@@ -33,6 +33,7 @@ import { TrialProspect } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAvailability } from '@/lib/housing-availability'
 import { trialApprovedTemplate, prospectRejectedTemplate } from '@/lib/email-templates'
+import { notifyScout } from './actions'
 
 interface ProspectsContentProps {
   prospects: TrialProspect[]
@@ -105,6 +106,8 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
     const { subject, body } = trialApprovedTemplate(approveModal, approveStartDate, approveEndDate)
     const parentCc = approveModal.parent_contact?.includes('@') ? approveModal.parent_contact : undefined
     setEmailPreview({ to: approveModal.email || '', cc: parentCc, subject, body, prospectId: approveModal.id, emailType: 'trial_approved' })
+    // Notify referring scout (best-effort, non-blocking)
+    notifyScout(approveModal.id, 'scheduled', { startDate: approveStartDate, endDate: approveEndDate })
     setApproveModal(null)
     router.refresh()
   }
@@ -129,6 +132,8 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
     const { subject, body } = prospectRejectedTemplate(rejectModal, rejectReason || undefined)
     const parentCc = rejectModal.parent_contact?.includes('@') ? rejectModal.parent_contact : undefined
     setEmailPreview({ to: rejectModal.email || '', cc: parentCc, subject, body, prospectId: rejectModal.id, emailType: 'rejected' })
+    // Notify referring scout (best-effort, non-blocking)
+    notifyScout(rejectModal.id, 'rejected', { rejectionReason: rejectReason || undefined })
     setRejectModal(null)
     setRejectReason('')
     router.refresh()

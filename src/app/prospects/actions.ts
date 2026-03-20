@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail, wrapInBrandedHtml } from '@/lib/email'
+import { scoutTrialScheduledTemplate, scoutTrialOutcomeTemplate } from '@/lib/email-templates'
 
 const ONBOARDING_BUCKET = 'prospect-onboarding'
 
@@ -328,5 +329,56 @@ export async function sendProspectEmail({
     return result
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' }
+  }
+}
+
+/**
+ * Notify the referring scout about a status change (best-effort, non-blocking)
+ */
+export async function notifyScout(
+  prospectId: string,
+  event: 'scheduled' | 'accepted' | 'rejected',
+  extra?: { startDate?: string; endDate?: string; rejectionReason?: string }
+): Promise<void> {
+  try {
+    const adminClient = createAdminClient()
+
+    // Get prospect + scout info
+    const { data: prospect } = await adminClient
+      .from('trial_prospects')
+      .select('*, scout:scouts!scout_id(name, email)')
+      .eq('id', prospectId)
+      .single()
+
+    if (!prospect?.scout?.email) return // No scout linked or no email
+
+    const scoutName = prospect.scout.name || 'Scout'
+    const scoutEmail = prospect.scout.email
+
+    let template: { subject: string; body: string }
+
+    if (event === 'scheduled') {
+      template = scoutTrialScheduledTemplate(
+        prospect,
+        scoutName,
+        extra?.startDate || prospect.trial_start_date || '',
+        extra?.endDate || prospect.trial_end_date || ''
+      )
+    } else {
+      template = scoutTrialOutcomeTemplate(
+        prospect,
+        scoutName,
+        event === 'accepted',
+        extra?.rejectionReason
+      )
+    }
+
+    await sendEmail({
+      to: scoutEmail,
+      subject: template.subject,
+      html: wrapInBrandedHtml(template.body),
+    })
+  } catch {
+    // Best-effort — don't break the main flow
   }
 }

@@ -35,6 +35,32 @@ export default async function ProspectsPage() {
       .eq('status', 'active'),
   ])
 
+  // Auto-advance trial statuses based on dates
+  const today = new Date().toISOString().split('T')[0]
+  if (prospects) {
+    const toInProgress = prospects
+      .filter(p => p.status === 'scheduled' && p.trial_start_date && p.trial_start_date <= today)
+      .map(p => p.id)
+    const toEvaluation = prospects
+      .filter(p => p.status === 'in_progress' && p.trial_end_date && p.trial_end_date < today)
+      .map(p => p.id)
+
+    if (toInProgress.length > 0) {
+      await supabase.from('trial_prospects').update({ status: 'in_progress' }).in('id', toInProgress)
+      toInProgress.forEach(id => {
+        const p = prospects.find(x => x.id === id)
+        if (p) p.status = 'in_progress'
+      })
+    }
+    if (toEvaluation.length > 0) {
+      await supabase.from('trial_prospects').update({ status: 'evaluation' }).in('id', toEvaluation)
+      toEvaluation.forEach(id => {
+        const p = prospects.find(x => x.id === id)
+        if (p) p.status = 'evaluation'
+      })
+    }
+  }
+
   return (
     <AppLayout
       title="Trial Prospects"

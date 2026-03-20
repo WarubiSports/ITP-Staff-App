@@ -37,7 +37,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { TrialProspect } from '@/types'
 import Link from 'next/link'
-import { getOnboardingDocumentUrl, convertProspectToPlayer } from '@/app/prospects/actions'
+import { getOnboardingDocumentUrl, convertProspectToPlayer, notifyScout } from '@/app/prospects/actions'
 import { EmailPreviewModal } from '@/components/modals/EmailPreviewModal'
 import { trialApprovedTemplate, prospectAcceptedTemplate, prospectRejectedTemplate } from '@/lib/email-templates'
 
@@ -192,6 +192,12 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
         })
         const parentCc = (formData.parent_contact || prospect.parent_contact)?.includes('@') ? (formData.parent_contact || prospect.parent_contact) : undefined
         setEmailPreview({ to: formData.email || '', cc: parentCc, subject, body, prospectId: prospect.id, emailType: 'accepted' })
+        // Notify referring scout
+        notifyScout(prospect.id, 'accepted')
+      }
+
+      if (formData.status === 'rejected' && prospect.status !== 'rejected') {
+        notifyScout(prospect.id, 'rejected', { rejectionReason: formData.decision_notes || undefined })
       }
 
       setSuccess('Prospect updated successfully')
@@ -474,56 +480,81 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-5 gap-4">
-                <Input
-                  label="Technical (1-10)"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={formData.technical_rating}
-                  onChange={(e) => setFormData({ ...formData, technical_rating: e.target.value })}
-                />
-                <Input
-                  label="Tactical (1-10)"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={formData.tactical_rating}
-                  onChange={(e) => setFormData({ ...formData, tactical_rating: e.target.value })}
-                />
-                <Input
-                  label="Physical (1-10)"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={formData.physical_rating}
-                  onChange={(e) => setFormData({ ...formData, physical_rating: e.target.value })}
-                />
-                <Input
-                  label="Mental (1-10)"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={formData.mental_rating}
-                  onChange={(e) => setFormData({ ...formData, mental_rating: e.target.value })}
-                />
-                <Input
-                  label="Overall (1-10)"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={formData.overall_rating}
-                  onChange={(e) => setFormData({ ...formData, overall_rating: e.target.value })}
-                />
+              {/* Scout Ratings (read-only, if from scout) */}
+              {prospect.scout_id && prospect.overall_rating && (
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Scout Assessment</p>
+                  <div className="flex gap-4 text-sm">
+                    {[
+                      { label: 'Tech', val: prospect.technical_rating },
+                      { label: 'Tact', val: prospect.tactical_rating },
+                      { label: 'Phys', val: prospect.physical_rating },
+                      { label: 'Overall', val: prospect.overall_rating },
+                    ].map(r => r.val ? (
+                      <span key={r.label} className="text-gray-600">
+                        <span className="text-gray-400">{r.label}:</span> <span className="font-medium">{r.val}/10</span>
+                      </span>
+                    ) : null)}
+                  </div>
+                </div>
+              )}
+
+              {/* Staff Ratings */}
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Staff Post-Trial Rating</p>
+                <div className="grid grid-cols-5 gap-4">
+                  <Input
+                    label="Technical (1-10)"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={formData.technical_rating}
+                    onChange={(e) => setFormData({ ...formData, technical_rating: e.target.value })}
+                  />
+                  <Input
+                    label="Tactical (1-10)"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={formData.tactical_rating}
+                    onChange={(e) => setFormData({ ...formData, tactical_rating: e.target.value })}
+                  />
+                  <Input
+                    label="Physical (1-10)"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={formData.physical_rating}
+                    onChange={(e) => setFormData({ ...formData, physical_rating: e.target.value })}
+                  />
+                  <Input
+                    label="Mental (1-10)"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={formData.mental_rating}
+                    onChange={(e) => setFormData({ ...formData, mental_rating: e.target.value })}
+                  />
+                  <Input
+                    label="Overall (1-10)"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={formData.overall_rating}
+                    onChange={(e) => setFormData({ ...formData, overall_rating: e.target.value })}
+                  />
+                </div>
               </div>
               <Textarea
                 label="Coach Feedback"
+                placeholder="Strengths, areas to develop, attitude, fit with the group..."
                 value={formData.coach_feedback}
                 onChange={(e) => setFormData({ ...formData, coach_feedback: e.target.value })}
                 rows={3}
               />
               <Textarea
                 label="Evaluation Notes"
+                placeholder="Internal notes (not shared with scout or player)"
                 value={formData.evaluation_notes}
                 onChange={(e) => setFormData({ ...formData, evaluation_notes: e.target.value })}
                 rows={3}
