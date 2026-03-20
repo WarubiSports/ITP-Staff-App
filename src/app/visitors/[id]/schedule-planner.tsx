@@ -66,9 +66,10 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
   const router = useRouter()
   const days = getDaysInRange(startDate, endDate)
 
-  const [showAdd, setShowAdd] = useState<string | null>(null)
+  const [showModal, setShowModal] = useState<string | null>(null) // date string for add mode
+  const [editingId, setEditingId] = useState<string | null>(null) // event id for edit mode
   const [deleting, setDeleting] = useState<string | null>(null)
-  const [addLoading, setAddLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const [form, setForm] = useState({
@@ -109,8 +110,26 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
 
   const openAddForDay = (date: string) => {
     setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting', contact_ids: [] })
+    setEditingId(null)
     setError('')
-    setShowAdd(date)
+    setShowModal(date)
+  }
+
+  const openEditForEvent = (m: CalendarEvent) => {
+    setForm({
+      title: m.title,
+      start_time: m.start_time ? formatTime(m.start_time) : '10:00',
+      end_time: m.end_time ? formatTime(m.end_time) : '11:00',
+      location: m.location || '',
+      description: m.description || '',
+      type: m.type,
+      contact_ids: m.contact_ids && m.contact_ids.length > 0
+        ? m.contact_ids
+        : m.contact_id ? [m.contact_id] : [],
+    })
+    setEditingId(m.id)
+    setError('')
+    setShowModal(m.date)
   }
 
   const applyTemplate = (tpl: typeof TEMPLATES[number]) => {
@@ -123,25 +142,25 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
     })
   }
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.title.trim() || !showAdd) return
+    if (!form.title.trim() || !showModal) return
 
-    setAddLoading(true)
+    setSaving(true)
     setError('')
     try {
       const supabase = createClient()
-      const startTime = form.start_time ? `${showAdd}T${form.start_time}:00+01:00` : null
-      const endTime = form.end_time ? `${showAdd}T${form.end_time}:00+01:00` : null
+      const startTime = form.start_time ? `${showModal}T${form.start_time}:00+01:00` : null
+      const endTime = form.end_time ? `${showModal}T${form.end_time}:00+01:00` : null
 
       // Resolve contact fields from selected contacts
       const selectedContacts = form.contact_ids
         .map(id => contactById.get(id))
         .filter((c): c is ITPContact => !!c)
 
-      const { error: insertError } = await supabase.from('events').insert({
+      const eventData = {
         title: form.title.trim(),
-        date: showAdd,
+        date: showModal,
         start_time: startTime,
         end_time: endTime,
         location: form.location.trim() || null,
@@ -150,19 +169,26 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
         all_day: false,
         visitor_id: visitorId,
         contact_ids: selectedContacts.length > 0 ? selectedContacts.map(c => c.id) : [],
-        // Keep legacy fields for backward compat with onboarding app
         contact_id: selectedContacts[0]?.id || null,
         contact_name: selectedContacts.map(c => c.name).join(', ') || null,
         contact_role: selectedContacts.map(c => c.role).filter(Boolean).join(', ') || null,
-      })
+      }
 
-      if (insertError) throw insertError
-      setShowAdd(null)
+      if (editingId) {
+        const { error: updateError } = await supabase.from('events').update(eventData).eq('id', editingId)
+        if (updateError) throw updateError
+      } else {
+        const { error: insertError } = await supabase.from('events').insert(eventData)
+        if (insertError) throw insertError
+      }
+
+      setShowModal(null)
+      setEditingId(null)
       router.refresh()
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to add activity'))
+      setError(getErrorMessage(err, editingId ? 'Failed to update activity' : 'Failed to add activity'))
     } finally {
-      setAddLoading(false)
+      setSaving(false)
     }
   }
 
@@ -229,12 +255,13 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
                   return (
                     <div
                       key={m.id}
-                      className="group bg-white rounded-lg border border-gray-200 p-2.5 shadow-sm hover:shadow transition-shadow"
+                      onClick={() => openEditForEvent(m)}
+                      className="group bg-white rounded-lg border border-gray-200 p-2.5 shadow-sm hover:shadow hover:border-gray-300 transition-all cursor-pointer"
                     >
                       <div className="flex items-start justify-between gap-1">
                         <p className="text-sm font-medium text-gray-900 leading-tight">{m.title}</p>
                         <button
-                          onClick={() => handleDelete(m.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(m.id) }}
                           disabled={deleting === m.id}
                           className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all p-0.5 -mt-0.5 -mr-0.5"
                         >
@@ -299,12 +326,12 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
       </div>
 
       {/* Add activity modal */}
-      <Modal isOpen={!!showAdd} onClose={() => setShowAdd(null)} title={`Add Activity — ${showAdd ? formatDayHeader(showAdd).day + ', ' + formatDayHeader(showAdd).date : ''}`} size="md">
-        <form onSubmit={handleAdd} className="space-y-4">
+      <Modal isOpen={!!showModal} onClose={() => { setShowModal(null); setEditingId(null) }} title={`${editingId ? 'Edit' : 'Add'} Activity — ${showModal ? formatDayHeader(showModal).day + ', ' + formatDayHeader(showModal).date : ''}`} size="md">
+        <form onSubmit={handleSave} className="space-y-4">
           {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
 
-          {/* Quick templates */}
-          <div>
+          {/* Quick templates (only for new activities) */}
+          {!editingId && <div>
             <p className="text-xs font-medium text-gray-500 mb-2">Quick add</p>
             <div className="flex flex-wrap gap-1.5">
               {TEMPLATES.map((tpl) => (
@@ -318,7 +345,7 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           <Input
             label="Title *"
@@ -388,9 +415,9 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
           />
 
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setShowAdd(null)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={addLoading || !form.title.trim()}>
-              {addLoading ? 'Adding...' : 'Add'}
+            <Button type="button" variant="outline" onClick={() => { setShowModal(null); setEditingId(null) }}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={saving || !form.title.trim()}>
+              {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add'}
             </Button>
           </div>
         </form>
