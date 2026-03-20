@@ -78,7 +78,7 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
     location: '',
     description: '',
     type: 'meeting' as string,
-    contact_id: '',
+    contact_ids: [] as string[],
   })
 
   // Build a contact lookup for display on cards
@@ -98,8 +98,17 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
     meetingsByDate[day].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
   }
 
+  const toggleContact = (id: string) => {
+    setForm(prev => ({
+      ...prev,
+      contact_ids: prev.contact_ids.includes(id)
+        ? prev.contact_ids.filter(cid => cid !== id)
+        : [...prev.contact_ids, id],
+    }))
+  }
+
   const openAddForDay = (date: string) => {
-    setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting', contact_id: '' })
+    setForm({ title: '', start_time: '10:00', end_time: '11:00', location: '', description: '', type: 'meeting', contact_ids: [] })
     setError('')
     setShowAdd(date)
   }
@@ -125,8 +134,10 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
       const startTime = form.start_time ? `${showAdd}T${form.start_time}:00+01:00` : null
       const endTime = form.end_time ? `${showAdd}T${form.end_time}:00+01:00` : null
 
-      // Resolve contact fields from selected contact
-      const selectedContact = form.contact_id ? contactById.get(form.contact_id) : null
+      // Resolve contact fields from selected contacts
+      const selectedContacts = form.contact_ids
+        .map(id => contactById.get(id))
+        .filter((c): c is ITPContact => !!c)
 
       const { error: insertError } = await supabase.from('events').insert({
         title: form.title.trim(),
@@ -138,9 +149,11 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
         type: form.type,
         all_day: false,
         visitor_id: visitorId,
-        contact_id: selectedContact?.id || null,
-        contact_name: selectedContact?.name || null,
-        contact_role: selectedContact?.role || null,
+        contact_ids: selectedContacts.length > 0 ? selectedContacts.map(c => c.id) : [],
+        // Keep legacy fields for backward compat with onboarding app
+        contact_id: selectedContacts[0]?.id || null,
+        contact_name: selectedContacts.map(c => c.name).join(', ') || null,
+        contact_role: selectedContacts.map(c => c.role).filter(Boolean).join(', ') || null,
       })
 
       if (insertError) throw insertError
@@ -167,14 +180,19 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
     }
   }
 
-  // Resolve display name for a meeting's contact
-  const getContactDisplay = (m: CalendarEvent) => {
+  // Resolve contacts for a meeting
+  const getContactsForEvent = (m: CalendarEvent): ITPContact[] => {
+    if (m.contact_ids && m.contact_ids.length > 0) {
+      return m.contact_ids
+        .map(id => contactById.get(id))
+        .filter((c): c is ITPContact => !!c)
+    }
+    // Fallback to single contact_id
     if (m.contact_id) {
       const c = contactById.get(m.contact_id)
-      if (c) return { name: c.name, role: c.role, photo: c.photo_url }
+      if (c) return [c]
     }
-    if (m.contact_name) return { name: m.contact_name, role: m.contact_role }
-    return null
+    return []
   }
 
   return (
@@ -207,7 +225,7 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
                   <p className="text-xs text-gray-300 text-center py-6">No activities</p>
                 )}
                 {dayMeetings.map((m) => {
-                  const contact = getContactDisplay(m)
+                  const eventContacts = getContactsForEvent(m)
                   return (
                     <div
                       key={m.id}
@@ -236,14 +254,28 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
                           {m.location}
                         </div>
                       )}
-                      {contact && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1">
-                          {contact.photo ? (
-                            <img src={contact.photo} alt="" className="w-4 h-4 rounded-full object-cover" />
-                          ) : (
-                            <User className="w-3 h-3" />
-                          )}
-                          {contact.name}{contact.role ? `, ${contact.role}` : ''}
+                      {eventContacts.length > 0 && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <div className="flex -space-x-1.5">
+                            {eventContacts.map(c => (
+                              c.photo_url ? (
+                                <img key={c.id} src={c.photo_url} alt={c.name} title={c.name} className="w-5 h-5 rounded-full object-cover ring-1 ring-white" />
+                              ) : (
+                                <div key={c.id} title={c.name} className="w-5 h-5 rounded-full bg-gray-200 ring-1 ring-white flex items-center justify-center">
+                                  <span className="text-[8px] font-medium text-gray-600">{c.name.split(' ').map(n => n[0]).join('')}</span>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-500 truncate">
+                            {eventContacts.map(c => c.name.split(' ')[0]).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {eventContacts.length === 0 && m.contact_name && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                          <User className="w-3 h-3" />
+                          {m.contact_name}
                         </div>
                       )}
                     </div>
@@ -315,41 +347,35 @@ export function SchedulePlanner({ visitorId, startDate, endDate, meetings, conta
             onChange={(e) => setForm({ ...form, location: e.target.value })}
           />
 
-          {/* Contact person picker */}
+          {/* Contact person picker (multi-select) */}
           {contacts.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Person</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Contact{form.contact_ids.length > 1 ? 's' : ''}{form.contact_ids.length > 0 ? ` (${form.contact_ids.length})` : ''}
+              </label>
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, contact_id: '' })}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    !form.contact_id
-                      ? 'border-red-300 bg-red-50 text-red-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  None
-                </button>
-                {contacts.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setForm({ ...form, contact_id: c.id })}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                      form.contact_id === c.id
-                        ? 'border-red-300 bg-red-50 text-red-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {c.photo_url ? (
-                      <img src={c.photo_url} alt="" className="w-4 h-4 rounded-full object-cover" />
-                    ) : (
-                      <User className="w-3 h-3" />
-                    )}
-                    {c.name}
-                  </button>
-                ))}
+                {contacts.map((c) => {
+                  const selected = form.contact_ids.includes(c.id)
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => toggleContact(c.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        selected
+                          ? 'border-red-300 bg-red-50 text-red-700'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {c.photo_url ? (
+                        <img src={c.photo_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                      ) : (
+                        <User className="w-3 h-3" />
+                      )}
+                      {c.name}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}

@@ -259,6 +259,7 @@ export interface CalendarEvent {
   contact_name?: string
   contact_role?: string
   contact_id?: string
+  contact_ids?: string[]
   // Joined data
   attendees?: EventAttendee[]
 }
