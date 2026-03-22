@@ -26,6 +26,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AddProspectModal } from '@/components/modals/AddProspectModal'
 import { EmailPreviewModal } from '@/components/modals/EmailPreviewModal'
@@ -419,172 +420,181 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
         </Card>
       )}
 
-      {/* Prospects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProspects.map((prospect) => {
-          const config = statusConfig[prospect.status] || statusConfig.inquiry
-          const Icon = config.icon
-          const age = calculateAge(prospect.date_of_birth)
+      {/* Prospects Table */}
+      {filteredProspects.length > 0 && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm">Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm">Trial Dates</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm">Age</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm hidden md:table-cell">Nationality</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm hidden md:table-cell">Club</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm">Rating</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-500 text-sm">Onboarding</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-500 text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProspects.map((prospect) => {
+                    const config = statusConfig[prospect.status] || statusConfig.inquiry
+                    const age = calculateAge(prospect.date_of_birth)
+                    const badgeVariant = ({
+                      requested: 'warning',
+                      scheduled: 'info',
+                      in_progress: 'info',
+                      evaluation: 'warning',
+                      decision_pending: 'warning',
+                      accepted: 'success',
+                      rejected: 'danger',
+                      withdrawn: 'default',
+                      placed: 'success',
+                      inquiry: 'default',
+                    } as const)[prospect.status] || 'default'
 
-          return (
-            <Card key={prospect.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar
-                      name={`${prospect.first_name} ${prospect.last_name}`}
-                      size="lg"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {prospect.first_name} {prospect.last_name}
-                      </h3>
-                      <p className="text-sm text-gray-500">{prospect.position}</p>
-                    </div>
-                  </div>
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${config.bg}`}>
-                    <Icon className={`w-3 h-3 ${config.color}`} />
-                    <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Age:</span>
-                    <span className="font-medium">{age} years</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Nationality:</span>
-                    <span className="font-medium">{prospect.nationality}</span>
-                  </div>
-                  {prospect.current_club && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Club:</span>
-                      <span className="font-medium">{prospect.current_club}</span>
-                    </div>
-                  )}
-                  {prospect.scout && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Scout:</span>
-                      <span className="font-medium">{prospect.scout.name}{prospect.scout.affiliation ? ` (${prospect.scout.affiliation})` : ''}</span>
-                    </div>
-                  )}
-                  {prospect.trial_start_date && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-3 h-3 text-gray-400" />
-                      <span className="text-gray-500">Trial:</span>
-                      <span className="font-medium">
-                        {new Date(prospect.trial_start_date).toLocaleDateString('de-DE')}
-                        {prospect.trial_end_date && ` - ${new Date(prospect.trial_end_date).toLocaleDateString('de-DE')}`}
-                      </span>
-                    </div>
-                  )}
-                  {prospect.status === 'requested' && prospect.requested_start_date && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-3 h-3 text-amber-400" />
-                      <span className="text-gray-500">Requested:</span>
-                      <span className="font-medium text-amber-700">
-                        {new Date(prospect.requested_start_date).toLocaleDateString('de-DE')}
-                        {prospect.requested_end_date && ` - ${new Date(prospect.requested_end_date).toLocaleDateString('de-DE')}`}
-                        {prospect.dates_flexible && ' (flexible)'}
-                      </span>
-                    </div>
-                  )}
-                  {prospect.overall_rating && (
-                    <div className="flex items-center gap-2">
-                      <Star className="w-3 h-3 text-yellow-500" />
-                      <span className="text-gray-500">Rating:</span>
-                      <span className="font-medium">{prospect.overall_rating}/10</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Contract Requested Badge */}
-                {prospect.contract_requested_at && (
-                  <div className="mt-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
-                    <Send className="w-3 h-3" />
-                    Contract requested{prospect.contract_requested_by ? ` by ${prospect.contract_requested_by}` : ''} · {formatTimeAgo(prospect.contract_requested_at)}
-                  </div>
-                )}
-
-                {/* Onboarding Status - only for confirmed trial prospects */}
-                {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'].includes(prospect.status)) && (
-                  <div className="mt-3">
-                    <OnboardingBadge prospect={prospect} />
-                  </div>
-                )}
-
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-                  <Link href={`/prospects/${prospect.id}`}>
-                    <Button variant="primary" size="sm" className="w-full">
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </Button>
-                  </Link>
-                  {prospect.status === 'requested' && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-green-600 border-green-200 hover:bg-green-50"
-                        onClick={() => {
-                          setApproveModal(prospect)
-                          setApproveStartDate(prospect.requested_start_date || '')
-                          setApproveEndDate(prospect.requested_end_date || '')
-                        }}
+                    return (
+                      <tr
+                        key={prospect.id}
+                        className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
+                        onClick={() => router.push(`/prospects/${prospect.id}`)}
                       >
-                        <Check className="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={() => setRejectModal(prospect)}
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Reject
-                      </Button>
-                    </div>
-                  )}
-                  {(['scheduled', 'in_progress', 'evaluation', 'decision_pending'].includes(prospect.status)) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        navigator.clipboard.writeText(
-                          `https://itp-portal.vercel.app/${prospect.id}`
-                        )
-                      }}
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Trial Link
-                    </Button>
-                  )}
-                  {(['accepted', 'placed'].includes(prospect.status)) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        navigator.clipboard.writeText(
-                          `https://itp-portal.vercel.app/${prospect.id}/onboarding`
-                        )
-                      }}
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Onboarding Link
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+                        {/* Name */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={`${prospect.first_name} ${prospect.last_name}`} size="sm" />
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 truncate">
+                                {prospect.first_name} {prospect.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">{prospect.position}</p>
+                              {prospect.contract_requested_at && (
+                                <p className="text-xs text-orange-600 flex items-center gap-1 mt-0.5">
+                                  <Send className="w-3 h-3" />
+                                  Contract requested · {formatTimeAgo(prospect.contract_requested_at)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        {/* Status */}
+                        <td className="py-3 px-4">
+                          <Badge variant={badgeVariant}>{config.label}</Badge>
+                        </td>
+                        {/* Trial Dates */}
+                        <td className="py-3 px-4 text-sm text-gray-700 whitespace-nowrap">
+                          {prospect.trial_start_date ? (
+                            <>
+                              {new Date(prospect.trial_start_date).toLocaleDateString('de-DE')}
+                              {prospect.trial_end_date && ` – ${new Date(prospect.trial_end_date).toLocaleDateString('de-DE')}`}
+                            </>
+                          ) : prospect.status === 'requested' && prospect.requested_start_date ? (
+                            <span className="text-amber-700">
+                              {new Date(prospect.requested_start_date).toLocaleDateString('de-DE')}
+                              {prospect.requested_end_date && ` – ${new Date(prospect.requested_end_date).toLocaleDateString('de-DE')}`}
+                              {prospect.dates_flexible && ' (flex)'}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        {/* Age */}
+                        <td className="py-3 px-4 text-sm text-gray-700">{age}</td>
+                        {/* Nationality */}
+                        <td className="py-3 px-4 text-sm text-gray-700 hidden md:table-cell">{prospect.nationality}</td>
+                        {/* Club */}
+                        <td className="py-3 px-4 text-sm text-gray-700 hidden md:table-cell">{prospect.current_club || '—'}</td>
+                        {/* Rating */}
+                        <td className="py-3 px-4 text-sm">
+                          {prospect.overall_rating ? (
+                            <span className="flex items-center gap-1 text-gray-700">
+                              <Star className="w-3.5 h-3.5 text-yellow-500" />
+                              {prospect.overall_rating}/10
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        {/* Onboarding */}
+                        <td className="py-3 px-4">
+                          {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'].includes(prospect.status)) ? (
+                            <OnboardingBadge prospect={prospect} />
+                          ) : (
+                            <span className="text-gray-400 text-sm">—</span>
+                          )}
+                        </td>
+                        {/* Actions */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                              title="View details"
+                              onClick={() => router.push(`/prospects/${prospect.id}`)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            {prospect.status === 'requested' && (
+                              <>
+                                <button
+                                  className="p-1.5 rounded-md hover:bg-green-50 text-green-600"
+                                  title="Approve"
+                                  onClick={() => {
+                                    setApproveModal(prospect)
+                                    setApproveStartDate(prospect.requested_start_date || '')
+                                    setApproveEndDate(prospect.requested_end_date || '')
+                                  }}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  className="p-1.5 rounded-md hover:bg-red-50 text-red-600"
+                                  title="Reject"
+                                  onClick={() => setRejectModal(prospect)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                            {(['scheduled', 'in_progress', 'evaluation', 'decision_pending'].includes(prospect.status)) && (
+                              <button
+                                className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                                title="Copy trial link"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    `https://itp-portal.vercel.app/${prospect.id}`
+                                  )
+                                }}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                            )}
+                            {(['accepted', 'placed'].includes(prospect.status)) && (
+                              <button
+                                className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                                title="Copy onboarding link"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    `https://itp-portal.vercel.app/${prospect.id}/onboarding`
+                                  )
+                                }}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {filteredProspects.length === 0 && (
         <Card>
