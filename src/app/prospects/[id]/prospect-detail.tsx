@@ -40,6 +40,7 @@ import Link from 'next/link'
 import { getOnboardingDocumentUrl, convertProspectToPlayer, notifyScout } from '@/app/prospects/actions'
 import { EmailPreviewModal } from '@/components/modals/EmailPreviewModal'
 import { trialApprovedTemplate, prospectAcceptedTemplate, prospectRejectedTemplate } from '@/lib/email-templates'
+import { TrialReportDialog } from './trial-report-dialog'
 
 interface ProspectDetailProps {
   prospect: TrialProspect
@@ -101,6 +102,7 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showTrialReport, setShowTrialReport] = useState(false)
   const [emailPreview, setEmailPreview] = useState<{
     to: string; cc?: string; subject: string; body: string; prospectId: string; emailType: string
   } | null>(null)
@@ -755,6 +757,16 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                   Copy Onboarding Link
                 </Button>
               )}
+              {(['evaluation', 'decision_pending', 'accepted', 'placed', 'rejected'].includes(prospect.status)) && (
+                <Button
+                  variant="outline"
+                  className="w-full text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowTrialReport(true)}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Generate Trial Report
+                </Button>
+              )}
               {(['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed', 'rejected'].includes(prospect.status)) && (
                 <>
                   {prospect.last_email_sent_at && (
@@ -792,6 +804,11 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
           </Card>
         </div>
       </div>
+
+      {/* Trial Report Dialog */}
+      {showTrialReport && (
+        <TrialReportDialog prospect={prospect} onClose={() => setShowTrialReport(false)} />
+      )}
 
       {/* Email Preview Modal */}
       {emailPreview && (
