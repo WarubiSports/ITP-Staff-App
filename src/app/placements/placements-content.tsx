@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   GraduationCap,
-  Users,
   TrendingUp,
   Globe,
   Home,
@@ -87,12 +86,6 @@ export const PlacementsContent = ({ players, collegeTargets, outreach }: Placeme
   // Compute stats
   const totalPlayers = players.length
   const alumni = players.filter(p => p.status === 'alumni')
-
-  const collegeInterest = players.filter(p => p.pathway_interest === 'college')
-  const clubEuropeInterest = players.filter(p => p.pathway_interest === 'club_europe')
-  const clubUsaInterest = players.filter(p => p.pathway_interest === 'club_usa')
-  const returnHomeInterest = players.filter(p => p.pathway_interest === 'return_home')
-  const undecided = players.filter(p => !p.pathway_interest || p.pathway_interest === 'undecided')
 
   // Alumni stats
   const alumniCollege = alumni.filter(p => p.pathway_interest === 'college')

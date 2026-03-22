@@ -7,7 +7,6 @@ import {
   Search,
   Users,
   UserPlus,
-  Eye,
   Calendar,
   Star,
   Clock,

@@ -8,7 +8,6 @@ import {
   Calendar,
   ClipboardList,
   AlertTriangle,
-  Shield,
   Plane,
   Home,
   UserCheck,
