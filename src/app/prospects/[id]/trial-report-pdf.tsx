@@ -1,7 +1,7 @@
 'use client'
 
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'
-import type { TrialProspect } from '@/types'
+import type { TrialProspect, TrialReportData } from '@/types'
 
 Font.register({
   family: 'Inter',
@@ -49,12 +49,6 @@ const s = StyleSheet.create({
   bulletText: { fontSize: 8.5, color: c.gray, lineHeight: 1.45 },
   assessmentText: { fontSize: 8.5, color: c.gray, lineHeight: 1.45 },
   quoteIcon: { fontSize: 18, color: c.primary, opacity: 0.3, marginBottom: 1 },
-  ratingsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  ratingItem: { width: '30%', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ratingLabel: { fontSize: 7.5, color: c.gray, width: 50 },
-  ratingBarBg: { flex: 1, height: 5, backgroundColor: c.lightGray, borderRadius: 2.5 },
-  ratingBarFill: { height: 5, backgroundColor: c.primary, borderRadius: 2.5 },
-  ratingValue: { fontSize: 8, fontWeight: 700, width: 20, textAlign: 'right' },
   divider: { borderBottom: `1px solid ${c.primary}`, marginBottom: 10, marginTop: 2, opacity: 0.3 },
   decisionBox: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 5, alignItems: 'center' },
   decisionAccepted: { backgroundColor: '#dcfce7' },
@@ -67,13 +61,6 @@ const s = StyleSheet.create({
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 36, paddingVertical: 10, borderTop: `1px solid ${c.lightGray}`, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   footerRight: { fontSize: 6.5, color: c.gray },
 })
-
-export interface TrialReportData {
-  strengths: { title: string; description: string }[]
-  areas: { title: string; description: string }[]
-  assessment: string
-  decisionReasoning: string
-}
 
 function calculateAge(dob: string): number {
   const birth = new Date(dob)
@@ -118,14 +105,6 @@ export function TrialReportDocument({
     : 'N/A'
   const ageGroup = age > 18 ? 'U-23' : `U-${age}`
 
-  const ratings = [
-    { label: 'Technical', value: prospect.technical_rating },
-    { label: 'Tactical', value: prospect.tactical_rating },
-    { label: 'Physical', value: prospect.physical_rating },
-    { label: 'Mental', value: prospect.mental_rating },
-    { label: 'Overall', value: prospect.overall_rating },
-  ].filter(r => r.value != null)
-
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -163,6 +142,12 @@ export function TrialReportDocument({
                 <Text style={s.infoValue}>{prospect.height_cm} cm</Text>
               </View>
             )}
+            {prospect.preferred_foot && (
+              <View>
+                <Text style={s.infoLabel}>FOOT</Text>
+                <Text style={s.infoValue}>{prospect.preferred_foot}</Text>
+              </View>
+            )}
             <View>
               <Text style={s.infoLabel}>TRIAL PERIOD</Text>
               <Text style={s.infoValue}>{trialPeriod}</Text>
@@ -171,28 +156,6 @@ export function TrialReportDocument({
         </View>
 
         <View style={s.content}>
-          {/* Ratings */}
-          {ratings.length > 0 && (
-            <View style={s.section}>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionTitle}>PERFORMANCE RATINGS</Text>
-              </View>
-              <View style={s.sectionBody}>
-                <View style={s.ratingsGrid}>
-                  {ratings.map((r) => (
-                    <View key={r.label} style={s.ratingItem}>
-                      <Text style={s.ratingLabel}>{r.label}</Text>
-                      <View style={s.ratingBarBg}>
-                        <View style={[s.ratingBarFill, { width: `${(r.value! / 10) * 100}%` }]} />
-                      </View>
-                      <Text style={s.ratingValue}>{r.value}/10</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
-          )}
-
           {/* Strengths */}
           {reportData.strengths.length > 0 && (
             <View style={s.section}>

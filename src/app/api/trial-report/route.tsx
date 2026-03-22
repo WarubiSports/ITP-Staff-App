@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { renderToBuffer } from '@react-pdf/renderer'
-import { TrialReportDocument, type TrialReportData } from '@/app/prospects/[id]/trial-report-pdf'
-import type { TrialProspect } from '@/types'
+import { TrialReportDocument } from '@/app/prospects/[id]/trial-report-pdf'
+import type { TrialProspect, TrialReportData } from '@/types'
 
 export async function POST(req: Request) {
   const { prospect, reportData } = (await req.json()) as {

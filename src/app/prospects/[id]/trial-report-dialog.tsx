@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { pdf } from '@react-pdf/renderer'
-import { TrialReportDocument, type TrialReportData } from './trial-report-pdf'
-import type { TrialProspect } from '@/types'
+import { TrialReportDocument } from './trial-report-pdf'
+import { createClient } from '@/lib/supabase/client'
+import type { TrialProspect, TrialReportData } from '@/types'
 
 interface TrialReportDialogProps {
   prospect: TrialProspect
@@ -16,19 +17,20 @@ interface TrialReportDialogProps {
 
 export function TrialReportDialog({ prospect, onClose }: TrialReportDialogProps) {
   const isAccepted = prospect.status === 'accepted' || prospect.status === 'placed'
+  const saved = prospect.trial_report_data as TrialReportData | null | undefined
 
-  const [strengths, setStrengths] = useState([
-    { title: '', description: '' },
-    { title: '', description: '' },
-    { title: '', description: '' },
-  ])
-  const [areas, setAreas] = useState([
-    { title: '', description: '' },
-    { title: '', description: '' },
-    { title: '', description: '' },
-  ])
-  const [assessment, setAssessment] = useState(prospect.coach_feedback || '')
-  const [decisionReasoning, setDecisionReasoning] = useState(prospect.decision_notes || '')
+  const [strengths, setStrengths] = useState(
+    saved?.strengths?.length
+      ? saved.strengths
+      : [{ title: '', description: '' }, { title: '', description: '' }, { title: '', description: '' }]
+  )
+  const [areas, setAreas] = useState(
+    saved?.areas?.length
+      ? saved.areas
+      : [{ title: '', description: '' }, { title: '', description: '' }, { title: '', description: '' }]
+  )
+  const [assessment, setAssessment] = useState(saved?.assessment || prospect.coach_feedback || '')
+  const [decisionReasoning, setDecisionReasoning] = useState(saved?.decisionReasoning || prospect.decision_notes || '')
   const [isGenerating, setIsGenerating] = useState(false)
 
   const updateStrength = (i: number, field: 'title' | 'description', value: string) => {
@@ -53,6 +55,13 @@ export function TrialReportDialog({ prospect, onClose }: TrialReportDialogProps)
         assessment: assessment.trim(),
         decisionReasoning: decisionReasoning.trim(),
       }
+
+      // Persist report data to Supabase
+      const supabase = createClient()
+      await supabase
+        .from('trial_prospects')
+        .update({ trial_report_data: reportData })
+        .eq('id', prospect.id)
 
       const blob = await pdf(
         <TrialReportDocument prospect={prospect} reportData={reportData} />
@@ -104,16 +113,8 @@ export function TrialReportDialog({ prospect, onClose }: TrialReportDialogProps)
                 {isAccepted ? 'Accepted' : 'Rejected'}
               </span>
             </p>
-            {(prospect.technical_rating || prospect.overall_rating) && (
-              <p><span className="font-medium text-gray-900">Ratings:</span>{' '}
-                {[
-                  prospect.technical_rating && `Tech ${prospect.technical_rating}`,
-                  prospect.tactical_rating && `Tact ${prospect.tactical_rating}`,
-                  prospect.physical_rating && `Phys ${prospect.physical_rating}`,
-                  prospect.mental_rating && `Ment ${prospect.mental_rating}`,
-                  prospect.overall_rating && `Overall ${prospect.overall_rating}`,
-                ].filter(Boolean).join(' · ')}/10
-              </p>
+            {prospect.preferred_foot && (
+              <p><span className="font-medium text-gray-900">Foot:</span> {prospect.preferred_foot}</p>
             )}
           </div>
 

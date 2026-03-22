@@ -26,6 +26,7 @@ import {
   Copy,
   UserCheck,
   Send,
+  Plus,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -103,6 +104,19 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showTrialReport, setShowTrialReport] = useState(false)
+  const savedReport = prospect.trial_report_data as { strengths?: { title: string; description: string }[]; areas?: { title: string; description: string }[]; assessment?: string; decisionReasoning?: string } | null | undefined
+  const [strengths, setStrengths] = useState(
+    savedReport?.strengths?.length
+      ? savedReport.strengths
+      : [{ title: '', description: '' }, { title: '', description: '' }, { title: '', description: '' }]
+  )
+  const [areas, setAreas] = useState(
+    savedReport?.areas?.length
+      ? savedReport.areas
+      : [{ title: '', description: '' }, { title: '', description: '' }, { title: '', description: '' }]
+  )
+  const [assessment, setAssessment] = useState(savedReport?.assessment || prospect.coach_feedback || '')
+  const [decisionReasoning, setDecisionReasoning] = useState(savedReport?.decisionReasoning || prospect.decision_notes || '')
   const [emailPreview, setEmailPreview] = useState<{
     to: string; cc?: string; subject: string; body: string; prospectId: string; emailType: string
   } | null>(null)
@@ -123,17 +137,13 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
     scouting_notes: prospect.scouting_notes || '',
     recommended_by: prospect.recommended_by || '',
     height_cm: prospect.height_cm?.toString() || '',
+    preferred_foot: prospect.preferred_foot || '',
     trial_start_date: prospect.trial_start_date || '',
     trial_end_date: prospect.trial_end_date || '',
     accommodation_details: prospect.accommodation_details || '',
     travel_arrangements: prospect.travel_arrangements || '',
     status: prospect.status,
-    // Evaluation
-    technical_rating: prospect.technical_rating?.toString() || '',
-    tactical_rating: prospect.tactical_rating?.toString() || '',
-    physical_rating: prospect.physical_rating?.toString() || '',
-    mental_rating: prospect.mental_rating?.toString() || '',
-    overall_rating: prospect.overall_rating?.toString() || '',
+    // Evaluation (structured report data)
     coach_feedback: prospect.coach_feedback || '',
     evaluation_notes: prospect.evaluation_notes || '',
     // Decision
@@ -168,20 +178,22 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
           scouting_notes: formData.scouting_notes || null,
           recommended_by: formData.recommended_by || null,
           height_cm: formData.height_cm ? parseInt(formData.height_cm) : null,
+          preferred_foot: formData.preferred_foot || null,
           trial_start_date: formData.trial_start_date || null,
           trial_end_date: formData.trial_end_date || null,
           accommodation_details: formData.accommodation_details || null,
           travel_arrangements: formData.travel_arrangements || null,
           status: formData.status,
-          technical_rating: formData.technical_rating ? parseInt(formData.technical_rating) : null,
-          tactical_rating: formData.tactical_rating ? parseInt(formData.tactical_rating) : null,
-          physical_rating: formData.physical_rating ? parseInt(formData.physical_rating) : null,
-          mental_rating: formData.mental_rating ? parseInt(formData.mental_rating) : null,
-          overall_rating: formData.overall_rating ? parseInt(formData.overall_rating) : null,
-          coach_feedback: formData.coach_feedback || null,
+          coach_feedback: assessment.trim() || null,
           evaluation_notes: formData.evaluation_notes || null,
           decision_date: formData.decision_date || null,
-          decision_notes: formData.decision_notes || null,
+          decision_notes: decisionReasoning.trim() || null,
+          trial_report_data: {
+            strengths: strengths.filter(s => s.title.trim()),
+            areas: areas.filter(a => a.title.trim()),
+            assessment: assessment.trim(),
+            decisionReasoning: decisionReasoning.trim(),
+          },
         })
         .eq('id', prospect.id)
 
@@ -344,6 +356,17 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                   value={formData.height_cm}
                   onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
                 />
+                <Select
+                  label="Preferred Foot"
+                  value={formData.preferred_foot}
+                  onChange={(e) => setFormData({ ...formData, preferred_foot: e.target.value })}
+                  options={[
+                    { value: '', label: 'Not set' },
+                    { value: 'Left', label: 'Left' },
+                    { value: 'Right', label: 'Right' },
+                    { value: 'Both', label: 'Both' },
+                  ]}
+                />
               </div>
             </CardContent>
           </Card>
@@ -473,89 +496,138 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
             </CardContent>
           </Card>
 
-          {/* Evaluation */}
+          {/* Trial Evaluation */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Star className="w-5 h-5" />
-                Evaluation
+                Trial Evaluation
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Scout Ratings (read-only, if from scout) */}
-              {prospect.scout_id && prospect.overall_rating && (
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Scout Assessment</p>
-                  <div className="flex gap-4 text-sm">
-                    {[
-                      { label: 'Tech', val: prospect.technical_rating },
-                      { label: 'Tact', val: prospect.tactical_rating },
-                      { label: 'Phys', val: prospect.physical_rating },
-                      { label: 'Overall', val: prospect.overall_rating },
-                    ].map(r => r.val ? (
-                      <span key={r.label} className="text-gray-600">
-                        <span className="text-gray-400">{r.label}:</span> <span className="font-medium">{r.val}/10</span>
-                      </span>
-                    ) : null)}
-                  </div>
-                </div>
-              )}
-
-              {/* Staff Ratings */}
+            <CardContent className="space-y-6">
+              {/* Strengths */}
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase mb-2">Staff Post-Trial Rating</p>
-                <div className="grid grid-cols-5 gap-4">
-                  <Input
-                    label="Technical (1-10)"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.technical_rating}
-                    onChange={(e) => setFormData({ ...formData, technical_rating: e.target.value })}
-                  />
-                  <Input
-                    label="Tactical (1-10)"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.tactical_rating}
-                    onChange={(e) => setFormData({ ...formData, tactical_rating: e.target.value })}
-                  />
-                  <Input
-                    label="Physical (1-10)"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.physical_rating}
-                    onChange={(e) => setFormData({ ...formData, physical_rating: e.target.value })}
-                  />
-                  <Input
-                    label="Mental (1-10)"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.mental_rating}
-                    onChange={(e) => setFormData({ ...formData, mental_rating: e.target.value })}
-                  />
-                  <Input
-                    label="Overall (1-10)"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.overall_rating}
-                    onChange={(e) => setFormData({ ...formData, overall_rating: e.target.value })}
-                  />
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Strengths</p>
+                  <button
+                    type="button"
+                    onClick={() => setStrengths(prev => [...prev, { title: '', description: '' }])}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {strengths.map((s, i) => (
+                    <div key={i} className="flex gap-2">
+                      <div className="flex-1 space-y-1.5">
+                        <Input
+                          value={s.title}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setStrengths(prev => prev.map((item, idx) => idx === i ? { ...item, title: e.target.value } : item))
+                          }
+                          placeholder="e.g. Ball Control and Composure"
+                          className="text-sm font-medium"
+                        />
+                        <Textarea
+                          value={s.description}
+                          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                            setStrengths(prev => prev.map((item, idx) => idx === i ? { ...item, description: e.target.value } : item))
+                          }
+                          placeholder="Description of this strength..."
+                          rows={2}
+                          className="text-sm"
+                        />
+                      </div>
+                      {strengths.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setStrengths(prev => prev.filter((_, idx) => idx !== i))}
+                          className="mt-1 p-1.5 text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              {/* Areas of Opportunity */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Areas of Opportunity</p>
+                  <button
+                    type="button"
+                    onClick={() => setAreas(prev => [...prev, { title: '', description: '' }])}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {areas.map((a, i) => (
+                    <div key={i} className="flex gap-2">
+                      <div className="flex-1 space-y-1.5">
+                        <Input
+                          value={a.title}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setAreas(prev => prev.map((item, idx) => idx === i ? { ...item, title: e.target.value } : item))
+                          }
+                          placeholder="e.g. Decision-Making Under Pressure"
+                          className="text-sm font-medium"
+                        />
+                        <Textarea
+                          value={a.description}
+                          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                            setAreas(prev => prev.map((item, idx) => idx === i ? { ...item, description: e.target.value } : item))
+                          }
+                          placeholder="Description of this area..."
+                          rows={2}
+                          className="text-sm"
+                        />
+                      </div>
+                      {areas.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setAreas(prev => prev.filter((_, idx) => idx !== i))}
+                          className="mt-1 p-1.5 text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Coaching Staff Assessment */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Coaching Staff Assessment</p>
+                <Textarea
+                  value={assessment}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAssessment(e.target.value)}
+                  placeholder="Overall assessment paragraph — this appears as a quote block in the report..."
+                  rows={5}
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Decision Reasoning */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Decision Reasoning</p>
+                <Textarea
+                  value={decisionReasoning}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDecisionReasoning(e.target.value)}
+                  placeholder="e.g. Ian's coachability, resilience, and positive character make him a valuable addition..."
+                  rows={3}
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Internal Notes */}
               <Textarea
-                label="Coach Feedback"
-                placeholder="Strengths, areas to develop, attitude, fit with the group..."
-                value={formData.coach_feedback}
-                onChange={(e) => setFormData({ ...formData, coach_feedback: e.target.value })}
-                rows={3}
-              />
-              <Textarea
-                label="Evaluation Notes"
+                label="Internal Notes"
                 placeholder="Internal notes (not shared with scout or player)"
                 value={formData.evaluation_notes}
                 onChange={(e) => setFormData({ ...formData, evaluation_notes: e.target.value })}

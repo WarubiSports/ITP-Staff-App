@@ -1,3 +1,11 @@
+// Trial report structured data
+export interface TrialReportData {
+  strengths: { title: string; description: string }[]
+  areas: { title: string; description: string }[]
+  assessment: string
+  decisionReasoning: string
+}
+
 // Player types matching the management app structure
 export interface Player {
   id: string
@@ -446,6 +454,8 @@ export interface TrialProspect {
   scouting_notes?: string
   recommended_by?: string
   height_cm?: number
+  preferred_foot?: 'Left' | 'Right' | 'Both' | null
+  trial_report_data?: TrialReportData | null
   // Trial logistics
   trial_start_date?: string
   trial_end_date?: string
