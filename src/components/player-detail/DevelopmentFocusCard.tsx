@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Target, Plus, Eye, EyeOff, Edit } from 'lucide-react'
+import { Target, Plus, Eye, EyeOff, Edit, Dumbbell } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { AddFocusNoteModal } from '@/components/modals'
+import { AddFocusNoteModal, DrillLibraryModal } from '@/components/modals'
+import { categoryLabel } from '@/lib/drill-categories'
 import { PlayerFocusNote } from '@/types'
 
 interface DevelopmentFocusCardProps {
@@ -21,6 +22,7 @@ export const DevelopmentFocusCard = ({ playerId, focusNotes }: DevelopmentFocusC
   const [localFocusNotes, setLocalFocusNotes] = useState<PlayerFocusNote[]>(focusNotes)
   const [showFocusNoteModal, setShowFocusNoteModal] = useState(false)
   const [editingFocusNote, setEditingFocusNote] = useState<PlayerFocusNote | null>(null)
+  const [showDrillLibrary, setShowDrillLibrary] = useState(false)
 
   useEffect(() => {
     setLocalFocusNotes(focusNotes)
@@ -35,17 +37,27 @@ export const DevelopmentFocusCard = ({ playerId, focusNotes }: DevelopmentFocusC
               <Target className="w-5 h-5" />
               Development Focus
             </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEditingFocusNote(null)
-                setShowFocusNoteModal(true)
-              }}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Note
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDrillLibrary(true)}
+              >
+                <Dumbbell className="w-4 h-4 mr-1" />
+                Drills
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditingFocusNote(null)
+                  setShowFocusNoteModal(true)
+                }}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Note
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -54,7 +66,12 @@ export const DevelopmentFocusCard = ({ playerId, focusNotes }: DevelopmentFocusC
             const visibleNotes = localFocusNotes.filter(n => n.visible_to_player)
             const activeFocusPoints = visibleNotes
               .slice(0, 3)
-              .flatMap(n => n.focus_points.map(fp => ({ text: fp, date: n.session_date, type: n.session_type })))
+              .flatMap(n => n.focus_points.map((fp, i) => ({
+                text: fp,
+                date: n.session_date,
+                type: n.session_type,
+                category: n.focus_point_categories?.[i] || '',
+              })))
 
             if (activeFocusPoints.length > 0) {
               return (
@@ -68,6 +85,11 @@ export const DevelopmentFocusCard = ({ playerId, focusNotes }: DevelopmentFocusC
                         title={`From ${fp.type.replace('_', ' ')} on ${fp.date}`}
                       >
                         {fp.text}
+                        {fp.category && (
+                          <span className="ml-1.5 text-xs text-red-500 font-normal">
+                            {categoryLabel(fp.category)}
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>
@@ -150,6 +172,11 @@ export const DevelopmentFocusCard = ({ playerId, focusNotes }: DevelopmentFocusC
           )}
         </CardContent>
       </Card>
+
+      <DrillLibraryModal
+        isOpen={showDrillLibrary}
+        onClose={() => setShowDrillLibrary(false)}
+      />
 
       <AddFocusNoteModal
         isOpen={showFocusNoteModal}

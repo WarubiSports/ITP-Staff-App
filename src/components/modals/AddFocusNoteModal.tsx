@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Plus, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { DRILL_CATEGORIES } from '@/lib/drill-categories'
 import type { PlayerFocusNote } from '@/types'
 
 interface AddFocusNoteModalProps {
@@ -27,17 +28,21 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
     session_date: new Date().toISOString().split('T')[0],
     topics: '',
     focus_points: [''] as string[],
+    focus_point_categories: [''] as string[],
     internal_comments: '',
     visible_to_player: true,
   })
 
   useEffect(() => {
     if (editNote) {
+      const cats = editNote.focus_point_categories || []
+      const points = editNote.focus_points.length > 0 ? editNote.focus_points : ['']
       setFormData({
         session_type: editNote.session_type,
         session_date: editNote.session_date,
         topics: editNote.topics || '',
-        focus_points: editNote.focus_points.length > 0 ? editNote.focus_points : [''],
+        focus_points: points,
+        focus_point_categories: points.map((_, i) => cats[i] || ''),
         internal_comments: editNote.internal_comments || '',
         visible_to_player: editNote.visible_to_player,
       })
@@ -47,6 +52,7 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
         session_date: new Date().toISOString().split('T')[0],
         topics: '',
         focus_points: [''],
+        focus_point_categories: [''],
         internal_comments: '',
         visible_to_player: true,
       })
@@ -58,7 +64,15 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
     setError('')
     setLoading(true)
 
-    const cleanedFocusPoints = formData.focus_points.filter(fp => fp.trim() !== '')
+    // Build cleaned arrays keeping indices in sync
+    const cleanedFocusPoints: string[] = []
+    const cleanedCategories: string[] = []
+    formData.focus_points.forEach((fp, i) => {
+      if (fp.trim() !== '') {
+        cleanedFocusPoints.push(fp.trim())
+        cleanedCategories.push(formData.focus_point_categories[i] || '')
+      }
+    })
 
     if (cleanedFocusPoints.length === 0) {
       setError('Add at least one focus point')
@@ -76,6 +90,7 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
         session_date: formData.session_date,
         topics: formData.topics || null,
         focus_points: cleanedFocusPoints,
+        focus_point_categories: cleanedCategories,
         internal_comments: formData.internal_comments || null,
         visible_to_player: formData.visible_to_player,
         created_by: user?.id || null,
@@ -128,13 +143,18 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
   }
 
   const addFocusPoint = () => {
-    setFormData(prev => ({ ...prev, focus_points: [...prev.focus_points, ''] }))
+    setFormData(prev => ({
+      ...prev,
+      focus_points: [...prev.focus_points, ''],
+      focus_point_categories: [...prev.focus_point_categories, ''],
+    }))
   }
 
   const removeFocusPoint = (index: number) => {
     setFormData(prev => ({
       ...prev,
       focus_points: prev.focus_points.filter((_, i) => i !== index),
+      focus_point_categories: prev.focus_point_categories.filter((_, i) => i !== index),
     }))
   }
 
@@ -142,6 +162,13 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
     setFormData(prev => ({
       ...prev,
       focus_points: prev.focus_points.map((fp, i) => (i === index ? value : fp)),
+    }))
+  }
+
+  const updateFocusPointCategory = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      focus_point_categories: prev.focus_point_categories.map((c, i) => (i === index ? value : c)),
     }))
   }
 
@@ -202,6 +229,22 @@ export function AddFocusNoteModal({ isOpen, onClose, playerId, onSuccess, editNo
                   placeholder={`Focus point ${index + 1}...`}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
+                <select
+                  value={formData.focus_point_categories[index] || ''}
+                  onChange={(e) => updateFocusPointCategory(index, e.target.value)}
+                  className="w-40 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white"
+                >
+                  <option value="">Category</option>
+                  {Object.entries(DRILL_CATEGORIES).map(([group, cats]) => (
+                    <optgroup key={group} label={group}>
+                      {cats.map(cat => (
+                        <option key={cat} value={cat}>
+                          {cat.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
                 {formData.focus_points.length > 1 && (
                   <button
                     type="button"

@@ -659,11 +659,33 @@ export interface PlayerFocusNote {
   session_date: string
   topics?: string
   focus_points: string[]
+  focus_point_categories?: string[]
   internal_comments?: string
   visible_to_player: boolean
   created_by?: string
   created_at: string
   updated_at: string
+}
+
+// Drill library
+export interface Drill {
+  id: string
+  title: string
+  description?: string
+  categories: string[]
+  video_url?: string
+  created_by?: string
+  created_at: string
+  updated_at: string
+}
+
+// Drill completion tracking
+export interface DrillCompletion {
+  id: string
+  player_id: string
+  drill_id: string
+  week_start: string
+  completed_at: string
 }
 
 // Physical testing results
