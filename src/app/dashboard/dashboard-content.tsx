@@ -296,19 +296,21 @@ export function DashboardContent({
             </div>
           </CardContent>
         </Card>
-        <Card className={expiringInsurance.length + expiringVisa.length > 0 ? 'border-orange-200' : ''}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${expiringInsurance.length + expiringVisa.length > 0 ? 'bg-orange-100' : 'bg-gray-100'}`}>
-                <AlertTriangle className={`w-5 h-5 ${expiringInsurance.length + expiringVisa.length > 0 ? 'text-orange-600' : 'text-gray-600'}`} />
+        <Link href="/operations">
+          <Card className={`${expiringInsurance.length + expiringVisa.length > 0 ? 'border-orange-200' : ''} hover:shadow-md transition-shadow cursor-pointer`}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${expiringInsurance.length + expiringVisa.length > 0 ? 'bg-orange-100' : 'bg-gray-100'}`}>
+                  <AlertTriangle className={`w-5 h-5 ${expiringInsurance.length + expiringVisa.length > 0 ? 'text-orange-600' : 'text-gray-600'}`} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{expiringInsurance.length + expiringVisa.length}</p>
+                  <p className="text-sm text-gray-500">Urgent Alerts</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{expiringInsurance.length + expiringVisa.length}</p>
-                <p className="text-sm text-gray-500">Urgent Alerts</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Onboarding Completion Alerts */}
@@ -386,16 +388,15 @@ export function DashboardContent({
               </CardTitle>
               <Link href="/calendar">
                 <Button variant="ghost" size="sm">
-                  Full Calendar <ArrowRight className="w-4 h-4 ml-1" />
+                  View all <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
             </CardHeader>
             <CardContent>
               {scheduleItems.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-lg font-medium">No events scheduled</p>
-                  <p className="text-sm">Your schedule is clear for today</p>
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm font-medium">No events scheduled today</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -453,63 +454,6 @@ export function DashboardContent({
 
         {/* Alerts and Tasks Column */}
         <div className="space-y-6">
-          {/* Urgent Deadlines */}
-          {(expiringVisa.length > 0 || expiringInsurance.length > 0) && (
-            <Card className="border-orange-200 bg-orange-50/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-orange-900">
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
-                  Urgent Deadlines
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {expiringVisa.slice(0, 3).map((player) => {
-                  const days = getDaysUntil(player.visa_expiry!)
-                  return (
-                    <Link
-                      key={`visa-${player.id}`}
-                      href={`/players/${player.player_id || player.id}`}
-                      className="flex items-center justify-between p-2 bg-white rounded-lg hover:bg-gray-50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Plane className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm font-medium">
-                          {player.first_name} {player.last_name}
-                        </span>
-                      </div>
-                      <Badge variant={days < 0 ? 'danger' : 'warning'}>
-                        Visa {days < 0 ? 'expired' : `${days}d`}
-                      </Badge>
-                    </Link>
-                  )
-                })}
-                {expiringInsurance.slice(0, 3).map((player) => {
-                  const days = getDaysUntil(player.insurance_expiry!)
-                  return (
-                    <Link
-                      key={`ins-${player.id}`}
-                      href={`/players/${player.player_id || player.id}`}
-                      className="flex items-center justify-between p-2 bg-white rounded-lg hover:bg-gray-50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-orange-600" />
-                        <span className="text-sm font-medium">
-                          {player.first_name} {player.last_name}
-                        </span>
-                      </div>
-                      <Badge variant={days < 0 ? 'danger' : 'warning'}>
-                        Ins. {days < 0 ? 'expired' : `${days}d`}
-                      </Badge>
-                    </Link>
-                  )
-                })}
-                <Link href="/operations" className="block text-center text-sm text-orange-700 hover:text-orange-800 pt-2">
-                  View all in Operations →
-                </Link>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Today's Tasks */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -529,15 +473,14 @@ export function DashboardContent({
                 </Button>
                 <Link href="/tasks">
                   <Button variant="ghost" size="sm">
-                    All <ArrowRight className="w-4 h-4 ml-1" />
+                    View all <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
                 </Link>
               </div>
             </CardHeader>
             <CardContent>
               {tasks.length === 0 ? (
-                <div className="text-center py-6 text-gray-500">
-                  <CheckSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <div className="text-center py-6 text-gray-400">
                   <p className="text-sm">No tasks due today</p>
                 </div>
               ) : (
@@ -672,20 +615,6 @@ export function DashboardContent({
                     </span>
                   </div>
                   <p className={`text-sm font-medium ${config.color}`}>{config.label}</p>
-                  {statusPlayers.length > 0 && statusPlayers.length <= 3 && (
-                    <div className="mt-2 space-y-1">
-                      {statusPlayers.map((player) => (
-                        <p key={player.id} className="text-xs text-gray-600 truncate">
-                          {player.first_name} {player.last_name}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {statusPlayers.length > 3 && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      +{statusPlayers.length - 3} more
-                    </p>
-                  )}
                 </button>
               )
             })}

@@ -64,6 +64,7 @@ export function TasksContent({ tasks: initialTasks, staff, currentUserId }: Task
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const { showToast } = useToast()
   const [showAddModal, setShowAddModal] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [newTask, setNewTask] = useState<{
     title: string
     description: string
@@ -211,11 +212,9 @@ export function TasksContent({ tasks: initialTasks, staff, currentUserId }: Task
 
       {/* Add Task Modal */}
       {showAddModal && (
-        <Card className="border-2 border-red-200">
-          <CardHeader>
-            <CardTitle>New Task</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">New Task</h3>
             <div className="space-y-4">
               <Input
                 label="Task Title"
@@ -295,21 +294,20 @@ export function TasksContent({ tasks: initialTasks, staff, currentUserId }: Task
                 <Button onClick={addTask}>Add Task</Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Tasks List */}
       <div className="space-y-3">
         {filteredTasks.length === 0 ? (
           <Card>
-            <CardContent className="py-12">
+            <CardContent className="py-8">
               <div className="text-center text-gray-500">
-                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-lg font-medium">No tasks found</p>
-                <p className="text-sm">
+                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm font-medium">
                   {filter === 'all'
-                    ? 'Create your first task to get started'
+                    ? 'No tasks yet'
                     : `No ${filter.replace('_', ' ')} tasks`}
                 </p>
               </div>
@@ -399,7 +397,7 @@ export function TasksContent({ tasks: initialTasks, staff, currentUserId }: Task
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => deleteTask(task.id)}
+                            onClick={() => setDeleteConfirmId(task.id)}
                             className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
                             title="Delete task"
                           >
@@ -483,6 +481,28 @@ export function TasksContent({ tasks: initialTasks, staff, currentUserId }: Task
           })
         )}
       </div>
+
+      {/* Delete Confirmation */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-semibold mb-2">Delete Task</h3>
+            <p className="text-sm text-gray-500 mb-4">Are you sure? This cannot be undone.</p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => {
+                  deleteTask(deleteConfirmId)
+                  setDeleteConfirmId(null)
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Task Modal */}
       <EditTaskModal

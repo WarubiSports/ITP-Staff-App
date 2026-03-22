@@ -280,32 +280,52 @@ export function OperationsContent({
 
       {/* Tabs */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-2 flex-wrap">
-            {tabs.map((tab) => (
-              <Button
-                key={tab.id}
-                variant={activeTab === tab.id ? 'primary' : 'outline'}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className="flex items-center gap-2"
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <Badge
-                    variant={
-                      activeTab === tab.id
-                        ? 'default'
-                        : tab.id === 'visa' || tab.id === 'insurance'
-                        ? 'warning'
-                        : 'info'
-                    }
-                  >
-                    {tab.count}
-                  </Badge>
-                )}
-              </Button>
-            ))}
+        <CardContent className="pt-4 pb-4">
+          <div className="space-y-3">
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-xs font-medium text-gray-400 uppercase w-14 shrink-0">Admin</span>
+              {tabs.filter(t => ['visa', 'insurance', 'wellpass', 'medical', 'billing'].includes(t.id)).map((tab) => (
+                <Button
+                  key={tab.id}
+                  variant={activeTab === tab.id ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab(tab.id as TabType)}
+                  className="flex items-center gap-1.5"
+                >
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <Badge
+                      variant={activeTab === tab.id ? 'default' : tab.id === 'visa' || tab.id === 'insurance' ? 'warning' : 'info'}
+                    >
+                      {tab.count}
+                    </Badge>
+                  )}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-xs font-medium text-gray-400 uppercase w-14 shrink-0">Ops</span>
+              {tabs.filter(t => ['housing', 'grocery', 'chores', 'pickups', 'trials', 'placements'].includes(t.id)).map((tab) => (
+                <Button
+                  key={tab.id}
+                  variant={activeTab === tab.id ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab(tab.id as TabType)}
+                  className="flex items-center gap-1.5"
+                >
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <Badge
+                      variant={activeTab === tab.id ? 'default' : 'info'}
+                    >
+                      {tab.count}
+                    </Badge>
+                  )}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>

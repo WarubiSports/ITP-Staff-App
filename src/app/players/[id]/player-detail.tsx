@@ -363,55 +363,38 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Players
         </Button>
-        <div className="flex gap-2">
-          {editing ? (
-            <>
-              <Button variant="outline" onClick={handleCancel} disabled={saving}>
-                <X className="w-4 h-4 mr-2" />
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Save Changes
-              </Button>
-            </>
-          ) : (
-            <>
-              {player.email && (
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    const res = await sendWelcomeEmail(player.id)
-                    if (res.success) {
-                      showToast(`Welcome email sent to ${player.email}`, 'success')
-                    } else {
-                      showToast(res.error || 'Failed to send email', 'error')
-                    }
-                  }}
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Send Welcome Email
-                </Button>
-              )}
-              <Button onClick={() => setEditing(true)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Player
-              </Button>
+        {!editing && (
+          <div className="flex gap-2">
+            {player.email && (
               <Button
                 variant="outline"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                onClick={async () => {
+                  const res = await sendWelcomeEmail(player.id)
+                  if (res.success) {
+                    showToast(`Welcome email sent to ${player.email}`, 'success')
+                  } else {
+                    showToast(res.error || 'Failed to send email', 'error')
+                  }
+                }}
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                {isDemo ? 'Delete' : 'Archive'}
+                <Mail className="w-4 h-4 mr-2" />
+                Send Welcome Email
               </Button>
-            </>
-          )}
-        </div>
+            )}
+            <Button onClick={() => setEditing(true)}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Player
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {isDemo ? 'Delete' : 'Archive'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Sticky Save Bar */}
@@ -543,7 +526,7 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
                   onChange={(e) => updateField('nationality', e.target.value)}
                   disabled={!editing}
                 />
-                {editing ? (
+                {editing && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Status
@@ -560,12 +543,6 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
                       ))}
                     </select>
                   </div>
-                ) : (
-                  <Input
-                    label="Status"
-                    value={player.status}
-                    disabled
-                  />
                 )}
                 <Input
                   label="Positions (comma-separated)"
@@ -591,20 +568,7 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
                   disabled={!editing}
                   placeholder="e.g., 5"
                 />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Program Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Program Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Program Dates */}
                 <Input
                   label="Program Start Date"
                   type="date"
@@ -619,24 +583,11 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
                   onChange={(e) => updateField('program_end_date', e.target.value)}
                   disabled={!editing}
                 />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pathway Interest */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="w-5 h-5" />
-                Pathway Interest
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pathway Interest */}
                 {editing ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Interest
+                      Pathway Interest
                     </label>
                     <select
                       value={player.pathway_interest || ''}
@@ -653,7 +604,7 @@ export function PlayerDetail({ player: initialPlayer, houses, assignedRoom, docu
                   </div>
                 ) : (
                   <Input
-                    label="Interest"
+                    label="Pathway Interest"
                     value={
                       player.pathway_interest
                         ? { college: 'College (USA)', club_europe: 'Club (Europe)', club_usa: 'Club (USA)', return_home: 'Return Home', undecided: 'Undecided' }[player.pathway_interest] || ''

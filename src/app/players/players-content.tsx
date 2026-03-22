@@ -8,7 +8,6 @@ import {
   UserCheck,
   Clock,
   XCircle,
-  Eye,
   UserPlus,
   Home,
   Plane,
@@ -147,33 +146,20 @@ export function PlayersContent({ players }: PlayersContentProps) {
                 </Button>
               </Link>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              {cohorts.map((c) => (
-                <Button
-                  key={c}
-                  variant={cohortFilter === c ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setCohortFilter(c)}
-                >
-                  {c}
-                </Button>
-              ))}
-              <Button
-                variant={cohortFilter === 'none' ? 'primary' : 'outline'}
-                size="sm"
-                onClick={() => setCohortFilter('none')}
+            <div className="flex gap-2 flex-wrap items-center">
+              <select
+                value={cohortFilter}
+                onChange={(e) => setCohortFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               >
-                No Cohort
-              </Button>
-              <Button
-                variant={cohortFilter === 'all' ? 'primary' : 'outline'}
-                size="sm"
-                onClick={() => setCohortFilter('all')}
-              >
-                All
-              </Button>
-            </div>
-            <div className="flex gap-2 flex-wrap">
+                <option value="all">All Cohorts</option>
+                {cohorts.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+                <option value="none">No Cohort</option>
+              </select>
+              <div className="h-4 w-px bg-gray-200" />
+
               {statusButtons.map((btn) => (
                 <Button
                   key={btn.value}
@@ -193,100 +179,86 @@ export function PlayersContent({ players }: PlayersContentProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredPlayers.map((player) => {
           return (
-            <Card key={player.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar
-                      name={`${player.first_name} ${player.last_name}`}
-                      src={player.photo_url}
-                      size="lg"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {player.first_name} {player.last_name}
-                        {player.jersey_number && (
-                          <span className="ml-2 text-gray-400 font-normal">#{player.jersey_number}</span>
-                        )}
-                      </h3>
-                      <p className="text-sm text-gray-500">{player.player_id}</p>
+            <Link key={player.id} href={`/players/${player.id}`}>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar
+                        name={`${player.first_name} ${player.last_name}`}
+                        src={player.photo_url}
+                        size="lg"
+                      />
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          {player.first_name} {player.last_name}
+                          {player.jersey_number && (
+                            <span className="ml-2 text-gray-400 font-normal">#{player.jersey_number}</span>
+                          )}
+                        </h3>
+                        <p className="text-sm text-gray-500">{player.player_id}</p>
+                      </div>
                     </div>
+                    <Badge
+                      variant={
+                        player.status === 'active'
+                          ? 'success'
+                          : player.status === 'pending'
+                          ? 'warning'
+                          : 'default'
+                      }
+                    >
+                      {player.status}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant={
-                      player.status === 'active'
-                        ? 'success'
-                        : player.status === 'pending'
-                        ? 'warning'
-                        : 'default'
-                    }
-                  >
-                    {player.status}
-                  </Badge>
-                </div>
 
-                <div className="space-y-2 text-sm">
-                  {player.positions && player.positions.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Position:</span>
-                      <span className="font-medium">
-                        {player.positions.map(p =>
-                          p.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
-                        ).join(', ')}
-                      </span>
-                    </div>
-                  )}
-                  {player.nationality && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Nationality:</span>
-                      <span className="font-medium">{player.nationality}</span>
-                    </div>
-                  )}
-                  {player.cohort && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Cohort:</span>
-                      <span className="font-medium">{player.cohort}</span>
-                    </div>
-                  )}
-                  {/* Whereabouts */}
-                  {player.whereabouts_status && player.whereabouts_status !== 'at_academy' && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Location:</span>
-                      {(() => {
-                        const config = whereaboutsConfig[player.whereabouts_status]
-                        const Icon = config.icon
-                        return (
-                          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${config.bg}`}>
-                            <Icon className={`w-3 h-3 ${config.color}`} />
-                            <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <Link href={`/players/${player.id}`}>
-                    <Button variant="primary" size="sm" className="w-full">
-                      <Eye className="w-4 h-4 mr-2" />
-                      View / Edit
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="space-y-2 text-sm">
+                    {player.positions && player.positions.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">Position:</span>
+                        <span className="font-medium">
+                          {player.positions.map(p =>
+                            p.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+                          ).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {player.nationality && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">Nationality:</span>
+                        <span className="font-medium">{player.nationality}</span>
+                      </div>
+                    )}
+                    {player.cohort && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">Cohort:</span>
+                        <span className="font-medium">{player.cohort}</span>
+                      </div>
+                    )}
+                    {player.whereabouts_status && player.whereabouts_status !== 'at_academy' && (() => {
+                      const config = whereaboutsConfig[player.whereabouts_status]
+                      const Icon = config.icon
+                      return (
+                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${config.bg}`}>
+                          <Icon className={`w-3 h-3 ${config.color}`} />
+                          <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           )
         })}
       </div>
 
       {filteredPlayers.length === 0 && (
         <Card>
-          <CardContent className="py-12">
+          <CardContent className="py-8">
             <div className="text-center text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-lg font-medium">No players found</p>
-              <p className="text-sm">Try adjusting your search or filters</p>
+              <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium">No players found</p>
             </div>
           </CardContent>
         </Card>

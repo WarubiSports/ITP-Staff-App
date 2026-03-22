@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
 
 type PathwayInterest = 'college' | 'club_europe' | 'club_usa' | 'return_home' | 'undecided'
@@ -147,68 +148,44 @@ export const PlacementsContent = ({ players, collegeTargets, outreach }: Placeme
         />
       </div>
 
-      {/* Current Interest Breakdown */}
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Active Players — Pathway Interests
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex gap-2 flex-wrap items-center">
+            <span className="text-xs font-medium text-gray-400 uppercase mr-1">Status</span>
+            {(['all', 'active', 'alumni'] as FilterStatus[]).map(s => (
+              <Button
+                key={s}
+                variant={statusFilter === s ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter(s)}
+              >
+                {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+              </Button>
+            ))}
+            <div className="h-4 w-px bg-gray-200 mx-1" />
+            <span className="text-xs font-medium text-gray-400 uppercase mr-1">Pathway</span>
             {([
-              { key: 'college' as const, count: collegeInterest.filter(p => p.status === 'active').length, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-              { key: 'club_europe' as const, count: clubEuropeInterest.filter(p => p.status === 'active').length, color: 'bg-purple-50 text-purple-700 border-purple-200' },
-              { key: 'club_usa' as const, count: clubUsaInterest.filter(p => p.status === 'active').length, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-              { key: 'return_home' as const, count: returnHomeInterest.filter(p => p.status === 'active').length, color: 'bg-orange-50 text-orange-700 border-orange-200' },
-              { key: 'undecided' as const, count: undecided.filter(p => p.status === 'active').length, color: 'bg-gray-50 text-gray-700 border-gray-200' },
-            ]).map(({ key, count, color }) => {
-              const Icon = INTEREST_ICONS[key]
-              return (
-                <button
-                  key={key}
-                  onClick={() => setInterestFilter(interestFilter === key ? 'all' : key)}
-                  className={`flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-colors ${
-                    interestFilter === key ? 'ring-2 ring-red-500 ' + color : color
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{INTEREST_LABELS[key]}</span>
-                  <span className="ml-auto font-bold">{count}</span>
-                </button>
-              )
-            })}
+              { key: 'all' as const, label: 'All' },
+              { key: 'college' as const, label: 'College' },
+              { key: 'club_europe' as const, label: 'Club EU' },
+              { key: 'club_usa' as const, label: 'Club US' },
+              { key: 'return_home' as const, label: 'Return' },
+              { key: 'undecided' as const, label: 'Undecided' },
+              { key: 'not_set' as const, label: 'Not Set' },
+            ]).map(({ key, label }) => (
+              <Button
+                key={key}
+                variant={interestFilter === key ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setInterestFilter(key)}
+              >
+                {label}
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
-
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        {(['all', 'active', 'alumni'] as FilterStatus[]).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
-              statusFilter === s
-                ? 'bg-red-50 border-red-300 text-red-700'
-                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            {s === 'all' ? 'All Players' : s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
-        <button
-          onClick={() => setInterestFilter(interestFilter === 'not_set' ? 'all' : 'not_set')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
-            interestFilter === 'not_set'
-              ? 'bg-red-50 border-red-300 text-red-700'
-              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}
-        >
-          No Interest Set
-        </button>
-      </div>
 
       {/* Player Interest Table */}
       <Card>

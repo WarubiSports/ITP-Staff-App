@@ -529,13 +529,6 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
                         {/* Actions */}
                         <td className="py-3 px-4">
                           <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-                              title="View details"
-                              onClick={() => router.push(`/prospects/${prospect.id}`)}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
                             {prospect.status === 'requested' && (
                               <>
                                 <button
@@ -598,11 +591,10 @@ export function ProspectsContent({ prospects, rooms = [], players = [] }: Prospe
 
       {filteredProspects.length === 0 && (
         <Card>
-          <CardContent className="py-12">
+          <CardContent className="py-8">
             <div className="text-center text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-lg font-medium">No prospects found</p>
-              <p className="text-sm">Try adjusting your search or filters, or add a new prospect</p>
+              <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium">No prospects found</p>
             </div>
           </CardContent>
         </Card>

@@ -7,6 +7,7 @@ import {
   Mail,
   Shield,
   ClipboardList,
+  Briefcase,
   Edit2,
   UserPlus,
 } from 'lucide-react'
@@ -83,7 +84,7 @@ export function StaffContent({ staff, currentUserId }: StaffContentProps) {
               Invite Staff
             </Button>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap mt-3">
             {roleButtons.map((btn) => (
                 <Button
                   key={btn.value}
@@ -153,7 +154,7 @@ export function StaffContent({ staff, currentUserId }: StaffContentProps) {
                   {member.responsibilities && member.responsibilities.length > 0 && (
                     <div className="pt-2">
                       <div className="flex items-center gap-2 mb-2">
-                        <ClipboardList className="w-4 h-4 text-gray-400" />
+                        <Briefcase className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600">Responsibilities</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -189,11 +190,10 @@ export function StaffContent({ staff, currentUserId }: StaffContentProps) {
 
       {filteredStaff.length === 0 && (
         <Card>
-          <CardContent className="py-12">
+          <CardContent className="py-8">
             <div className="text-center text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-lg font-medium">No staff members found</p>
-              <p className="text-sm">Try adjusting your search or filters</p>
+              <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium">No staff members found</p>
             </div>
           </CardContent>
         </Card>
