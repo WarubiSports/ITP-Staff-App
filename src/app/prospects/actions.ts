@@ -164,6 +164,27 @@ export async function convertProspectToPlayer(prospectId: string): Promise<{
       return { success: false, error: 'Failed to generate unique player ID after retries' }
     }
 
+    // Create initial focus note from trial report areas of opportunity
+    const reportData = prospect.trial_report_data as { areas?: { title: string; description: string }[] } | null
+    if (reportData?.areas?.length) {
+      try {
+        await adminClient
+          .from('player_focus_notes')
+          .insert({
+            player_id: authData.user.id,
+            session_type: 'meeting',
+            session_date: new Date().toISOString().split('T')[0],
+            topics: 'Trial Evaluation — Initial Development Focus',
+            focus_points: reportData.areas.map(a => a.title),
+            internal_comments: reportData.areas.map(a => `${a.title}: ${a.description}`).join('\n\n'),
+            visible_to_player: true,
+            created_by: user.id,
+          })
+      } catch {
+        // Non-critical — player already created, focus note is best-effort
+      }
+    }
+
     // 5. Copy documents from prospect-onboarding to player-documents bucket
     const docFields = [
       { field: 'passport_file_path', type: 'passport' },

@@ -345,9 +345,9 @@ export function RoomAllocation({ players, rooms, houses, trialProspects = [], on
 
             {/* Trial Prospects Section - Academy Housing */}
             {(() => {
-              // Only show trialists who are NOT assigned to a room
+              // Only show approved trialists who are NOT assigned to a room
               const academyTrialists = trialProspects.filter(p =>
-                (p.accommodation_type === 'house' || !p.accommodation_type) && !p.room_id
+                p.accommodation_type === 'house' && p.housing_status === 'approved' && !p.room_id
               )
               const ownStayTrialists = trialProspects.filter(p =>
                 p.accommodation_type && p.accommodation_type !== 'house'

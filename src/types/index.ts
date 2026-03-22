@@ -469,6 +469,7 @@ export interface TrialProspect {
   accommodation_type?: 'house' | 'hotel' | 'airbnb' | 'family' | 'own_stay'
   accommodation_address?: string
   accommodation_notes?: string
+  housing_status?: 'pending' | 'approved' | 'declined'
   // Status
   status: 'requested' | 'inquiry' | 'scheduled' | 'in_progress' | 'evaluation' | 'decision_pending' | 'accepted' | 'rejected' | 'withdrawn' | 'placed'
   // Evaluation
