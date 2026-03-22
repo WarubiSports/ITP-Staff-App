@@ -134,6 +134,19 @@ interface CompletedOnboarding {
   onboarding_completed_at: string
 }
 
+interface OverdueFollowUp {
+  id: string
+  organization_name: string
+  player?: { first_name: string; last_name: string }[] | { first_name: string; last_name: string } | null
+}
+
+interface StaleTrialRequest {
+  id: string
+  first_name: string
+  last_name: string
+  created_at: string
+}
+
 interface DashboardContentProps {
   players: Player[]
   todayTasks: Task[]
@@ -143,6 +156,8 @@ interface DashboardContentProps {
   activeTrials: Trial[]
   completedOnboarding: CompletedOnboarding[]
   pendingTrialRequests?: number
+  overdueFollowUps: OverdueFollowUp[]
+  staleTrialRequests: StaleTrialRequest[]
   today: string
   currentUserId: string
 }
@@ -164,6 +179,8 @@ export function DashboardContent({
   activeTrials,
   completedOnboarding,
   pendingTrialRequests = 0,
+  overdueFollowUps,
+  staleTrialRequests,
   today,
   currentUserId,
 }: DashboardContentProps) {
@@ -311,6 +328,40 @@ export function DashboardContent({
           </Card>
         </Link>
       </div>
+
+      {/* Action Required Alerts */}
+      {(overdueFollowUps.length > 0 || staleTrialRequests.length > 0) && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-900">Action Required</h3>
+                <div className="mt-2 space-y-2">
+                  {overdueFollowUps.length > 0 && (
+                    <Link href="/placements" className="flex items-center justify-between group">
+                      <span className="text-sm text-red-800">
+                        {overdueFollowUps.length} overdue placement follow-up{overdueFollowUps.length !== 1 ? 's' : ''}
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-red-400 group-hover:text-red-600" />
+                    </Link>
+                  )}
+                  {staleTrialRequests.length > 0 && (
+                    <Link href="/prospects" className="flex items-center justify-between group">
+                      <span className="text-sm text-red-800">
+                        {staleTrialRequests.length} trial request{staleTrialRequests.length !== 1 ? 's' : ''} unanswered 7+ days
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-red-400 group-hover:text-red-600" />
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Onboarding Completion Alerts */}
       {completedOnboarding.length > 0 && (

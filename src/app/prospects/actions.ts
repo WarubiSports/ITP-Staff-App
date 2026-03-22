@@ -356,6 +356,33 @@ export async function sendProspectEmail({
 /**
  * Notify the referring scout about a status change (best-effort, non-blocking)
  */
+/**
+ * Sync trial prospect status back to scout_prospects.trial_feedback (best-effort)
+ */
+export async function syncTrialStatusToScout(
+  prospectId: string,
+  status: string
+): Promise<void> {
+  try {
+    const adminClient = createAdminClient()
+
+    const { data: scoutProspect } = await adminClient
+      .from('scout_prospects')
+      .select('id')
+      .eq('trial_prospect_id', prospectId)
+      .single()
+
+    if (scoutProspect) {
+      await adminClient
+        .from('scout_prospects')
+        .update({ trial_feedback: status })
+        .eq('id', scoutProspect.id)
+    }
+  } catch {
+    // Best-effort — don't break the main flow
+  }
+}
+
 export async function notifyScout(
   prospectId: string,
   event: 'scheduled' | 'accepted' | 'rejected',

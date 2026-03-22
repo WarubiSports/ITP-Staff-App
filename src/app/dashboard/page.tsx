@@ -23,6 +23,11 @@ export default async function DashboardPage() {
   // Get today's date
   const today = new Date().toISOString().split('T')[0]
 
+  // Calculate 7 days ago for stale trial requests
+  const sevenDaysAgoDate = new Date(today)
+  sevenDaysAgoDate.setDate(sevenDaysAgoDate.getDate() - 7)
+  const sevenDaysAgo = sevenDaysAgoDate.toISOString()
+
   // Fetch all dashboard data in parallel
   const [
     { data: players },
@@ -32,6 +37,8 @@ export default async function DashboardPage() {
     { data: activeTrials },
     { data: completedOnboarding },
     { data: pendingTrialRequests },
+    { data: overdueFollowUps },
+    { data: staleTrialRequests },
   ] = await Promise.all([
     // Players with whereabouts (exclude future arrivals like 26/27 cohort)
     supabase
@@ -77,6 +84,18 @@ export default async function DashboardPage() {
       .from('trial_prospects')
       .select('id')
       .eq('status', 'requested'),
+    // Overdue placement follow-ups
+    supabase
+      .from('placement_outreach')
+      .select('id, organization_name, player:players(first_name, last_name)')
+      .lt('follow_up_date', today)
+      .in('outcome', ['pending', 'positive', 'neutral']),
+    // Stale trial requests (requested 7+ days ago)
+    supabase
+      .from('trial_prospects')
+      .select('id, first_name, last_name, created_at')
+      .eq('status', 'requested')
+      .lt('created_at', sevenDaysAgo),
   ])
 
   // Filter tasks due today or overdue
@@ -115,6 +134,8 @@ export default async function DashboardPage() {
         activeTrials={activeTrials || []}
         completedOnboarding={completedOnboarding || []}
         pendingTrialRequests={pendingTrialRequests?.length || 0}
+        overdueFollowUps={overdueFollowUps || []}
+        staleTrialRequests={staleTrialRequests || []}
         today={today}
         currentUserId={user.id}
       />

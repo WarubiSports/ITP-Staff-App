@@ -38,7 +38,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { TrialProspect } from '@/types'
 import Link from 'next/link'
-import { getOnboardingDocumentUrl, convertProspectToPlayer, notifyScout } from '@/app/prospects/actions'
+import { getOnboardingDocumentUrl, convertProspectToPlayer, notifyScout, syncTrialStatusToScout } from '@/app/prospects/actions'
 import { EmailPreviewModal } from '@/components/modals/EmailPreviewModal'
 import { trialApprovedTemplate, prospectAcceptedTemplate, prospectRejectedTemplate } from '@/lib/email-templates'
 import { TrialReportDialog } from './trial-report-dialog'
@@ -198,6 +198,11 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
         .eq('id', prospect.id)
 
       if (updateError) throw updateError
+
+      // Sync status back to Scout Platform (best-effort, any status change)
+      if (formData.status !== prospect.status) {
+        syncTrialStatusToScout(prospect.id, formData.status)
+      }
 
       if (formData.status === 'accepted' && prospect.status !== 'accepted') {
         const { subject, body } = prospectAcceptedTemplate({
