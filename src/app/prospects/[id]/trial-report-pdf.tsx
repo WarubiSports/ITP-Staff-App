@@ -1,9 +1,8 @@
 'use client'
 
-import { Document, Page, Text, View, StyleSheet, Font, Svg, Path, Circle } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'
 import type { TrialProspect } from '@/types'
 
-// Register a clean sans-serif font
 Font.register({
   family: 'Inter',
   fonts: [
@@ -11,272 +10,62 @@ Font.register({
     { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hjQ.ttf', fontWeight: 600 },
     { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYAZ9hjQ.ttf', fontWeight: 700 },
     { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuDyYAZ9hjQ.ttf', fontWeight: 900 },
+    { src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjQ.ttf', fontWeight: 400, fontStyle: 'italic' },
   ],
 })
 
-const colors = {
-  primary: '#C8102E',    // FC Köln red
+const c = {
+  primary: '#C8102E',
   dark: '#1a1a1a',
   gray: '#4a4a4a',
   lightGray: '#e8e8e8',
   veryLightGray: '#f5f5f5',
   green: '#16a34a',
   red: '#dc2626',
-  amber: '#d97706',
 }
 
 const s = StyleSheet.create({
-  page: {
-    fontFamily: 'Inter',
-    fontSize: 10,
-    color: colors.dark,
-    paddingBottom: 60,
-  },
-  // Header
-  header: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 700,
-    letterSpacing: 2,
-  },
-  headerSubtitle: {
-    color: 'white',
-    fontSize: 7,
-    letterSpacing: 3,
-    opacity: 0.8,
-    marginTop: 2,
-  },
-  headerRight: {
-    color: 'white',
-    fontSize: 9,
-    fontWeight: 700,
-    letterSpacing: 1,
-  },
-  // Player info bar
-  playerBar: {
-    paddingHorizontal: 40,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottom: `2px solid ${colors.primary}`,
-  },
-  playerName: {
-    fontSize: 22,
-    fontWeight: 900,
-    color: colors.dark,
-    marginBottom: 2,
-  },
-  playerMeta: {
-    fontSize: 9,
-    color: colors.gray,
-    letterSpacing: 0.5,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    marginTop: 10,
-    gap: 40,
-  },
-  infoItem: {
-    flexDirection: 'column',
-  },
-  infoLabel: {
-    fontSize: 7,
-    color: colors.gray,
-    letterSpacing: 1.5,
-    fontWeight: 600,
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: colors.dark,
-  },
-  // Content
-  content: {
-    paddingHorizontal: 40,
-    paddingTop: 20,
-  },
-  // Section
-  section: {
-    marginBottom: 20,
-    border: `1px solid ${colors.lightGray}`,
-    borderRadius: 4,
-  },
-  sectionHeader: {
-    backgroundColor: colors.veryLightGray,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottom: `1px solid ${colors.lightGray}`,
-  },
-  sectionTitle: {
-    fontSize: 8,
-    fontWeight: 700,
-    letterSpacing: 2,
-    color: colors.gray,
-  },
-  sectionBody: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  // Bullet points
-  bulletItem: {
-    flexDirection: 'row',
-    marginBottom: 10,
-    paddingRight: 8,
-  },
-  bulletDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.primary,
-    marginTop: 3,
-    marginRight: 10,
-    flexShrink: 0,
-  },
-  bulletContent: {
-    flex: 1,
-  },
-  bulletTitle: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: colors.dark,
-    marginBottom: 2,
-  },
-  bulletText: {
-    fontSize: 9.5,
-    color: colors.gray,
-    lineHeight: 1.5,
-  },
-  // Assessment
-  assessmentText: {
-    fontSize: 10,
-    color: colors.gray,
-    lineHeight: 1.6,
-  },
-  quoteIcon: {
-    fontSize: 24,
-    color: colors.primary,
-    opacity: 0.3,
-    marginBottom: 4,
-  },
-  // Ratings
-  ratingsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  ratingItem: {
-    width: '30%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  ratingLabel: {
-    fontSize: 8,
-    color: colors.gray,
-    width: 55,
-  },
-  ratingBarBg: {
-    flex: 1,
-    height: 6,
-    backgroundColor: colors.lightGray,
-    borderRadius: 3,
-  },
-  ratingBarFill: {
-    height: 6,
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  ratingValue: {
-    fontSize: 9,
-    fontWeight: 700,
-    width: 20,
-    textAlign: 'right',
-  },
-  // Decision
-  decisionBox: {
-    marginTop: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  decisionAccepted: {
-    backgroundColor: '#dcfce7',
-  },
-  decisionRejected: {
-    backgroundColor: '#fee2e2',
-  },
-  decisionText: {
-    fontSize: 14,
-    fontWeight: 900,
-    letterSpacing: 4,
-  },
-  decisionAcceptedText: {
-    color: colors.green,
-  },
-  decisionRejectedText: {
-    color: colors.red,
-  },
-  decisionNotes: {
-    fontSize: 9.5,
-    color: colors.gray,
-    marginTop: 12,
-    lineHeight: 1.5,
-  },
-  followUp: {
-    fontSize: 9,
-    color: colors.gray,
-    fontStyle: 'italic',
-    marginTop: 8,
-  },
-  // Footer
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 40,
-    paddingVertical: 12,
-    borderTop: `1px solid ${colors.lightGray}`,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  footerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  footerText: {
-    fontSize: 8,
-    fontWeight: 700,
-    color: colors.dark,
-    letterSpacing: 0.5,
-  },
-  footerRight: {
-    fontSize: 7,
-    color: colors.gray,
-  },
-  // Divider before decision
-  divider: {
-    borderBottom: `1px solid ${colors.primary}`,
-    marginBottom: 12,
-    marginTop: 4,
-    opacity: 0.3,
-  },
+  page: { fontFamily: 'Inter', fontSize: 9, color: c.dark, paddingBottom: 50 },
+  header: { backgroundColor: c.primary, paddingHorizontal: 36, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerCenter: { alignItems: 'center' },
+  headerTitle: { color: 'white', fontSize: 15, fontWeight: 700, letterSpacing: 2 },
+  headerSubtitle: { color: 'white', fontSize: 6.5, letterSpacing: 3, opacity: 0.8, marginTop: 1 },
+  headerRight: { color: 'white', fontSize: 8, fontWeight: 700, letterSpacing: 1 },
+  playerBar: { paddingHorizontal: 36, paddingTop: 14, paddingBottom: 10, borderBottom: `2px solid ${c.primary}` },
+  playerName: { fontSize: 20, fontWeight: 900, color: c.dark, marginBottom: 1 },
+  playerMeta: { fontSize: 8.5, color: c.gray, letterSpacing: 0.5 },
+  infoGrid: { flexDirection: 'row', marginTop: 8, gap: 36 },
+  infoLabel: { fontSize: 6.5, color: c.gray, letterSpacing: 1.5, fontWeight: 600, marginBottom: 1 },
+  infoValue: { fontSize: 9.5, fontWeight: 700, color: c.dark },
+  content: { paddingHorizontal: 36, paddingTop: 10 },
+  section: { marginBottom: 10, border: `1px solid ${c.lightGray}`, borderRadius: 3 },
+  sectionHeader: { backgroundColor: c.veryLightGray, paddingHorizontal: 14, paddingVertical: 6, borderBottom: `1px solid ${c.lightGray}` },
+  sectionTitle: { fontSize: 7.5, fontWeight: 700, letterSpacing: 2, color: c.gray },
+  sectionBody: { paddingHorizontal: 14, paddingVertical: 8 },
+  bulletItem: { flexDirection: 'row', marginBottom: 5, paddingRight: 6 },
+  bulletDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.primary, marginTop: 3, marginRight: 8, flexShrink: 0 },
+  bulletContent: { flex: 1 },
+  bulletTitle: { fontSize: 9, fontWeight: 700, color: c.dark, marginBottom: 1 },
+  bulletText: { fontSize: 8.5, color: c.gray, lineHeight: 1.45 },
+  assessmentText: { fontSize: 8.5, color: c.gray, lineHeight: 1.45 },
+  quoteIcon: { fontSize: 18, color: c.primary, opacity: 0.3, marginBottom: 1 },
+  ratingsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  ratingItem: { width: '30%', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ratingLabel: { fontSize: 7.5, color: c.gray, width: 50 },
+  ratingBarBg: { flex: 1, height: 5, backgroundColor: c.lightGray, borderRadius: 2.5 },
+  ratingBarFill: { height: 5, backgroundColor: c.primary, borderRadius: 2.5 },
+  ratingValue: { fontSize: 8, fontWeight: 700, width: 20, textAlign: 'right' },
+  divider: { borderBottom: `1px solid ${c.primary}`, marginBottom: 10, marginTop: 2, opacity: 0.3 },
+  decisionBox: { marginTop: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 5, alignItems: 'center' },
+  decisionAccepted: { backgroundColor: '#dcfce7' },
+  decisionRejected: { backgroundColor: '#fee2e2' },
+  decisionText: { fontSize: 13, fontWeight: 900, letterSpacing: 4 },
+  decisionAcceptedText: { color: c.green },
+  decisionRejectedText: { color: c.red },
+  decisionNotes: { fontSize: 8.5, color: c.gray, marginTop: 8, lineHeight: 1.45 },
+  followUp: { fontSize: 8, color: c.gray, fontStyle: 'italic', marginTop: 6 },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 36, paddingVertical: 10, borderTop: `1px solid ${c.lightGray}`, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  footerRight: { fontSize: 6.5, color: c.gray },
 })
 
 export interface TrialReportData {
@@ -296,37 +85,23 @@ function calculateAge(dob: string): number {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+function formatTrialPeriod(start: string, end: string): string {
+  const s = new Date(start)
+  const e = new Date(end)
+  const sMonth = s.toLocaleDateString('en-US', { month: 'short' })
+  const eMonth = e.toLocaleDateString('en-US', { month: 'short' })
+  return `${sMonth} ${s.getDate()} – ${eMonth} ${e.getDate()}, ${e.getFullYear()}`
 }
 
 function getSeasonLabel(): string {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()
-  // Season runs Aug-Jul
   if (month >= 7) return `${year}-${(year + 1).toString().slice(2)}`
   return `${year - 1}-${year.toString().slice(2)}`
-}
-
-// FC Köln Geißbock logo as simplified SVG
-function KolnLogo() {
-  return (
-    <Svg width={28} height={28} viewBox="0 0 100 100">
-      <Circle cx="50" cy="50" r="48" fill="white" />
-      <Circle cx="50" cy="50" r="44" fill="none" stroke={colors.primary} strokeWidth="3" />
-      <Text
-        style={{ fontSize: 11, fontWeight: 900, color: colors.primary }}
-        x="50"
-        y="35"
-      >
-        1.FC
-      </Text>
-    </Svg>
-  )
 }
 
 export function TrialReportDocument({
@@ -339,8 +114,9 @@ export function TrialReportDocument({
   const age = calculateAge(prospect.date_of_birth)
   const isAccepted = prospect.status === 'accepted' || prospect.status === 'placed'
   const trialPeriod = prospect.trial_start_date && prospect.trial_end_date
-    ? `${formatDate(prospect.trial_start_date)} – ${formatDate(prospect.trial_end_date)}`
+    ? formatTrialPeriod(prospect.trial_start_date, prospect.trial_end_date)
     : 'N/A'
+  const ageGroup = age > 18 ? 'U-23' : `U-${age}`
 
   const ratings = [
     { label: 'Technical', value: prospect.technical_rating },
@@ -355,11 +131,11 @@ export function TrialReportDocument({
       <Page size="A4" style={s.page}>
         {/* Header */}
         <View style={s.header}>
-          <View style={s.headerLeft}>
-            <View>
-              <Text style={s.headerTitle}>TRIAL EVALUATION</Text>
-              <Text style={s.headerSubtitle}>INTERNATIONAL TALENT PATHWAY</Text>
-            </View>
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          <Image src="/warubi-fc-logo.png" style={{ height: 20 }} />
+          <View style={s.headerCenter}>
+            <Text style={s.headerTitle}>TRIAL EVALUATION</Text>
+            <Text style={s.headerSubtitle}>INTERNATIONAL TALENT PATHWAY</Text>
           </View>
           <Text style={s.headerRight}>PROSPECT {getSeasonLabel()}</Text>
         </View>
@@ -367,27 +143,27 @@ export function TrialReportDocument({
         {/* Player Info */}
         <View style={s.playerBar}>
           <Text style={s.playerName}>
-            {prospect.first_name.toUpperCase()} <Text style={{ fontWeight: 900 }}>{prospect.last_name.toUpperCase()}</Text>
+            {prospect.first_name.toUpperCase()} {prospect.last_name.toUpperCase()}
           </Text>
           <Text style={s.playerMeta}>
-            U-{age > 18 ? '23' : age} · {prospect.position}{prospect.nationality ? ` · ${prospect.nationality}` : ''}
+            {ageGroup} · {prospect.position}{prospect.nationality ? ` · ${prospect.nationality}` : ''}
           </Text>
           <View style={s.infoGrid}>
-            <View style={s.infoItem}>
+            <View>
               <Text style={s.infoLabel}>DATE OF BIRTH</Text>
               <Text style={s.infoValue}>{formatDate(prospect.date_of_birth)}</Text>
             </View>
-            <View style={s.infoItem}>
+            <View>
               <Text style={s.infoLabel}>AGE</Text>
               <Text style={s.infoValue}>{age}</Text>
             </View>
             {prospect.height_cm && (
-              <View style={s.infoItem}>
+              <View>
                 <Text style={s.infoLabel}>HEIGHT</Text>
                 <Text style={s.infoValue}>{prospect.height_cm} cm</Text>
               </View>
             )}
-            <View style={s.infoItem}>
+            <View>
               <Text style={s.infoLabel}>TRIAL PERIOD</Text>
               <Text style={s.infoValue}>{trialPeriod}</Text>
             </View>
@@ -492,11 +268,8 @@ export function TrialReportDocument({
 
         {/* Footer */}
         <View style={s.footer} fixed>
-          <View style={s.footerLeft}>
-            <Text style={s.footerText}>1. FC KÖLN</Text>
-            <Text style={{ fontSize: 8, color: colors.gray }}>·</Text>
-            <Text style={{ fontSize: 7, color: colors.gray, letterSpacing: 0.5 }}>INTERNATIONAL TALENT PATHWAY</Text>
-          </View>
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          <Image src="/warubi-fc-logo.png" style={{ height: 18 }} />
           <Text style={s.footerRight}>
             ITP TRIAL EVALUATION — {prospect.first_name.toUpperCase()} {prospect.last_name.toUpperCase()} — 1. FC KÖLN INTERNATIONAL TALENT PATHWAY
           </Text>
