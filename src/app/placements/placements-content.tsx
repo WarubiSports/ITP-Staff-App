@@ -11,6 +11,9 @@ import {
   Building2,
   MessageSquare,
   ArrowUpRight,
+  AlertTriangle,
+  Calendar,
+  Search,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -50,6 +53,7 @@ interface OutreachEntry {
   organization_name: string
   organization_type?: string
   outcome?: string
+  follow_up_date?: string
   created_at: string
   player?: { id: string; first_name: string; last_name: string; player_id: string }
 }
@@ -82,20 +86,24 @@ type FilterInterest = 'all' | PathwayInterest | 'not_set'
 export const PlacementsContent = ({ players, collegeTargets, outreach }: PlacementsContentProps) => {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all')
   const [interestFilter, setInterestFilter] = useState<FilterInterest>('all')
+  const [showAllTargets, setShowAllTargets] = useState(false)
+  const [showAllOutreach, setShowAllOutreach] = useState(false)
+  const [outreachSearch, setOutreachSearch] = useState('')
 
   // Compute stats
   const totalPlayers = players.length
   const alumni = players.filter(p => p.status === 'alumni')
+  const alumniPlaced = alumni.filter(p => p.pathway_interest && p.pathway_interest !== 'undecided')
 
   // Alumni stats
   const alumniCollege = alumni.filter(p => p.pathway_interest === 'college')
   const alumniClub = alumni.filter(p => p.pathway_interest === 'club_europe' || p.pathway_interest === 'club_usa')
   const alumniReturn = alumni.filter(p => p.pathway_interest === 'return_home')
 
-  const pctPlaced = totalPlayers > 0 ? Math.round((alumni.length / totalPlayers) * 100) : 0
-  const pctCollege = alumni.length > 0 ? Math.round((alumniCollege.length / alumni.length) * 100) : 0
-  const pctClub = alumni.length > 0 ? Math.round((alumniClub.length / alumni.length) * 100) : 0
-  const pctReturn = alumni.length > 0 ? Math.round((alumniReturn.length / alumni.length) * 100) : 0
+  const pctPlaced = alumni.length > 0 ? Math.round((alumniPlaced.length / alumni.length) * 100) : 0
+  const pctCollege = alumniPlaced.length > 0 ? Math.round((alumniCollege.length / alumniPlaced.length) * 100) : 0
+  const pctClub = alumniPlaced.length > 0 ? Math.round((alumniClub.length / alumniPlaced.length) * 100) : 0
+  const pctReturn = alumniPlaced.length > 0 ? Math.round((alumniReturn.length / alumniPlaced.length) * 100) : 0
 
   // Filtered players
   const filtered = players.filter(p => {
@@ -116,27 +124,27 @@ export const PlacementsContent = ({ players, collegeTargets, outreach }: Placeme
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
-          label="Alumni Placed"
-          value={`${alumni.length}`}
-          sub={`${pctPlaced}% of all players`}
+          label="Placed"
+          value={`${alumniPlaced.length}`}
+          sub={alumni.length > 0 ? `${pctPlaced}% of ${alumni.length} alumni` : '—'}
           icon={<TrendingUp className="w-5 h-5 text-green-600" />}
         />
         <StatCard
           label="To College"
           value={`${alumniCollege.length}`}
-          sub={alumni.length > 0 ? `${pctCollege}% of alumni` : '—'}
+          sub={alumniPlaced.length > 0 ? `${pctCollege}% of placed` : '—'}
           icon={<GraduationCap className="w-5 h-5 text-blue-600" />}
         />
         <StatCard
           label="To Clubs"
           value={`${alumniClub.length}`}
-          sub={alumni.length > 0 ? `${pctClub}% of alumni` : '—'}
+          sub={alumniPlaced.length > 0 ? `${pctClub}% of placed` : '—'}
           icon={<Globe className="w-5 h-5 text-purple-600" />}
         />
         <StatCard
           label="Returned Home"
           value={`${alumniReturn.length}`}
-          sub={alumni.length > 0 ? `${pctReturn}% of alumni` : '—'}
+          sub={alumniPlaced.length > 0 ? `${pctReturn}% of placed` : '—'}
           icon={<Home className="w-5 h-5 text-orange-600" />}
         />
       </div>
@@ -221,7 +229,12 @@ export const PlacementsContent = ({ players, collegeTargets, outreach }: Placeme
                             {INTEREST_LABELS[p.pathway_interest]}
                           </span>
                         ) : (
-                          <span className="text-gray-400">Not set</span>
+                          <span className="inline-flex items-center gap-1 text-gray-400">
+                            Not set
+                            {p.status === 'alumni' && (
+                              <span title="Alumni without pathway set"><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /></span>
+                            )}
+                          </span>
                         )}
                       </td>
                       <td className="py-3 pr-4">
@@ -272,7 +285,7 @@ export const PlacementsContent = ({ players, collegeTargets, outreach }: Placeme
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {activeTargets.slice(0, 20).map(t => (
+              {(showAllTargets ? activeTargets : activeTargets.slice(0, 20)).map(t => (
                 <div key={t.id} className="flex items-center justify-between p-3 rounded-lg border bg-white hover:bg-gray-50">
                   <div>
                     <span className="font-medium text-gray-900">{t.college_name}</span>
@@ -294,6 +307,11 @@ export const PlacementsContent = ({ players, collegeTargets, outreach }: Placeme
                   </div>
                 </div>
               ))}
+              {!showAllTargets && activeTargets.length > 20 && (
+                <Button variant="outline" size="sm" onClick={() => setShowAllTargets(true)} className="w-full">
+                  Show all {activeTargets.length} targets
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -303,38 +321,78 @@ export const PlacementsContent = ({ players, collegeTargets, outreach }: Placeme
       {outreach.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Recent Outreach
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Recent Outreach ({outreach.length})
+              </CardTitle>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={outreachSearch}
+                  onChange={(e) => setOutreachSearch(e.target.value)}
+                  className="text-sm pl-8 pr-3 py-1.5 border rounded-md w-48"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {outreach.slice(0, 10).map(o => (
-                <div key={o.id} className="flex items-center justify-between p-3 rounded-lg border bg-white">
-                  <div>
-                    <span className="font-medium text-gray-900">{o.organization_name}</span>
-                    {o.organization_type && <span className="text-gray-400 text-sm ml-2">({o.organization_type})</span>}
-                    {o.player && (
-                      <Link href={`/players/${o.player.id}`} className="text-red-600 hover:underline text-sm ml-3">
-                        {o.player.first_name} {o.player.last_name}
-                      </Link>
+              {(() => {
+                const filtered = outreachSearch
+                  ? outreach.filter(o =>
+                      o.organization_name.toLowerCase().includes(outreachSearch.toLowerCase()) ||
+                      (o.player && `${o.player.first_name} ${o.player.last_name}`.toLowerCase().includes(outreachSearch.toLowerCase()))
+                    )
+                  : outreach
+                const displayed = showAllOutreach ? filtered : filtered.slice(0, 20)
+                return (
+                  <>
+                    {displayed.map(o => {
+                      const today = new Date().toISOString().split('T')[0]
+                      const isOverdue = o.follow_up_date && o.follow_up_date < today && o.outcome !== 'positive' && o.outcome !== 'negative'
+                      return (
+                        <div key={o.id} className={`flex items-center justify-between p-3 rounded-lg border ${isOverdue ? 'bg-red-50 border-red-200' : 'bg-white'}`}>
+                          <div>
+                            <span className="font-medium text-gray-900">{o.organization_name}</span>
+                            {o.organization_type && <span className="text-gray-400 text-sm ml-2">({o.organization_type})</span>}
+                            {o.player && (
+                              <Link href={`/players/${o.player.id}`} className="text-red-600 hover:underline text-sm ml-3">
+                                {o.player.first_name} {o.player.last_name}
+                              </Link>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {o.outcome && (
+                              <Badge variant={
+                                o.outcome === 'positive' ? 'success' :
+                                o.outcome === 'negative' ? 'danger' :
+                                o.outcome === 'pending' ? 'warning' : 'default'
+                              }>
+                                {o.outcome}
+                              </Badge>
+                            )}
+                            {o.follow_up_date && (
+                              <span className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(o.follow_up_date)}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-400">{formatDate(o.created_at)}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {!showAllOutreach && filtered.length > 20 && (
+                      <Button variant="outline" size="sm" onClick={() => setShowAllOutreach(true)} className="w-full">
+                        Show all {filtered.length} entries
+                      </Button>
                     )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {o.outcome && (
-                      <Badge variant={
-                        o.outcome === 'positive' ? 'success' :
-                        o.outcome === 'negative' ? 'danger' :
-                        o.outcome === 'pending' ? 'warning' : 'default'
-                      }>
-                        {o.outcome}
-                      </Badge>
-                    )}
-                    <span className="text-xs text-gray-400">{formatDate(o.created_at)}</span>
-                  </div>
-                </div>
-              ))}
+                  </>
+                )
+              })()}
             </div>
           </CardContent>
         </Card>

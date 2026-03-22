@@ -108,9 +108,30 @@ export function AddOutreachModal({
     setError('')
   }, [editOutreach, isOpen, prefillPlayerId, prefillCollegeTarget])
 
+  // Auto-fetch college targets when player selected and none provided via props
+  const [fetchedTargets, setFetchedTargets] = useState<CollegeTarget[]>([])
+  const effectiveTargets = collegeTargets.length > 0 ? collegeTargets : fetchedTargets
+
+  useEffect(() => {
+    if (collegeTargets.length > 0 || !formData.player_id) {
+      setFetchedTargets([])
+      return
+    }
+    const fetchTargets = async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('college_targets')
+        .select('id, college_name, division, contact_name, contact_email')
+        .eq('player_id', formData.player_id)
+        .order('updated_at', { ascending: false })
+      if (data) setFetchedTargets(data)
+    }
+    fetchTargets()
+  }, [formData.player_id, collegeTargets.length])
+
   // When a college target is selected from dropdown, auto-fill fields
   const handleCollegeTargetChange = (targetId: string) => {
-    const target = collegeTargets.find(t => t.id === targetId)
+    const target = effectiveTargets.find(t => t.id === targetId)
     if (target) {
       setFormData(prev => ({
         ...prev,
@@ -249,7 +270,7 @@ export function AddOutreachModal({
 
   const collegeTargetOptions = [
     { value: '', label: 'None (freeform)' },
-    ...collegeTargets.map((t) => ({
+    ...effectiveTargets.map((t) => ({
       value: t.id,
       label: `${t.college_name}${t.division ? ` (${t.division})` : ''}`,
     })),
@@ -298,7 +319,7 @@ export function AddOutreachModal({
               required
               disabled={isEditMode || !!prefillPlayerId}
             />
-            {collegeTargets.length > 0 && (
+            {effectiveTargets.length > 0 && (
               <Select
                 label="Link to College Target"
                 value={formData.college_target_id}

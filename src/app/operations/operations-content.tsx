@@ -27,6 +27,7 @@ import {
   MessageSquare,
   ArrowUpRight,
   ArrowDownLeft,
+  Search,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -165,6 +166,7 @@ export function OperationsContent({
   const [localOutreach, setLocalOutreach] = useState(initialOutreach)
   const [showOutreachModal, setShowOutreachModal] = useState(false)
   const [selectedOutreach, setSelectedOutreach] = useState<PlacementOutreach | null>(null)
+  const [outreachSearch, setOutreachSearch] = useState('')
 
   useEffect(() => {
     setLocalOutreach(initialOutreach)
@@ -236,16 +238,23 @@ export function OperationsContent({
     return d.toISOString().split('T')[0]
   })
 
-  const overdueOutreach = localOutreach.filter(o =>
-    o.follow_up_date && o.follow_up_date < today && o.outcome !== 'positive' && o.outcome !== 'negative'
+  const filteredOutreach = outreachSearch
+    ? localOutreach.filter(o => {
+        const q = outreachSearch.toLowerCase()
+        const playerName = o.player ? `${o.player.first_name} ${o.player.last_name}` : getPlayerName(o.player_id)
+        return playerName.toLowerCase().includes(q) || o.organization_name.toLowerCase().includes(q)
+      })
+    : localOutreach
+  const overdueOutreach = filteredOutreach.filter(o =>
+    o.follow_up_date && o.follow_up_date < today && o.outcome !== 'positive' && o.outcome !== 'negative' && o.outcome !== 'neutral'
   )
-  const thisWeekOutreach = localOutreach.filter(o =>
+  const thisWeekOutreach = filteredOutreach.filter(o =>
     o.follow_up_date && o.follow_up_date >= today && o.follow_up_date <= sevenDaysFromNow
   )
-  const upcomingOutreach = localOutreach.filter(o =>
+  const upcomingOutreach = filteredOutreach.filter(o =>
     o.follow_up_date && o.follow_up_date > sevenDaysFromNow
   )
-  const noFollowUpOutreach = localOutreach.filter(o =>
+  const noFollowUpOutreach = filteredOutreach.filter(o =>
     !o.follow_up_date && o.outcome !== 'positive' && o.outcome !== 'negative'
   )
 
@@ -1076,10 +1085,22 @@ export function OperationsContent({
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Placement Outreach</h2>
-            <Button onClick={() => { setSelectedOutreach(null); setShowOutreachModal(true); }}>
-              <Plus className="w-4 h-4 mr-2" />
-              Log Outreach
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search player or org..."
+                  value={outreachSearch}
+                  onChange={(e) => setOutreachSearch(e.target.value)}
+                  className="text-sm pl-8 pr-3 py-1.5 border rounded-md w-52"
+                />
+              </div>
+              <Button onClick={() => { setSelectedOutreach(null); setShowOutreachModal(true); }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Log Outreach
+              </Button>
+            </div>
           </div>
 
           {/* Summary Stats */}
@@ -1104,13 +1125,13 @@ export function OperationsContent({
             </Card>
             <Card className="border-gray-200 bg-gray-50/50">
               <CardContent className="pt-4 pb-4 text-center">
-                <div className="text-2xl font-bold text-gray-700">{localOutreach.length}</div>
+                <div className="text-2xl font-bold text-gray-700">{filteredOutreach.length}</div>
                 <div className="text-xs text-gray-600">Total</div>
               </CardContent>
             </Card>
           </div>
 
-          {localOutreach.length === 0 ? (
+          {filteredOutreach.length === 0 ? (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center text-gray-500">

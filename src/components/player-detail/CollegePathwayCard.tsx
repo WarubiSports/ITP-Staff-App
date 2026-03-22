@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { GraduationCap, MessageSquare, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { GraduationCap, MessageSquare, ArrowUpRight, ArrowDownLeft, Plus, Pencil } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { AddOutreachModal } from '@/components/modals'
+import { AddOutreachModal, AddCollegeTargetModal } from '@/components/modals'
 import { PlacementOutreach } from '@/types'
 
 export interface CollegeTarget {
@@ -48,13 +48,30 @@ export const CollegePathwayCard = ({
 }: CollegePathwayCardProps) => {
   const router = useRouter()
   const [localOutreach, setLocalOutreach] = useState<PlacementOutreach[]>(outreachEntries)
+  const [localTargets, setLocalTargets] = useState<CollegeTarget[]>(collegeTargets)
   const [showOutreachModal, setShowOutreachModal] = useState(false)
   const [selectedOutreach, setSelectedOutreach] = useState<PlacementOutreach | null>(null)
   const [outreachCollegeTarget, setOutreachCollegeTarget] = useState<CollegeTarget | null>(null)
+  const [showTargetModal, setShowTargetModal] = useState(false)
+  const [editingTarget, setEditingTarget] = useState<CollegeTarget | null>(null)
 
   useEffect(() => {
     setLocalOutreach(outreachEntries)
   }, [outreachEntries])
+
+  useEffect(() => {
+    setLocalTargets(collegeTargets)
+  }, [collegeTargets])
+
+  const refreshTargets = async () => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('college_targets')
+      .select('*')
+      .eq('player_id', playerId)
+      .order('updated_at', { ascending: false })
+    if (data) setLocalTargets(data)
+  }
 
   return (
     <>
@@ -66,17 +83,29 @@ export const CollegePathwayCard = ({
               <GraduationCap className="w-5 h-5" />
               College Pathway
             </CardTitle>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedOutreach(null)
-                setOutreachCollegeTarget(null)
-                setShowOutreachModal(true)
-              }}
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Log Outreach
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingTarget(null)
+                  setShowTargetModal(true)
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Target
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedOutreach(null)
+                  setOutreachCollegeTarget(null)
+                  setShowOutreachModal(true)
+                }}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Log Outreach
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -102,32 +131,32 @@ export const CollegePathwayCard = ({
             </div>
           )}
 
-          {collegeTargets.length === 0 && localOutreach.length === 0 ? (
+          {localTargets.length === 0 && localOutreach.length === 0 ? (
             <p className="text-gray-500 text-sm">No recruitment opportunities added yet.</p>
           ) : (
             <div className="space-y-4">
               {/* College targets stats */}
-              {collegeTargets.length > 0 && (
+              {localTargets.length > 0 && (
                 <div className="grid grid-cols-4 gap-3">
                   <div className="bg-blue-50 p-3 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-blue-700">{collegeTargets.length}</div>
+                    <div className="text-2xl font-bold text-blue-700">{localTargets.length}</div>
                     <div className="text-xs text-blue-600">Targets</div>
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg text-center">
                     <div className="text-2xl font-bold text-green-700">
-                      {collegeTargets.filter(t => t.status === 'offer_received' || t.status === 'offered').length}
+                      {localTargets.filter(t => t.status === 'offer_received' || t.status === 'offered').length}
                     </div>
                     <div className="text-xs text-green-600">Offers</div>
                   </div>
                   <div className="bg-amber-50 p-3 rounded-lg text-center">
                     <div className="text-2xl font-bold text-amber-700">
-                      {collegeTargets.filter(t => t.status === 'in_contact' || t.status === 'contacted' || t.status === 'interested').length}
+                      {localTargets.filter(t => t.status === 'in_contact' || t.status === 'contacted' || t.status === 'interested').length}
                     </div>
                     <div className="text-xs text-amber-600">In Contact</div>
                   </div>
                   <div className="bg-purple-50 p-3 rounded-lg text-center">
                     <div className="text-2xl font-bold text-purple-700">
-                      {collegeTargets.filter(t => t.status === 'signed' || t.status === 'committed').length}
+                      {localTargets.filter(t => t.status === 'signed' || t.status === 'committed').length}
                     </div>
                     <div className="text-xs text-purple-600">Committed</div>
                   </div>
@@ -136,7 +165,7 @@ export const CollegePathwayCard = ({
 
               {/* College list with outreach */}
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                {collegeTargets.map((target) => {
+                {localTargets.map((target) => {
                   const statusColors: Record<string, { bg: string; text: string; label: string }> = {
                     researching: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Researching' },
                     in_contact: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'In Contact' },
@@ -172,6 +201,13 @@ export const CollegePathwayCard = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { setEditingTarget(target); setShowTargetModal(true) }}
+                            className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+                            title="Edit target"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
                           <span className={`text-xs font-medium ${interestColors[target.interest_level]}`}>
                             {target.interest_level.charAt(0).toUpperCase() + target.interest_level.slice(1)} Interest
                           </span>
@@ -309,6 +345,15 @@ export const CollegePathwayCard = ({
         </CardContent>
       </Card>
 
+      {/* College Target Modal */}
+      <AddCollegeTargetModal
+        isOpen={showTargetModal}
+        onClose={() => { setShowTargetModal(false); setEditingTarget(null) }}
+        onSuccess={() => { router.refresh(); refreshTargets() }}
+        playerId={playerId}
+        editTarget={editingTarget}
+      />
+
       {/* Outreach Modal */}
       <AddOutreachModal
         isOpen={showOutreachModal}
@@ -334,7 +379,7 @@ export const CollegePathwayCard = ({
         editOutreach={selectedOutreach}
         prefillPlayerId={playerId}
         prefillCollegeTarget={outreachCollegeTarget || undefined}
-        collegeTargets={collegeTargets}
+        collegeTargets={localTargets}
       />
     </>
   )

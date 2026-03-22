@@ -33,7 +33,6 @@ export default async function PlacementsPage() {
     .from('placement_outreach')
     .select('*, player:players(id, first_name, last_name, player_id)')
     .order('created_at', { ascending: false })
-    .limit(50)
 
   return (
     <AppLayout
